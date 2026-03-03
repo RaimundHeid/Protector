@@ -121,7 +121,7 @@ int initializeTablebase(const char *path)
    return (result > 0 ? 0 : -1);
 }
 
-void closeTablebaseFiles()
+void closeTablebaseFiles(void)
 {
    VTbCloseFiles();
 }
@@ -274,7 +274,7 @@ int probeTablebase(const Position * position)
    return getMateValue(fullMoves);
 }
 
-int initializeModuleTablebase()
+int initializeModuleTablebase(void)
 {
 #if defined __APPLE__
    pthread_mutex_init((pthread_mutex_t *) & lock, tbAccessCount);
@@ -292,7 +292,7 @@ int initializeModuleTablebase()
    }
 }
 
-static int testTableFinder()
+static int testTableFinder(void)
 {
 #ifndef NDEBUG
    Variation variation;
@@ -310,7 +310,7 @@ static int testTableFinder()
    return 0;
 }
 
-static int testMateValues()
+static int testMateValues(void)
 {
 #ifndef NDEBUG
    Variation variation;
@@ -328,7 +328,7 @@ static int testMateValues()
    return 0;
 }
 
-int testModuleTablebase()
+int testModuleTablebase(void)
 {
    int result;
 

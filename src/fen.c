@@ -29,7 +29,7 @@ static int initialized = 0;
 static Piece pieceCode[256];
 static char pieceToken[16];
 
-static void initialize()
+static void initialize(void)
 {
    if (!initialized)
    {
@@ -354,12 +354,12 @@ void getFen(const Position * position, char *fen)
    strcat(fen, buffer);
 }
 
-int initializeModuleFen()
+int initializeModuleFen(void)
 {
    return 0;
 }
 
-int testModuleFen()
+int testModuleFen(void)
 {
    char *fen1 = FEN_GAMESTART;
    char *fen2 =

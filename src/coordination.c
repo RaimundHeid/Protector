@@ -43,7 +43,7 @@ static Variation variations[MAX_THREADS];
 static Hashtable sharedHashtable;
 static PawnHashInfo pawnHashtable[MAX_THREADS][PAWN_HASHTABLE_SIZE];
 
-Hashtable *getSharedHashtable()
+Hashtable *getSharedHashtable(void)
 {
    return &sharedHashtable;
 }
@@ -55,7 +55,7 @@ int setNumberOfThreads(int _numThreads)
    return numThreads;
 }
 
-int getNumberOfThreads()
+int getNumberOfThreads(void)
 {
    return numThreads;
 }
@@ -73,7 +73,7 @@ UINT64 getNodeCount(void)
    return sum;
 }
 
-Variation *getCurrentVariation()
+Variation *getCurrentVariation(void)
 {
    return &variations[0];
 }
@@ -160,7 +160,7 @@ static int startSearch(Variation * currentVariation)
    return 0;
 }
 
-long getElapsedTime()
+long getElapsedTime(void)
 {
    return getTimestamp() - variations[0].startTime;
 }
@@ -222,8 +222,12 @@ void scheduleTask(SearchTask * task)
 {
    const unsigned long startTime = getTimestamp();
    int threadCount;
+   pthread_attr_t attr;
 
    sharedHashtable.entriesUsed = 0;
+
+   pthread_attr_init(&attr);
+   pthread_attr_setstacksize(&attr, 2 * 1024 * 1024);   /* 2MB stack for search threads */
 
    startTimerThread(task);
 
@@ -242,7 +246,7 @@ void scheduleTask(SearchTask * task)
       currentVariation->threadNumber = threadCount;
       currentVariation->startTime = startTime;
 
-      if (pthread_create(&searchThread[threadCount], NULL,
+      if (pthread_create(&searchThread[threadCount], &attr,
                          &executeSearch, currentVariation) == 0)
       {
 #ifdef DEBUG_COORDINATION
@@ -257,6 +261,8 @@ void scheduleTask(SearchTask * task)
          exit(EXIT_FAILURE);
       }
    }
+
+   pthread_attr_destroy(&attr);
 }
 
 void waitForSearchTermination(void)
@@ -364,7 +370,7 @@ void setHashtableSizeInMb(unsigned int size)
    resetHashtable(&sharedHashtable);
 }
 
-int initializeModuleCoordination()
+int initializeModuleCoordination(void)
 {
    int threadCount;
 
@@ -382,7 +388,7 @@ int initializeModuleCoordination()
    return 0;
 }
 
-int testModuleCoordination()
+int testModuleCoordination(void)
 {
    return 0;
 }

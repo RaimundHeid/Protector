@@ -32,7 +32,7 @@ char pieceName[16];
 
 static char *logfileName = "protector.log";
 
-int getKeyStroke()
+int getKeyStroke(void)
 {
    logDebug("\nProgram halted. Hit RETURN to continue.");
 
@@ -448,7 +448,7 @@ void writeTableToFile(UINT64 * table, const int tablesize,
    fclose(file);
 }
 
-int initializeModuleIo()
+int initializeModuleIo(void)
 {
    pieceSymbol[KING] = 'K';
    pieceSymbol[QUEEN] = 'Q';
@@ -474,7 +474,7 @@ int initializeModuleIo()
    return 0;
 }
 
-int testModuleIo()
+int testModuleIo(void)
 {
    char buffer[32];
 

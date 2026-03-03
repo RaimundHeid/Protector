@@ -716,7 +716,7 @@ int getFloodValue(const Square origin, const Bitboard targets,
    return numSteps;
 }
 
-static void initializeKingMoves()
+static void initializeKingMoves(void)
 {
    int offset[] = { 1, -1, 7, -7, 8, -8, 9, -9 }, direction;
    Square square;
@@ -735,7 +735,7 @@ static void initializeKingMoves()
    }
 }
 
-static void initializeRookMoves()
+static void initializeRookMoves(void)
 {
    int offset[] = { 1, -1, 8, -8 }, direction, moveLength;
    Square square;
@@ -764,7 +764,7 @@ static void initializeRookMoves()
    }
 }
 
-static void initializeBishopMoves()
+static void initializeBishopMoves(void)
 {
    int offset[] = { 7, -7, 9, -9 }, direction, moveLength;
    Square square;
@@ -793,7 +793,7 @@ static void initializeBishopMoves()
    }
 }
 
-static void initializeQueenMoves()
+static void initializeQueenMoves(void)
 {
    Square square;
 
@@ -804,7 +804,7 @@ static void initializeQueenMoves()
    }
 }
 
-static void initializeKnightMoves()
+static void initializeKnightMoves(void)
 {
    int offset[] = { 6, -6, 10, -10, 15, -15, 17, -17 }, direction;
    Square square;
@@ -823,7 +823,7 @@ static void initializeKnightMoves()
    }
 }
 
-static void initializePawnMoves()
+static void initializePawnMoves(void)
 {
    Square square;
 
@@ -874,7 +874,7 @@ static Bitboard calculateSquaresBehind(Square square, int offset)
    return squares;
 }
 
-static void initializeSquaresBehind()
+static void initializeSquaresBehind(void)
 {
    Square sq1, sq2;
 
@@ -904,7 +904,7 @@ static Bitboard calculateSquaresBetween(Square sq1, Square sq2)
    return squares;
 }
 
-static void initializeSquaresBetween()
+static void initializeSquaresBetween(void)
 {
    Square sq1, sq2;
 
@@ -919,7 +919,7 @@ static void initializeSquaresBetween()
    }
 }
 
-static void initializeSquareLaneInfo()
+static void initializeSquareLaneInfo(void)
 {
    Square square;
 
@@ -1190,7 +1190,7 @@ static Bitboard getInterestedBlackPawns(Square square, BYTE laneMask)
    return pawns;
 }
 
-static void initializeLaneMasks()
+static void initializeLaneMasks(void)
 {
    Square square;
    int i;
@@ -1253,7 +1253,7 @@ static Bitboard getCastlings(const Bitboard obstacles)
    return castlings;
 }
 
-static void initializeCastlings()
+static void initializeCastlings(void)
 {
    int i, c;
 
@@ -1376,7 +1376,7 @@ static Bitboard getPremaskExclusions(const Square square)
    }
 }
 
-static void initializePremasks()
+static void initializePremasks(void)
 {
    Square square;
 
@@ -1570,7 +1570,7 @@ static bool testMagicNumber(const Bitboard magicNumber, const Square square,
    return TRUE;                 /* the given magic number is valid */
 }
 
-static UINT64 get64bitRandom()
+static UINT64 get64bitRandom(void)
 {
    const UINT64 limit = (RAND_MAX * 13) / 100;
    UINT64 rn = 0, runningOne = 1;
@@ -1589,7 +1589,7 @@ static UINT64 get64bitRandom()
    return rn;
 }
 
-static void calculateMagicNumbers()
+static void calculateMagicNumbers(void)
 {
    Square square;
 
@@ -1650,7 +1650,7 @@ Bitboard getFlippedBitboard(Bitboard original)
    return flipped;
 }
 
-int initializeModuleBitboard()
+int initializeModuleBitboard(void)
 {
    INT32 i;
    UINT32 j;
@@ -1887,10 +1887,11 @@ int initializeModuleBitboard()
 
          for (k = 0; k < 8; k++)
          {
+            const int diff = (j > k ? j - k : k - j);
             if ((minValue[(int) k] & i) != 0
-                && abs(j - k) < bitshiftGap[j][i])
+                && diff < bitshiftGap[j][i])
             {
-               bitshiftGap[j][i] = (UINT8) abs(j - k);
+               bitshiftGap[j][i] = (UINT8) diff;
             }
          }
       }
@@ -1962,7 +1963,7 @@ int initializeModuleBitboard()
 
 #ifndef NDEBUG
 
-static int testBitOperations()
+static int testBitOperations(void)
 {
    Bitboard b = EMPTY_BITBOARD;
 
@@ -2034,7 +2035,7 @@ static int testBitOperations()
    return 0;
 }
 
-static int testGeneralMoves()
+static int testGeneralMoves(void)
 {
    assert(testSquare(generalMoves[KING][C3], C4));
    assert(testSquare(generalMoves[KING][C3], D4));
@@ -2099,7 +2100,7 @@ static int testGeneralMoves()
    return 0;
 }
 
-static int testPieces()
+static int testPieces(void)
 {
    Bitboard b = EMPTY_BITBOARD, moves;
    BYTE obstacles[NUM_LANES];
@@ -2176,7 +2177,7 @@ static int testPieces()
    return 0;
 }
 
-static int testPawns()
+static int testPawns(void)
 {
    Bitboard b = EMPTY_BITBOARD, moves, pawns;
    BYTE obstacles[NUM_LANES];
@@ -2257,7 +2258,7 @@ static int testPawns()
    return 0;
 }
 
-static int testKings()
+static int testKings(void)
 {
    Bitboard obstacles = EMPTY_BITBOARD, moves;
    BYTE castlingRights = WHITE_00 | WHITE_000 | BLACK_000 | BLACK_00;
@@ -2390,7 +2391,7 @@ static int testKings()
    return 0;
 }
 
-static int testFlooding()
+static int testFlooding(void)
 {
    Bitboard kingMoves = getKingMoves(D4);
    Bitboard expected;
@@ -2416,7 +2417,7 @@ static int testFlooding()
    return 0;
 }
 
-static int testGetSetSquares()
+static int testGetSetSquares(void)
 {
    UINT8 moveSquares[_64_];
    Bitboard kingMoves = getKingMoves(D4);
@@ -2436,7 +2437,7 @@ static int testGetSetSquares()
 
 #endif
 
-int testModuleBitboard()
+int testModuleBitboard(void)
 {
 #ifndef NDEBUG
    int result;

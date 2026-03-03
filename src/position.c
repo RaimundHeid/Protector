@@ -1502,10 +1502,12 @@ int checkConsistency(const Position * position)
    Square square;
    int numPieces[2], numPawns[2], value[2], i;
    int openingValue[2], endgameValue[2];
-   INT32 balance = 0;
-   Bitboard temp;
    BYTE obstacles[NUM_LANES];
    UINT32 materialSignature = calculateMaterialSignature(position);
+   INT32 balance = 0;
+   Bitboard temp;
+   (void)balance;
+   (void)temp;
 
    numPieces[WHITE] = numPieces[BLACK] = 0;
    numPawns[WHITE] = numPawns[BLACK] = 0;
@@ -1547,11 +1549,11 @@ int checkConsistency(const Position * position)
              calculatedNumWhiteQueens);
       assert(getPieceCount(position, WHITE_ROOK) > 2 ||
              getPieceCount(position, WHITE_ROOK) == calculatedNumWhiteRooks);
-      assert(getPieceCount(position, WHITE_BISHOP_LIGHT) > 1 ||
-             getPieceCount(position, WHITE_BISHOP_LIGHT) ==
+      assert(getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) > 1 ||
+             getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) ==
              calculatedNumWhiteLightSquareBishops);
-      assert(getPieceCount(position, WHITE_BISHOP_DARK) > 1 ||
-             getPieceCount(position, WHITE_BISHOP_DARK) ==
+      assert(getPieceCount(position, (Piece) WHITE_BISHOP_DARK) > 1 ||
+             getPieceCount(position, (Piece) WHITE_BISHOP_DARK) ==
              calculatedNumWhiteDarkSquareBishops);
       assert(getPieceCount(position, WHITE_KNIGHT) > 2 ||
              getPieceCount(position, WHITE_KNIGHT) ==
@@ -1562,11 +1564,11 @@ int checkConsistency(const Position * position)
              calculatedNumBlackQueens);
       assert(getPieceCount(position, BLACK_ROOK) > 2 ||
              getPieceCount(position, BLACK_ROOK) == calculatedNumBlackRooks);
-      assert(getPieceCount(position, BLACK_BISHOP_LIGHT) > 1 ||
-             getPieceCount(position, BLACK_BISHOP_LIGHT) ==
+      assert(getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) > 1 ||
+             getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) ==
              calculatedNumBlackLightSquareBishops);
-      assert(getPieceCount(position, BLACK_BISHOP_DARK) > 1 ||
-             getPieceCount(position, BLACK_BISHOP_DARK) ==
+      assert(getPieceCount(position, (Piece) BLACK_BISHOP_DARK) > 1 ||
+             getPieceCount(position, (Piece) BLACK_BISHOP_DARK) ==
              calculatedNumBlackDarkSquareBishops);
       assert(getPieceCount(position, BLACK_KNIGHT) > 2 ||
              getPieceCount(position, BLACK_KNIGHT) ==
@@ -1575,13 +1577,13 @@ int checkConsistency(const Position * position)
 
       if (getPieceCount(position, WHITE_QUEEN) <= 1 &&
           getPieceCount(position, WHITE_ROOK) <= 2 &&
-          getPieceCount(position, WHITE_BISHOP_LIGHT) <= 1 &&
-          getPieceCount(position, WHITE_BISHOP_DARK) <= 1 &&
+          getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) <= 1 &&
+          getPieceCount(position, (Piece) WHITE_BISHOP_DARK) <= 1 &&
           getPieceCount(position, WHITE_KNIGHT) <= 2 &&
           getPieceCount(position, BLACK_QUEEN) <= 1 &&
           getPieceCount(position, BLACK_ROOK) <= 2 &&
-          getPieceCount(position, BLACK_BISHOP_LIGHT) <= 1 &&
-          getPieceCount(position, BLACK_BISHOP_DARK) <= 1 &&
+          getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) <= 1 &&
+          getPieceCount(position, (Piece) BLACK_BISHOP_DARK) <= 1 &&
           getPieceCount(position, BLACK_KNIGHT) <= 2)
       {
          const MaterialInfo *mi = &materialInfo[materialSignature];
@@ -1668,10 +1670,10 @@ int checkConsistency(const Position * position)
           getPieceCount(position, WHITE_ROOK));
    assert(getNumberOfSetSquares
           (position->piecesOfType[WHITE_BISHOP] & lightSquares) ==
-          getPieceCount(position, WHITE_BISHOP_LIGHT));
+          getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT));
    assert(getNumberOfSetSquares
           (position->piecesOfType[WHITE_BISHOP] & darkSquares) ==
-          getPieceCount(position, WHITE_BISHOP_DARK));
+          getPieceCount(position, (Piece) WHITE_BISHOP_DARK));
    assert(getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) ==
           getPieceCount(position, WHITE_KNIGHT));
    assert(getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]) ==
@@ -1680,10 +1682,10 @@ int checkConsistency(const Position * position)
           getPieceCount(position, BLACK_ROOK));
    assert(getNumberOfSetSquares
           (position->piecesOfType[BLACK_BISHOP] & lightSquares) ==
-          getPieceCount(position, BLACK_BISHOP_LIGHT));
+          getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT));
    assert(getNumberOfSetSquares
           (position->piecesOfType[BLACK_BISHOP] & darkSquares) ==
-          getPieceCount(position, BLACK_BISHOP_DARK));
+          getPieceCount(position, (Piece) BLACK_BISHOP_DARK));
    assert(getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT]) ==
           getPieceCount(position, BLACK_KNIGHT));
 
@@ -2084,7 +2086,7 @@ bool positionsAreIdentical(const Position * position1,
    return (bool) (checkConsistency(position1) == 0);
 }
 
-static void initializeKrqSignatureTable()
+static void initializeKrqSignatureTable(void)
 {
    UINT32 qc, rc, kc;
 
@@ -2109,7 +2111,7 @@ static void initializeKrqSignatureTable()
    }
 }
 
-static void initializeBbpSignatureTable()
+static void initializeBbpSignatureTable(void)
 {
    UINT32 pc, dc, lc;
 
@@ -2134,7 +2136,7 @@ static void initializeBbpSignatureTable()
    }
 }
 
-int initializeModulePosition()
+int initializeModulePosition(void)
 {
    Square square;
    int i;
@@ -2255,7 +2257,7 @@ static int checkMove(Square from, Square to, Piece newPiece,
    return 0;
 }
 
-static int testPawnMoves()
+static int testPawnMoves(void)
 {
    Variation variation;
 
@@ -2299,7 +2301,7 @@ static int testPawnMoves()
    return 0;
 }
 
-static int testShortCastlings()
+static int testShortCastlings(void)
 {
    Variation variation;
 
@@ -2323,7 +2325,7 @@ static int testShortCastlings()
    return 0;
 }
 
-static int testLongCastlings()
+static int testLongCastlings(void)
 {
    Variation variation;
 
@@ -2350,7 +2352,7 @@ static int testLongCastlings()
    return 0;
 }
 
-static int testCastlingLegality()
+static int testCastlingLegality(void)
 {
    Variation variation, *p_variation = &variation;
 
@@ -2431,7 +2433,7 @@ static int testCastlingLegality()
    return 0;
 }
 
-static int testMove()
+static int testMove(void)
 {
 #ifndef NDEBUG
    Move move;
@@ -2447,7 +2449,7 @@ static int testMove()
    return 0;
 }
 
-int testModulePosition()
+int testModulePosition(void)
 {
    int result;
 

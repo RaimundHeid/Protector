@@ -547,7 +547,7 @@ Move getBookmove(const Book * book, const UINT64 hashKey,
    return move;
 }
 
-int initializeModuleBook()
+int initializeModuleBook(void)
 {
    if (openBook(&globalBook, "book") < 0)
    {
@@ -562,7 +562,7 @@ int initializeModuleBook()
    return 0;
 }
 
-static int testPositionOperations()
+static int testPositionOperations(void)
 {
    Book book;
    UINT64 hashKey = BOOKINDEX_SIZE + 100;
@@ -591,7 +591,7 @@ static int testPositionOperations()
    return 0;
 }
 
-static int testMoveOperations()
+static int testMoveOperations(void)
 {
    Book book;
    UINT64 hashKey = 4711;
@@ -625,7 +625,7 @@ static int testMoveOperations()
    return 0;
 }
 
-int testModuleBook()
+int testModuleBook(void)
 {
    int result;
 

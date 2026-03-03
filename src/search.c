@@ -356,8 +356,8 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
 
    *bestMove = NO_MOVE;
    variation->plyInfo[ply].quietMove = FALSE;   /* avoid subsequent gain updates */
-   variation->plyInfo[ply].pv.length = 0;
-   variation->plyInfo[ply].pv.move[0] = NO_MOVE;
+   variation->plyInfo[ply - 1].pv.length = 0;
+   variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
    movelist.positionalGain = &(variation->positionalGain[0]);
 
    variation->nodes++;
@@ -691,8 +691,8 @@ static int searchBest(Variation * variation, int alpha, int beta,
    *bestMove = NO_MOVE;
    variation->plyInfo[ply].quietMove = FALSE;   /* avoid subsequent gain updates */
    variation->plyInfo[ply].isHashMove = FALSE;
-   variation->plyInfo[ply].pv.length = 0;
-   variation->plyInfo[ply].pv.move[0] = NO_MOVE;
+   variation->plyInfo[ply - 1].pv.length = 0;
+   variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
    movelist.positionalGain = &(variation->positionalGain[0]);
 
    if (ply + 1 > variation->selDepth)
@@ -1901,7 +1901,7 @@ static void initializeKingsafetyHashtable(KingSafetyHashInfo *
    }
 }
 
-static void updatePieceValues()
+static void updatePieceValues(void)
 {
    maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] =
       max(getOpeningValue(basicValue[WHITE_QUEEN]),
@@ -1926,6 +1926,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    long timeTarget;
    int stableIterationCount = 0;
    int stableBestMoveCount = 0;
+   (void)stableBestMoveCount;
    Move bestMove = NO_MOVE;
    UINT64 nodeCount = 0;
    int iv1 = 0, iv2 = 0, iv3 = 0;

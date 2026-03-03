@@ -26,8 +26,8 @@
 #include "pgn.h"
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
-#include "hash.h"
 #endif
+#include "hash.h"
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -458,7 +458,7 @@ static int determineCalculationTime(bool targetTime)
  * Start the calculation of the current position.
  *
  ******************************************************************************/
-static void startCalculation()
+static void startCalculation(void)
 {
    variation.timeTarget = determineCalculationTime(TRUE);
    variation.timeLimit = determineCalculationTime(FALSE);
@@ -473,7 +473,7 @@ static void startCalculation()
    scheduleTask(&task);
 }
 
-static void startPostPonderCalculation()
+static void startPostPonderCalculation(void)
 {
    const long elapsedTime = getElapsedTime();
    const long nominalRestTime = variation.timeLimit - elapsedTime;
@@ -502,7 +502,7 @@ static void startPostPonderCalculation()
  * Delete the current ponder result.
  *
  ******************************************************************************/
-static void deletePonderResult()
+static void deletePonderResult(void)
 {
    status.ponderResultMove = NO_MOVE;
 }
@@ -705,7 +705,11 @@ void sendHashentry(Hashentry * entry)
 {
    /* const char *fmt = "info transkey %llx transdata %llx"; */
    /* kh 2015-09-21 %llx prints only 32 bits on some windows systems */
+#if defined(_WIN32) || defined(_WIN64)
    const char *fmt = "info transkey %I64x transdata %I64x";
+#else
+   const char *fmt = "info transkey %llx transdata %llx";
+#endif
 
    getGuiSearchMutex();
    sendToXboard(fmt, entry->key, entry->data);
@@ -1424,7 +1428,7 @@ static int processUciCommand(const char *command)
  * Read xboard's commands from stdin and handle them.
  *
  ******************************************************************************/
-void acceptGuiCommands()
+void acceptGuiCommands(void)
 {
    bool finished = FALSE;
    char command[8192];
@@ -1463,7 +1467,7 @@ void acceptGuiCommands()
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int initializeModuleXboard()
+int initializeModuleXboard(void)
 {
    status.operationMode = XBOARD_OPERATIONMODE_USERGAME;
    status.engineColor = WHITE;
@@ -1502,7 +1506,7 @@ int initializeModuleXboard()
  * Test parameter parsing.
  *
  ******************************************************************************/
-static int testParameterParsing()
+static int testParameterParsing(void)
 {
    char buffer[1024];
 
@@ -1520,7 +1524,7 @@ static int testParameterParsing()
  * Test time calculation.
  *
  ******************************************************************************/
-static int testTimeCalculation()
+static int testTimeCalculation(void)
 {
    return 0;
 }
@@ -1530,7 +1534,7 @@ static int testTimeCalculation()
  * Test the uci tokenizer.
  *
  ******************************************************************************/
-static int testUciTokenizer()
+static int testUciTokenizer(void)
 {
    char buffer[64], name[64], value[64];
    const char *uciString =
@@ -1568,7 +1572,7 @@ static int testUciTokenizer()
    return 0;
 }
 
-static int testHashUpdate()
+static int testHashUpdate(void)
 {
    Hashtable *hashtable = getSharedHashtable();
    Hashentry *tableHit;
@@ -1607,7 +1611,7 @@ static int testHashUpdate()
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int testModuleXboard()
+int testModuleXboard(void)
 {
 #ifndef NDEBUG
    int result;

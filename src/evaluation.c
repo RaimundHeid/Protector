@@ -471,7 +471,7 @@ int getKrppkrChances(const Position * position, const Color color)
 
       if (passiveKingStopsPawn(oppKing, square, color) == FALSE)
       {
-         const int fileDiff = abs(file(oppKing) - pawnFile);
+         const int fileDiff = ((file(oppKing) > pawnFile) ? (file(oppKing) - pawnFile) : (pawnFile - file(oppKing)));
          const int rankDiff =
             colorRank(color, square) - colorRank(color, oppKing);
 
@@ -1035,7 +1035,7 @@ static int getKingWhitePawnDistance(const Square pawnSquare,
                                     const Square kingSquare)
 {
    const int rankDiff = rank(pawnSquare) - rank(kingSquare);
-   const int fileDistance = abs(file(pawnSquare) - file(kingSquare));
+   const int fileDistance = ((file(pawnSquare) > file(kingSquare)) ? (file(pawnSquare) - file(kingSquare)) : (file(kingSquare) - file(pawnSquare)));
 
    return (rankDiff < 0 ? KP_REDUCED_DISTANCE_WEIGHT :
            KP_DISTANCE_WEIGHT) * abs(rankDiff) +
@@ -1046,7 +1046,7 @@ static int getKingBlackPawnDistance(const Square pawnSquare,
                                     const Square kingSquare)
 {
    const int rankDiff = rank(pawnSquare) - rank(kingSquare);
-   const int fileDistance = abs(file(pawnSquare) - file(kingSquare));
+   const int fileDistance = ((file(pawnSquare) > file(kingSquare)) ? (file(pawnSquare) - file(kingSquare)) : (file(kingSquare) - file(pawnSquare)));
 
    return (rankDiff > 0 ? KP_REDUCED_DISTANCE_WEIGHT :
            KP_DISTANCE_WEIGHT) * abs(rankDiff) +
@@ -1190,7 +1190,7 @@ bool passerWalks(const Position * position,
    {
       if ((kingRank == RANK_6 || kingRank == RANK_7) &&
           kingRank > colorRank(passerColor, passerSquare) &&
-          abs(file(attackerKingSquare) - passerFile) <= 1 &&
+          ((file(attackerKingSquare) > passerFile) ? (file(attackerKingSquare) - passerFile) : (passerFile - file(attackerKingSquare))) <= 1 &&
           attackerDistance <= 2)
       {
          if (position->activeColor == passerColor ||
@@ -1203,7 +1203,7 @@ bool passerWalks(const Position * position,
 
       /*
          if (kingRank == colorRank(passerColor, passerSquare) + 2 &&
-         abs(file(attackerKingSquare) - passerFile) <= 1 &&
+         ((file(attackerKingSquare) > passerFile) ? (file(attackerKingSquare) - passerFile) : (passerFile - file(attackerKingSquare))) <= 1 &&
          attackerDistance <= 2)
          {
          if (position->activeColor == passerColor ||
@@ -1216,7 +1216,7 @@ bool passerWalks(const Position * position,
        */
    }
    else if ((kingRank == RANK_7 || kingRank == RANK_8) &&
-            abs(file(attackerKingSquare) - passerFile) == 1 &&
+            ((file(attackerKingSquare) > passerFile) ? (file(attackerKingSquare) - passerFile) : (passerFile - file(attackerKingSquare))) == 1 &&
             attackerDistance <= 2)
    {
       if (position->activeColor == passerColor ||
@@ -1820,7 +1820,7 @@ static bool kingSafetyEvalRequired(const Position * position,
 }
 
 #ifndef NDEBUG
-static Bitboard randomBitboard()
+static Bitboard randomBitboard(void)
 {
    Bitboard tmp1 = rand();
    Bitboard tmp2 = rand();
@@ -2442,7 +2442,7 @@ static int pstEndgameValue(INT32 value, const int weight)
    return applyWeight(weight, getEndgameValue(value));
 }
 
-static void initializePieceSquareValues()
+static void initializePieceSquareValues(void)
 {
    Square sq;
 
@@ -2506,7 +2506,7 @@ static void initializePieceSquareValues()
 #endif
 }
 
-static void initializeKingAttacks()
+static void initializeKingAttacks(void)
 {
    Square square;
 
@@ -3584,7 +3584,7 @@ static void initializeMaterialInfoTableCore1(const UINT32 signatureWhite,
    materialInfo[signature].phaseIndex = calculatePhase(signature);
 }
 
-static void initializeMaterialInfoTable()
+static void initializeMaterialInfoTable(void)
 {
    int whiteSignature, blackSignature;
 
@@ -3599,7 +3599,7 @@ static void initializeMaterialInfoTable()
 
 /* #define DEBUG_KSTABLE 1 */
 
-static int initializeKingSafetyTable()
+static int initializeKingSafetyTable(void)
 {
    const double MIN_SLOPE = 1.0;
    const double MAX_SLOPE = 7.0;
@@ -3641,7 +3641,7 @@ double wmbv(const double baseValue)
 }
 
 /* #define LOG_MOBILILITY_VALUES */
-static void initializeMoveBonusValue()
+static void initializeMoveBonusValue(void)
 {
    int i, limit;
 
@@ -3734,7 +3734,7 @@ static INT32 PPAB(const int opv, const int egv)
    return V(wopv, wegv);
 }
 
-static void initializePawnChainBonus()
+static void initializePawnChainBonus(void)
 {
    const int bonusPerFile[8] = { 1, 3, 3, 4, 4, 3, 3, 1 };
    Square square;
@@ -3751,7 +3751,7 @@ static void initializePawnChainBonus()
    }
 }
 
-int initializeModuleEvaluation()
+int initializeModuleEvaluation(void)
 {
    int i;
    Square square, kingsquare, catchersquare;
@@ -3914,7 +3914,7 @@ int initializeModuleEvaluation()
 
       ITERATE(catchersquare)
       {
-         if (abs(file(catchersquare) - squarefile) == 1)
+         if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile) : (squarefile - file(catchersquare))) == 1)
          {
             if (rank(catchersquare) > squarerank)
             {
@@ -3937,7 +3937,7 @@ int initializeModuleEvaluation()
             }
          }
 
-         if (abs(file(catchersquare) - squarefile) <= 1)
+         if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile) : (squarefile - file(catchersquare))) <= 1)
          {
             if (rank(catchersquare) >= squarerank)
             {
@@ -4118,7 +4118,7 @@ bool flipTest(Position * position,
 }
 #endif
 
-static int testPawnInfoGeneration()
+static int testPawnInfoGeneration(void)
 {
    Variation variation;
    EvaluationBase base;
@@ -4178,7 +4178,7 @@ static int testPawnInfoGeneration()
    return 0;
 }
 
-static int testWeakPawnDetection()
+static int testWeakPawnDetection(void)
 {
    Position position;
    Bitboard expectedResult = EMPTY_BITBOARD;
@@ -4261,7 +4261,7 @@ static int testWeakPawnDetection()
    return 0;
 }
 
-static int testBaseInitialization()
+static int testBaseInitialization(void)
 {
    Variation variation;
 
@@ -4284,7 +4284,7 @@ static int testBaseInitialization()
    return 0;
 }
 
-static int testKingPawnDistanceCalculation()
+static int testKingPawnDistanceCalculation(void)
 {
 #ifndef NDEBUG
    Bitboard whitePawns = minValue[B4] | minValue[G7], blackPawns =
@@ -4338,7 +4338,7 @@ static void initializeKingsafetyHashtable(KingSafetyHashInfo *
    }
 }
 
-static int testFlippings()
+static int testFlippings(void)
 {
    const char fen1[] =
       "2rr2k1/1b3ppp/pb2p3/1p2P3/1P2BPnq/P1N3P1/1B2Q2P/R4R1K b - - 0 1";
@@ -4378,7 +4378,7 @@ static int testFlippings()
 }
 #endif
 
-int testModuleEvaluation()
+int testModuleEvaluation(void)
 {
    int result;
 

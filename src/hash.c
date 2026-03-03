@@ -139,7 +139,7 @@ void resetHashtable(Hashtable * hashtable)
    /* logDebug("hashtable reset done.\n"); */
 }
 
-void resetNodetable()
+void resetNodetable(void)
 {
    int i;
 
@@ -366,7 +366,7 @@ void resetNodeUsage(UINT64 key, UINT8 depth)
    nodeUsageTable[nodeIndex].key = ULONG_ZERO;
 }
 
-int initializeModuleHash()
+int initializeModuleHash(void)
 {
    resetNodetable();
    numNodeTableEntries = getPreviousPrime(NODE_TABLE_SIZE);
@@ -374,7 +374,7 @@ int initializeModuleHash()
    return 0;
 }
 
-static int testAgeCalculation()
+static int testAgeCalculation(void)
 {
    Hashtable hashtable;
 
@@ -396,7 +396,7 @@ static int testAgeCalculation()
    return (hashtable.date == (UINT8) (NUM_DATES - 1) ? 0 : 1);
 }
 
-int testModuleHash()
+int testModuleHash(void)
 {
    int result = 0;
 

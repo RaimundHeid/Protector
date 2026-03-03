@@ -1,4 +1,0 @@
-#!/bin/csh
-./Protector<<EOF
-go movetime 10000
-quit

@@ -55,7 +55,7 @@ CommandlineOptions commandlineOptions;
 UINT64 statCount1, statCount2;
 int debugOutput = FALSE;
 
-static void initializeModuleProctector()
+static void initializeModuleProctector(void)
 {
    int sq1, sq2;
 
@@ -63,8 +63,10 @@ static void initializeModuleProctector()
    {
       ITERATE(sq2)
       {
-         _horizontalDistance[sq1][sq2] = abs(file(sq1) - file(sq2));
-         _verticalDistance[sq1][sq2] = abs(rank(sq1) - rank(sq2));
+         _horizontalDistance[sq1][sq2] =
+            max(file(sq1), file(sq2)) - min(file(sq1), file(sq2));
+         _verticalDistance[sq1][sq2] =
+            max(rank(sq1), rank(sq2)) - min(rank(sq1), rank(sq2));
          _distance[sq1][sq2] =
             max(_horizontalDistance[sq1][sq2], _verticalDistance[sq1][sq2]);
          _taxiDistance[sq1][sq2] =
@@ -102,7 +104,7 @@ static void reportSuccess(const char *moduleName)
    logDebug("Module %s tested successfully.\n", moduleName);
 }
 
-static int testModuleProtector()
+static int testModuleProtector(void)
 {
    assert(_horizontalDistance[C2][E6] == 2);
    assert(_verticalDistance[C2][E6] == 4);

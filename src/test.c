@@ -231,7 +231,7 @@ int initializeModuleTest(void)
    return 0;
 }
 
-int testModuleTest()
+int testModuleTest(void)
 {
    int result;
 
