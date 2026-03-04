@@ -30,7 +30,6 @@
 #include "movegeneration.h"
 #include "hash.h"
 #include "evaluation.h"
-#include "book.h"
 #include "coordination.h"
 #include "xboard.h"
 
@@ -1961,35 +1960,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
 #ifdef TRACE_EVAL
    getValue(&variation->singlePosition, VALUE_MATED, -VALUE_MATED,
             variation->pawnHashtable, variation->kingsafetyHashtable);
-#endif
-
-#ifdef USE_BOOK
-   if (globalBook.indexFile != NULL && globalBook.moveFile != NULL &&
-       &variation->singlePosition->moveNumber <= 12)
-   {
-      Move bookMove = getBookmove(&globalBook,
-                                  &variation->singlePosition->hashKey,
-                                  &movelist);
-
-      if (bookMove != NO_MOVE)
-      {
-         variation->bestBaseMove = bookMove;
-         variation->searchStatus = SEARCH_STATUS_TERMINATE;
-         variation->finishTime = getTimestamp();
-
-         if (variation->handleSearchEvent != 0)
-         {
-            getGuiSearchMutex();
-            variation->handleSearchEvent(SEARCHEVENT_SEARCH_FINISHED,
-                                         variation);
-            releaseGuiSearchMutex();
-         }
-
-         variation->nodes = 0;
-
-         return variation->bestBaseMove;
-      }
-   }
 #endif
 
    variation->numberOfBaseMoves = movelist.numberOfMoves;

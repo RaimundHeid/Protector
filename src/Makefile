@@ -68,7 +68,7 @@ protectordbg: CFLAGS=-Wall -std=gnu99 -pedantic -Wno-long-long -pthread
 protectorobjects = protector.o bitboard.o position.o fen.o io.o \
                    movegeneration.o matesearch.o keytable.o hash.o test.o \
                    pgn.o tools.o search.o evaluation.o coordination.o \
-                   xboard.o book.o tablebase.o
+                   xboard.o tablebase.o
 
 protectorsources = $(protectorobjects:.o=.c) egtb.cpp
 

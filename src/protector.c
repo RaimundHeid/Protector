@@ -37,7 +37,6 @@
 #include "evaluation.h"
 #include "coordination.h"
 #include "xboard.h"
-#include "book.h"
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
 #endif
@@ -94,9 +93,6 @@ static void initializeModuleProctector(void)
 #endif
    initializeModuleEvaluation();
    initializeModuleXboard();
-#ifdef USE_BOOK
-   initializeModuleBook();
-#endif
 }
 
 static void reportSuccess(const char *moduleName)
@@ -228,17 +224,6 @@ static int testModuleProtector(void)
       reportSuccess("Xboard");
    }
 
-#ifdef USE_BOOK
-   if (testModuleBook() != 0)
-   {
-      return -1;
-   }
-   else
-   {
-      reportSuccess("Book");
-   }
-#endif
-
 #ifdef INCLUDE_TABLEBASE_ACCESS
    if (testModuleTablebase() != 0)
    {
@@ -272,7 +257,6 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    options->xboardMode = TRUE;
    options->dumpEvaluation = FALSE;
    options->testfile = 0;
-   options->bookfile = 0;
    options->tablebasePath = 0;
 
    for (i = 0; i < argc; i++)
@@ -299,11 +283,6 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
       if (strcmp(currentArg, "-e") == 0 && i < argc - 1)
       {
          options->tablebasePath = argv[++i];
-      }
-
-      if (strcmp(currentArg, "-b") == 0 && i < argc - 1)
-      {
-         options->bookfile = argv[++i];
       }
 
       if (strcmp(currentArg, "-v") == 0)
@@ -344,13 +323,6 @@ int main(int argc, char **argv)
       {
          return -1;
       }
-   }
-
-   if (commandlineOptions.bookfile != 0)
-   {
-      createEmptyBook(&globalBook);
-      appendBookDatabase(&globalBook, commandlineOptions.bookfile, 50);
-      closeBook(&globalBook);
    }
 
    logDebug("Main thread terminated.\n");
