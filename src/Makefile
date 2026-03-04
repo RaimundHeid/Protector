@@ -106,6 +106,7 @@ protectorpgo:
 	rm -f *.o
 	$(MAKE) CFLAGS='$(PGO_USE_FLAGS) $(COMMON_CFLAGS)' protector_pgouse
 	rm -f *.o
+
 .PHONY: clean
 clean:
 	$(CLEAN_CMD)
