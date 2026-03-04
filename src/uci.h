@@ -18,8 +18,8 @@
 
 */
 
-#ifndef _xboard_h_
-#define _xboard_h_
+#ifndef _uci_h_
+#define _uci_h_
 
 #include "protector.h"
 #include "position.h"
@@ -39,8 +39,8 @@ typedef struct
 }
 TimecontrolData;
 
-#define XBOARD_OPERATIONMODE_ANALYSIS 2
-#define XBOARD_OPERATIONMODE_USERGAME 4
+#define UCI_OPERATIONMODE_ANALYSIS 2
+#define UCI_OPERATIONMODE_USERGAME 4
 
 typedef struct
 {
@@ -53,10 +53,10 @@ typedef struct
    Move ponderResultMove;
    int maxPlies;
 }
-XboardStatus;
+UciStatus;
 
 /**
- * Wait for the next Xboard/Winboard command and process it.
+ * Wait for the next UCI command and process it.
  */
 void acceptGuiCommands(void);
 
@@ -70,13 +70,13 @@ void sendHashentry(Hashentry * entry);
  *
  * @return 0 if no errors occurred.
  */
-int initializeModuleXboard(void);
+int initializeModuleUci(void);
 
 /**
  * Test this module.
  *
  * @return 0 if all tests succeed.
  */
-int testModuleXboard(void);
+int testModuleUci(void);
 
 #endif

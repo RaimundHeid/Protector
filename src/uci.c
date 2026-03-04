@@ -18,7 +18,7 @@
 
 */
 
-#include "xboard.h"
+#include "uci.h"
 #include "coordination.h"
 #include "tools.h"
 #include "io.h"
@@ -39,7 +39,7 @@
 static SearchTask task;
 static Variation variation;
 static PGNGame game;
-static XboardStatus status;
+static UciStatus status;
 bool resetSharedHashtable = FALSE;
 static int numUciMoves = 1000;
 const int valueRangePct = 10;
@@ -260,7 +260,7 @@ static void getUciNamedValue(const char *uciString, char *name, char *value)
 
 /******************************************************************************
  *
- * Get the specified move in xboard format.
+ * Get the specified move in uci format.
  *
  ******************************************************************************/
 static void getGuiMoveString(const Move move, char *buffer)
@@ -284,7 +284,7 @@ static void getGuiMoveString(const Move move, char *buffer)
 
 /******************************************************************************
  *
- * Get the specified param from the specified xboard command string.
+ * Get the specified param from the specified uci command string.
  *
  ******************************************************************************/
 static void getTokenByNumber(const char *command, int paramNumber,
@@ -328,10 +328,10 @@ static void getTokenByNumber(const char *command, int paramNumber,
 
 /******************************************************************************
  *
- * Send the specified command via stdout to xboard.
+ * Send the specified command via stdout to uci.
  *
  ******************************************************************************/
-static void sendToXboard(const char *fmt, ...)
+static void sendToUci(const char *fmt, ...)
 {
    va_list args;
    char buffer[4096];
@@ -344,16 +344,16 @@ static void sendToXboard(const char *fmt, ...)
    fflush(stdout);
 
 #ifdef DEBUG_GUI_CONVERSATION
-   logDebug("### sent to xboard: %s\n", buffer);
+   logDebug("### sent to uci: %s\n", buffer);
 #endif
 }
 
 /******************************************************************************
  *
- * Send the specified command via stdout to xboard.
+ * Send the specified command via stdout to uci.
  *
  ******************************************************************************/
-static void sendToXboardNonDebug(const char *fmt, ...)
+static void sendToUciNonDebug(const char *fmt, ...)
 {
    va_list args;
    char buffer[4096];
@@ -366,7 +366,7 @@ static void sendToXboardNonDebug(const char *fmt, ...)
    fflush(stdout);
 
 #ifdef DEBUG_GUI_CONVERSATION
-   logDebug("### sent to xboard: %s\n", buffer);
+   logDebug("### sent to uci: %s\n", buffer);
 #endif
 }
 
@@ -431,7 +431,7 @@ static int getMaximumCalculationTime(TimecontrolData * data)
  ******************************************************************************/
 static int determineCalculationTime(bool targetTime)
 {
-   if (status.operationMode == XBOARD_OPERATIONMODE_ANALYSIS)
+   if (status.operationMode == UCI_OPERATIONMODE_ANALYSIS)
    {
       return 0;
    }
@@ -585,7 +585,7 @@ static void postPv(Variation * var, bool sendAnyway)
               nodeCount, scoreBuffer, scoreTypeBuffer, var->tbHits,
               multiPvBuffer, pvMovesBuffer);
 
-      sendToXboardNonDebug("%s", pvBuffer);
+      sendToUciNonDebug("%s", pvBuffer);
 
       var->numPvUpdates++;
    }
@@ -605,7 +605,7 @@ static void reportBaseMoveUpdate(const Variation * var)
    {
       getGuiMoveString(var->currentBaseMove, movetext);
 
-      sendToXboardNonDebug
+      sendToUciNonDebug
          ("info depth %d seldepth %d currmove %s currmovenumber %d",
           var->iteration, var->selDepth, movetext,
           var->numberOfCurrentBaseMove);
@@ -627,7 +627,7 @@ static void reportStatisticsUpdate(Variation * var)
       ((double) getSharedHashtable()->entriesUsed * 1000.0) /
       (max((double) 1.0, (double) getSharedHashtable()->tableSize));
 
-   sendToXboardNonDebug
+   sendToUciNonDebug
       ("info time %0.f nodes %lld nps %.0f hashfull %.0f tbhits %lu",
        time, nodeCount, nps, hashUsage, var->tbHits);
    reportBaseMoveUpdate(var);
@@ -664,7 +664,7 @@ static void sendBestmoveInfo(Variation * var)
          char ponderMoveBuffer[16];
 
          getGuiMoveString(status.ponderingMove, ponderMoveBuffer);
-         sendToXboardNonDebug("bestmove %s ponder %s", moveBuffer,
+         sendToUciNonDebug("bestmove %s ponder %s", moveBuffer,
                               ponderMoveBuffer);
 #ifdef DEBUG_GUI_PROTOCOL_BRIEF
          logDebug("bestmove %s ponder %s\n", moveBuffer, ponderMoveBuffer);
@@ -673,7 +673,7 @@ static void sendBestmoveInfo(Variation * var)
       else
       {
          status.ponderingMove = NO_MOVE;
-         sendToXboardNonDebug("bestmove %s", moveBuffer);
+         sendToUciNonDebug("bestmove %s", moveBuffer);
 #ifdef DEBUG_GUI_PROTOCOL_BRIEF
          logDebug("bestmove %s\n", moveBuffer);
 #endif
@@ -690,7 +690,7 @@ static void sendBestmoveInfo(Variation * var)
       logDebug("### Sending bestmove 0000 ###\n");
 #endif
 
-      sendToXboardNonDebug("bestmove 0000");
+      sendToUciNonDebug("bestmove 0000");
    }
 
    status.bestMoveWasSent = TRUE;
@@ -712,7 +712,7 @@ void sendHashentry(Hashentry * entry)
 #endif
 
    getGuiSearchMutex();
-   sendToXboard(fmt, entry->key, entry->data);
+   sendToUci(fmt, entry->key, entry->data);
    releaseGuiSearchMutex();
 }
 
@@ -798,7 +798,7 @@ static int getStdIntValue(const char *value, int defaultValue)
 static void sendUciSpinOption(const char *name, const int defaultValue,
                               int minValue, int maxValue)
 {
-   sendToXboardNonDebug("option name %s type spin default %d min %d max %d",
+   sendToUciNonDebug("option name %s type spin default %d min %d max %d",
                         name, defaultValue, minValue, maxValue);
 }
 
@@ -831,17 +831,19 @@ static int processUciCommand(const char *command)
       getGuiSearchMutex();
       strcpy(nameString, "id name Protector ");
       strcat(nameString, programVersionNumber);
-      sendToXboardNonDebug(nameString);
-      sendToXboardNonDebug("id author Raimund Heid");
-      sendToXboardNonDebug
+      sendToUciNonDebug(nameString);
+      sendToUciNonDebug("id author Raimund Heid");
+      sendToUciNonDebug
          ("option name Hash type spin default 16 min 8 max 65536");
 #ifdef INCLUDE_TABLEBASE_ACCESS
-      sendToXboardNonDebug
+      sendToUciNonDebug
          ("option name NalimovPath type string default <empty>");
-      sendToXboardNonDebug
+      sendToUciNonDebug
+         ("option name SyzygyPath type string default <empty>");
+      sendToUciNonDebug
          ("option name NalimovCache type spin default 4 min 1 max 64");
 #endif
-      sendToXboardNonDebug("option name Ponder type check default true");
+      sendToUciNonDebug("option name Ponder type check default true");
       sendUciSpinOption(USN_NT, 1, 1, MAX_THREADS);
       sendUciSpinOption(USN_PO, DEFAULTVALUE_PAWN_OPENING,
                         getValueLimit(DEFAULTVALUE_PAWN_OPENING,
@@ -913,7 +915,7 @@ static int processUciCommand(const char *command)
       sendUciSpinOption(USN_PS, MAX_ENTRIES_PS_DEFAULT, 1, 20);
 #endif
 
-      sendToXboardNonDebug("uciok");
+      sendToUciNonDebug("uciok");
       releaseGuiSearchMutex();
 
       return TRUE;
@@ -922,7 +924,7 @@ static int processUciCommand(const char *command)
    if (strcmp(buffer, "isready") == 0)
    {
       getGuiSearchMutex();
-      sendToXboardNonDebug("readyok");
+      sendToUciNonDebug("readyok");
       releaseGuiSearchMutex();
 
       return TRUE;
@@ -943,6 +945,13 @@ static int processUciCommand(const char *command)
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
       if (strcmp(name, "NalimovPath") == 0)
+      {
+         initializeTablebase(value);
+
+         return TRUE;
+      }
+
+      if (strcmp(name, "SyzygyPath") == 0)
       {
          initializeTablebase(value);
 
@@ -1297,17 +1306,17 @@ static int processUciCommand(const char *command)
 
       if (getUciToken(command, "depth") != 0)
       {
-         status.operationMode = XBOARD_OPERATIONMODE_ANALYSIS;
+         status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
       }
       else if (getUciToken(command, "nodes") != 0)
       {
-         status.operationMode = XBOARD_OPERATIONMODE_ANALYSIS;
+         status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
       }
       else if (getUciToken(command, "mate") != 0)
       {
          task.type = TASKTYPE_MATE_IN_N;
          task.numberOfMoves = getLongUciValue(command, "mate", 1);
-         status.operationMode = XBOARD_OPERATIONMODE_ANALYSIS;
+         status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
 
 #ifdef   DEBUG_GUI_PROTOCOL
          logDebug("Searching mate in %d", task.numberOfMoves);
@@ -1315,7 +1324,7 @@ static int processUciCommand(const char *command)
       }
       else if (getUciToken(command, "movetime") != 0)
       {
-         status.operationMode = XBOARD_OPERATIONMODE_USERGAME;
+         status.operationMode = UCI_OPERATIONMODE_USERGAME;
 
          status.timecontrolData[WHITE].restTime =
             status.timecontrolData[BLACK].restTime = -1;
@@ -1325,14 +1334,14 @@ static int processUciCommand(const char *command)
       }
       else if (getUciToken(command, "infinite") != 0)
       {
-         status.operationMode = XBOARD_OPERATIONMODE_ANALYSIS;
+         status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
       }
       else
       {
          const int numMovesPlayed = variation.singlePosition.moveNumber - 1;
          const int movesToGo = (int) getLongUciValue(command, "movestogo", 0);
 
-         status.operationMode = XBOARD_OPERATIONMODE_USERGAME;
+         status.operationMode = UCI_OPERATIONMODE_USERGAME;
 
          status.timecontrolData[WHITE].restTime =
             getLongUciValue(command, "wtime", 1000);
@@ -1425,7 +1434,7 @@ static int processUciCommand(const char *command)
 
 /******************************************************************************
  *
- * Read xboard's commands from stdin and handle them.
+ * Read uci's commands from stdin and handle them.
  *
  ******************************************************************************/
 void acceptGuiCommands(void)
@@ -1467,9 +1476,9 @@ void acceptGuiCommands(void)
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int initializeModuleXboard(void)
+int initializeModuleUci(void)
 {
-   status.operationMode = XBOARD_OPERATIONMODE_USERGAME;
+   status.operationMode = UCI_OPERATIONMODE_USERGAME;
    status.engineColor = WHITE;
    status.pondering = TRUE;
    status.ponderingMove = NO_MOVE;
@@ -1611,7 +1620,7 @@ static int testHashUpdate(void)
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int testModuleXboard(void)
+int testModuleUci(void)
 {
 #ifndef NDEBUG
    int result;

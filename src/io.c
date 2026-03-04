@@ -258,7 +258,6 @@ void logPosition(const Position * position)
 void dumpPosition(const Position * position)
 {
    logPosition(position);
-   getKeyStroke();
 }
 
 void dumpVariation(const Variation * variation)
@@ -278,7 +277,6 @@ void dumpVariation(const Variation * variation)
 
    logReport("%s\nnodeCount: %llu hashKey: %llu", buffer, variation->nodes,
              variation->singlePosition.hashKey);
-   getKeyStroke();
 }
 
 void reportVariation(const Variation * variation)
@@ -374,7 +372,7 @@ void logDebug(const char *fmt, ...)
 
    va_start(args, fmt);
 
-   if (commandlineOptions.xboardMode == FALSE)
+   if (commandlineOptions.uciMode == FALSE)
    {
       vprintf(fmt, args);
    }
@@ -405,7 +403,7 @@ void logReport(const char *fmt, ...)
    vsprintf(buffer, fmt, args);
    va_end(args);
 
-   if (commandlineOptions.xboardMode == FALSE)
+   if (commandlineOptions.uciMode == FALSE)
    {
       printf("%s", buffer);
    }

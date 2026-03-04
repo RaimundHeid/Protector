@@ -31,7 +31,7 @@
 #include "hash.h"
 #include "evaluation.h"
 #include "coordination.h"
-#include "xboard.h"
+#include "uci.h"
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"

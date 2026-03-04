@@ -238,7 +238,7 @@ Castlings;
 typedef struct
 {
    bool processModuleTest;
-   bool xboardMode;
+   bool uciMode;
    bool dumpEvaluation;
    char *testfile;
    char *tablebasePath;

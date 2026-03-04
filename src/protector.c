@@ -36,12 +36,12 @@
 #include "pgn.h"
 #include "evaluation.h"
 #include "coordination.h"
-#include "xboard.h"
+#include "uci.h"
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
 #endif
 
-const char *programVersionNumber = "1.9.0";
+const char *programVersionNumber = "2.0.0";
 
 int _distance[_64_][_64_];
 int _horizontalDistance[_64_][_64_];
@@ -92,7 +92,7 @@ static void initializeModuleProctector(void)
    initializeModuleTablebase();
 #endif
    initializeModuleEvaluation();
-   initializeModuleXboard();
+   initializeModuleUci();
 }
 
 static void reportSuccess(const char *moduleName)
@@ -215,13 +215,13 @@ static int testModuleProtector(void)
       reportSuccess("Evaluation");
    }
 
-   if (testModuleXboard() != 0)
+   if (testModuleUci() != 0)
    {
       return -1;
    }
    else
    {
-      reportSuccess("Xboard");
+      reportSuccess("Uci");
    }
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
@@ -254,7 +254,7 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    int i;
 
    options->processModuleTest = FALSE;
-   options->xboardMode = TRUE;
+   options->uciMode = TRUE;
    options->dumpEvaluation = FALSE;
    options->testfile = 0;
    options->tablebasePath = 0;
@@ -266,7 +266,7 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
       if (strcmp(currentArg, "-m") == 0)
       {
          options->processModuleTest = TRUE;
-         options->xboardMode = FALSE;
+         options->uciMode = FALSE;
       }
 
       if (strcmp(currentArg, "-d") == 0)
@@ -277,7 +277,7 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
       if (strcmp(currentArg, "-t") == 0 && i < argc - 1)
       {
          options->testfile = argv[++i];
-         options->xboardMode = FALSE;
+         options->uciMode = FALSE;
       }
 
       if (strcmp(currentArg, "-e") == 0 && i < argc - 1)
@@ -299,7 +299,7 @@ int main(int argc, char **argv)
    initializeModuleProctector();
    /* logDebug("protector initialized\n"); */
 
-   if (commandlineOptions.xboardMode)
+   if (commandlineOptions.uciMode)
    {
       acceptGuiCommands();
 
@@ -311,7 +311,6 @@ int main(int argc, char **argv)
       if (testModuleProtector() != 0)
       {
          logDebug("\n##### Moduletest failed! #####\n");
-         getKeyStroke();
 
          return -1;
       }
