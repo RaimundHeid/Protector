@@ -20,7 +20,7 @@ else
    LN=gcc
 endif
 
-CLEAN_CMD=@rm -f *.o *.bak *.bin *.lrn game.* log.* 
+CLEAN_CMD=@rm -f *.o *.bak *.bin *.lrn game.* log.* protector.log
 
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),x86_64)
