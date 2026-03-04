@@ -311,7 +311,6 @@ int main(int argc, char **argv)
       if (testModuleProtector() != 0)
       {
          logDebug("\n##### Moduletest failed! #####\n");
-         getKeyStroke();
 
          return -1;
       }
