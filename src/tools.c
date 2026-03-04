@@ -29,7 +29,7 @@
 #include <sys/timeb.h>
 #include "tools.h"
 
-unsigned long getTimestamp()
+unsigned long getTimestamp(void)
 {
    struct timeb t_current;
 
@@ -38,7 +38,7 @@ unsigned long getTimestamp()
    return 1000 * (long) t_current.time + (long) t_current.millitm;
 }
 
-long getProcessTimestamp()
+long getProcessTimestamp(void)
 {
    clock_t ts = clock();
 
@@ -50,7 +50,7 @@ long getProcessTimestamp()
    return ts / (CLOCKS_PER_SEC / 1000);
 }
 
-String getEmptyString()
+String getEmptyString(void)
 {
    String s;
 
@@ -257,17 +257,21 @@ unsigned long long getUnsignedLongLongFromHexString(const char *str)
 
 void getHexStringFromUnsignedLongLong(char *buffer, unsigned long long value)
 {
+#if defined(_WIN32) || defined(_WIN64)
    char *fmt = "%I64x";
+#else
+   char *fmt = "%llx";
+#endif
 
    sprintf(buffer, fmt, value);
 }
 
-int initializeModuleTools()
+int initializeModuleTools(void)
 {
    return 0;
 }
 
-static int testStringOperations()
+static int testStringOperations(void)
 {
    const char *testString = "Pascal";
    String string = getEmptyString();
@@ -288,7 +292,7 @@ static int testStringOperations()
    return (string2.bufferSize == 5 ? 0 : -1);
 }
 
-static int testLineBreaking()
+static int testLineBreaking(void)
 {
    char ts1[] = "abcd efgh", ts2[] = "abcdefgh";
    char buffer[1024];
@@ -312,7 +316,7 @@ static int testLineBreaking()
    return 0;
 }
 
-static int testTrimming()
+static int testTrimming(void)
 {
    char buffer1[] = "   abcd efgh\n  ", buffer2[] = " ";
 
@@ -325,7 +329,7 @@ static int testTrimming()
    return 0;
 }
 
-static int testTokenizer()
+static int testTokenizer(void)
 {
    char *result;
 
@@ -340,7 +344,7 @@ static int testTokenizer()
    return 0;
 }
 
-static int testPrimechecker()
+static int testPrimechecker(void)
 {
    assert(isPrime(159) == 0);
    assert(isPrime(221) == 0);
@@ -353,7 +357,7 @@ static int testPrimechecker()
    return 0;
 }
 
-static int testMiscFunctions()
+static int testMiscFunctions(void)
 {
    unsigned long long testValue = 18446744073709551564llu;
    char buffer[256];
@@ -372,7 +376,7 @@ static int testMiscFunctions()
    return 0;
 }
 
-int testModuleTools()
+int testModuleTools(void)
 {
    int result;
 

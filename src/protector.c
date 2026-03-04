@@ -36,13 +36,12 @@
 #include "pgn.h"
 #include "evaluation.h"
 #include "coordination.h"
-#include "xboard.h"
-#include "book.h"
+#include "uci.h"
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
 #endif
 
-const char *programVersionNumber = "1.9.0";
+const char *programVersionNumber = "2.0.0";
 
 int _distance[_64_][_64_];
 int _horizontalDistance[_64_][_64_];
@@ -55,7 +54,7 @@ CommandlineOptions commandlineOptions;
 UINT64 statCount1, statCount2;
 int debugOutput = FALSE;
 
-static void initializeModuleProctector()
+static void initializeModuleProctector(void)
 {
    int sq1, sq2;
 
@@ -63,8 +62,10 @@ static void initializeModuleProctector()
    {
       ITERATE(sq2)
       {
-         _horizontalDistance[sq1][sq2] = abs(file(sq1) - file(sq2));
-         _verticalDistance[sq1][sq2] = abs(rank(sq1) - rank(sq2));
+         _horizontalDistance[sq1][sq2] =
+            max(file(sq1), file(sq2)) - min(file(sq1), file(sq2));
+         _verticalDistance[sq1][sq2] =
+            max(rank(sq1), rank(sq2)) - min(rank(sq1), rank(sq2));
          _distance[sq1][sq2] =
             max(_horizontalDistance[sq1][sq2], _verticalDistance[sq1][sq2]);
          _taxiDistance[sq1][sq2] =
@@ -91,10 +92,7 @@ static void initializeModuleProctector()
    initializeModuleTablebase();
 #endif
    initializeModuleEvaluation();
-   initializeModuleXboard();
-#ifdef USE_BOOK
-   initializeModuleBook();
-#endif
+   initializeModuleUci();
 }
 
 static void reportSuccess(const char *moduleName)
@@ -102,7 +100,7 @@ static void reportSuccess(const char *moduleName)
    logDebug("Module %s tested successfully.\n", moduleName);
 }
 
-static int testModuleProtector()
+static int testModuleProtector(void)
 {
    assert(_horizontalDistance[C2][E6] == 2);
    assert(_verticalDistance[C2][E6] == 4);
@@ -217,25 +215,14 @@ static int testModuleProtector()
       reportSuccess("Evaluation");
    }
 
-   if (testModuleXboard() != 0)
+   if (testModuleUci() != 0)
    {
       return -1;
    }
    else
    {
-      reportSuccess("Xboard");
+      reportSuccess("Uci");
    }
-
-#ifdef USE_BOOK
-   if (testModuleBook() != 0)
-   {
-      return -1;
-   }
-   else
-   {
-      reportSuccess("Book");
-   }
-#endif
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
    if (testModuleTablebase() != 0)
@@ -267,10 +254,9 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    int i;
 
    options->processModuleTest = FALSE;
-   options->xboardMode = TRUE;
+   options->uciMode = TRUE;
    options->dumpEvaluation = FALSE;
    options->testfile = 0;
-   options->bookfile = 0;
    options->tablebasePath = 0;
 
    for (i = 0; i < argc; i++)
@@ -280,7 +266,7 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
       if (strcmp(currentArg, "-m") == 0)
       {
          options->processModuleTest = TRUE;
-         options->xboardMode = FALSE;
+         options->uciMode = FALSE;
       }
 
       if (strcmp(currentArg, "-d") == 0)
@@ -291,17 +277,12 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
       if (strcmp(currentArg, "-t") == 0 && i < argc - 1)
       {
          options->testfile = argv[++i];
-         options->xboardMode = FALSE;
+         options->uciMode = FALSE;
       }
 
       if (strcmp(currentArg, "-e") == 0 && i < argc - 1)
       {
          options->tablebasePath = argv[++i];
-      }
-
-      if (strcmp(currentArg, "-b") == 0 && i < argc - 1)
-      {
-         options->bookfile = argv[++i];
       }
 
       if (strcmp(currentArg, "-v") == 0)
@@ -318,7 +299,7 @@ int main(int argc, char **argv)
    initializeModuleProctector();
    /* logDebug("protector initialized\n"); */
 
-   if (commandlineOptions.xboardMode)
+   if (commandlineOptions.uciMode)
    {
       acceptGuiCommands();
 
@@ -342,13 +323,6 @@ int main(int argc, char **argv)
       {
          return -1;
       }
-   }
-
-   if (commandlineOptions.bookfile != 0)
-   {
-      createEmptyBook(&globalBook);
-      appendBookDatabase(&globalBook, commandlineOptions.bookfile, 50);
-      closeBook(&globalBook);
    }
 
    logDebug("Main thread terminated.\n");

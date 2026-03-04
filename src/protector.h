@@ -23,8 +23,6 @@
 
 #include "tools.h"
 
-/* #define USE_BOOK 1 */
-
 /*
  * Constants
  */
@@ -240,9 +238,9 @@ Castlings;
 typedef struct
 {
    bool processModuleTest;
-   bool xboardMode;
+   bool uciMode;
    bool dumpEvaluation;
-   char *testfile, *bookfile;
+   char *testfile;
    char *tablebasePath;
 }
 CommandlineOptions;

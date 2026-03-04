@@ -1203,7 +1203,7 @@ char *getPrincipalVariation(const Variation * variation)
  ******************************************************************************
  */
 
-int initializeModulePgn()
+int initializeModulePgn(void)
 {
    pieceName[WHITE_KING] = 'K';
    pieceName[WHITE_QUEEN] = 'Q';
@@ -1221,7 +1221,7 @@ int initializeModulePgn()
    return 0;
 }
 
-static int testGeneration()
+static int testGeneration(void)
 {
    char *p1 = "r2qkb1r/ppp2ppp/3p4/5b2/3PN3/n4N2/PPP1QPPP/R3K2R w KQkq - 0 1";
    char *p2 = "r3k2r/n3nppp/3n2P1/8/1q1q4/2B5/1q1pRPPP/5RK1 b kq - 0 1";
@@ -1280,7 +1280,7 @@ static int testGeneration()
    return 0;
 }
 
-static int testParsing()
+static int testParsing(void)
 {
    char *p1 = "r2qkb1r/ppp2ppp/3p4/5b2/3PN3/n4N2/PPP1QPPP/R3K2R w KQkq - 0 1";
    char *p2 = "r3k2r/n3nppp/3n2P1/8/1q1q4/2B5/1q1pRPPP/5RK1 b kq - 0 1";
@@ -1324,7 +1324,7 @@ static int testParsing()
           getPackedMove(F7, G6, NO_PIECE));
 
    assert(parsePGNMove("d1=B", &variation.singlePosition) ==
-          getPackedMove(D2, D1, BISHOP));
+          getPackedMove(D2, D1, (Piece) BISHOP));
 
    assert(parsePGNMove("O-O", &variation.singlePosition) ==
           getPackedMove(E8, G8, NO_PIECE));
@@ -1347,7 +1347,7 @@ static int testParsing()
    return 0;
 }
 
-static int testLoading()
+static int testLoading(void)
 {
    PGNFile pgnfile;
    PGNGame *game, game2;
@@ -1357,7 +1357,11 @@ static int testLoading()
    pgnfile.index = 0;
    pgnfile.file = 0;
 
-   assert(openPGNFile(&pgnfile, "test.pgn") == 0);
+   if (openPGNFile(&pgnfile, "test.pgn") != 0)
+   {
+      fprintf(stderr, "Could not open test.pgn\n");
+      return -1;
+   }
    game = getGame(&pgnfile, 1);
    assert(game != 0);
 
@@ -1377,7 +1381,7 @@ static int testLoading()
    return 0;
 }
 
-int testModulePgn()
+int testModulePgn(void)
 {
    int result;
 

@@ -30,9 +30,8 @@
 #include "movegeneration.h"
 #include "hash.h"
 #include "evaluation.h"
-#include "book.h"
 #include "coordination.h"
-#include "xboard.h"
+#include "uci.h"
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
@@ -356,8 +355,8 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
 
    *bestMove = NO_MOVE;
    variation->plyInfo[ply].quietMove = FALSE;   /* avoid subsequent gain updates */
-   variation->plyInfo[ply].pv.length = 0;
-   variation->plyInfo[ply].pv.move[0] = NO_MOVE;
+   variation->plyInfo[ply - 1].pv.length = 0;
+   variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
    movelist.positionalGain = &(variation->positionalGain[0]);
 
    variation->nodes++;
@@ -691,8 +690,8 @@ static int searchBest(Variation * variation, int alpha, int beta,
    *bestMove = NO_MOVE;
    variation->plyInfo[ply].quietMove = FALSE;   /* avoid subsequent gain updates */
    variation->plyInfo[ply].isHashMove = FALSE;
-   variation->plyInfo[ply].pv.length = 0;
-   variation->plyInfo[ply].pv.move[0] = NO_MOVE;
+   variation->plyInfo[ply - 1].pv.length = 0;
+   variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
    movelist.positionalGain = &(variation->positionalGain[0]);
 
    if (ply + 1 > variation->selDepth)
@@ -1901,7 +1900,7 @@ static void initializeKingsafetyHashtable(KingSafetyHashInfo *
    }
 }
 
-static void updatePieceValues()
+static void updatePieceValues(void)
 {
    maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] =
       max(getOpeningValue(basicValue[WHITE_QUEEN]),
@@ -1926,6 +1925,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    long timeTarget;
    int stableIterationCount = 0;
    int stableBestMoveCount = 0;
+   (void)stableBestMoveCount;
    Move bestMove = NO_MOVE;
    UINT64 nodeCount = 0;
    int iv1 = 0, iv2 = 0, iv3 = 0;
@@ -1960,35 +1960,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
 #ifdef TRACE_EVAL
    getValue(&variation->singlePosition, VALUE_MATED, -VALUE_MATED,
             variation->pawnHashtable, variation->kingsafetyHashtable);
-#endif
-
-#ifdef USE_BOOK
-   if (globalBook.indexFile != NULL && globalBook.moveFile != NULL &&
-       &variation->singlePosition->moveNumber <= 12)
-   {
-      Move bookMove = getBookmove(&globalBook,
-                                  &variation->singlePosition->hashKey,
-                                  &movelist);
-
-      if (bookMove != NO_MOVE)
-      {
-         variation->bestBaseMove = bookMove;
-         variation->searchStatus = SEARCH_STATUS_TERMINATE;
-         variation->finishTime = getTimestamp();
-
-         if (variation->handleSearchEvent != 0)
-         {
-            getGuiSearchMutex();
-            variation->handleSearchEvent(SEARCHEVENT_SEARCH_FINISHED,
-                                         variation);
-            releaseGuiSearchMutex();
-         }
-
-         variation->nodes = 0;
-
-         return variation->bestBaseMove;
-      }
-   }
 #endif
 
    variation->numberOfBaseMoves = movelist.numberOfMoves;

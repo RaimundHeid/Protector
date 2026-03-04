@@ -340,8 +340,8 @@ Variation;
 #define TIME_CHECK_INTERVALL_IN_MS 100
 #define NODES_BETWEEN_TIMECHECK_DEFAULT 25000
 
-#define V(op,eg) ( (op) + ( (eg) << 16 ) )
-#define HV(op,eg) ( (((op)*100)/256) + ( (((eg)*100)/256) << 16 ) )
+#define V(op,eg)  ((INT32)((UINT32)(op) + ((UINT32)(eg) << 16)))
+#define HV(op,eg) ((INT32)((UINT32)(((op)*100)/256) + ((UINT32)(((eg)*100)/256) << 16)))
 
 /**
  * Flip the specified position.

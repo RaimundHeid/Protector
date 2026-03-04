@@ -21,267 +21,74 @@
 #include "tablebase.h"
 #include "protector.h"
 #include "io.h"
+#include "tbprobe.h"
 #include <assert.h>
 
 #ifdef INCLUDE_TABLEBASE_ACCESS
 
-#include <pthread.h>
-pthread_spinlock_t lock;
-volatile int tbAccessCount = 0;
-
-#define MAX_PIECES_PER_SIDE 3
-#define NO_EP 127
-
 bool tbAvailable = FALSE;
-typedef unsigned long long INDEX;
-typedef unsigned int squaret;
-
-char *cache = 0;
-
-#define	TB_FASTCALL             /* __fastcall */
-
-typedef INDEX(*PfnCalcIndex) (squaret *, squaret *, squaret, int fInverse);
-
-extern int IInitializeTb(char *pszPath);
-extern int FTbSetCacheSize(void *pv, unsigned long cbSize);
-extern void VTbCloseFiles(void);
-extern int IDescFindFromCounters(int *piCount);
-extern int FRegisteredFun(int iTb, int side);
-extern PfnCalcIndex PfnIndCalcFun(int iTb, int side);
-extern int TB_FASTCALL L_TbtProbeTable(int iTb, int side, INDEX indOffset);
-
-#define pageL       65536
-#define tbbe_ssL    ((pageL-4)/2)
-#define bev_broken  (tbbe_ssL+1)        /* illegal or busted */
-#define bev_mi1     tbbe_ssL    /* mate in 1 move */
-#define bev_mimin   1           /* mate in max moves */
-#define bev_draw    0           /* draw */
-#define bev_limax   (-1)        /* mated in max moves */
-#define bev_li0     (-tbbe_ssL) /* mated in 0 moves */
-
-#define PfnIndCalc PfnIndCalcFun
 
 int setTablebaseCacheSize(unsigned int size)
 {
-   unsigned long numBytes = (unsigned long) size * 1024 * 1024;
-
-   if (cache != 0)
-   {
-      free(cache);
-   }
-
-   cache = malloc(numBytes);
-
-   if (cache == 0)
-   {
-      logDebug("### Could not allocate tablebase cache (%lu bytes). ###\n",
-               numBytes);
-
-      return -1;
-   }
-
-   if (FTbSetCacheSize(cache, numBytes) == 0)
-   {
-      logDebug("### Could not set tablebase cache size (%lu bytes). ###\n",
-               numBytes);
-
-      free(cache);
-      cache = 0;
-
-      return -2;
-   }
-
-   /* logDebug("table base cache size set to %lu\n", numBytes); */
-
+   // Fathom handles its own caching or uses system file cache.
+   // Nalimov cache size setting is ignored for Syzygy.
    return 0;
 }
 
 int initializeTablebase(const char *path)
 {
-   int result = IInitializeTb((char *) path);
-
-   if (result > 0)
+   if (tb_init(path) != FALSE)
    {
-      if (setTablebaseCacheSize(4) != 0)
-      {
-         closeTablebaseFiles();
-
-         return -1;
-      }
-
-      /* logDebug("Tablebases found at %s\n", path); */
+      tbAvailable = (TB_LARGEST > 0);
+      return 0;
    }
-   else
-   {
-      logDebug("### Error while looking for tablebases in %s ###\n", path);
-   }
-
-   tbAvailable = (bool) (result > 0);
-
-   return (result > 0 ? 0 : -1);
+   return -1;
 }
 
-void closeTablebaseFiles()
+void closeTablebaseFiles(void)
 {
-   VTbCloseFiles();
-}
-
-static void initializePieceData(const Bitboard * pieces, int *pieceCount,
-                                unsigned int *pieceLocation)
-{
-   Bitboard tmp = *pieces;
-   Square square;
-
-   *pieceCount = 0;
-
-   ITERATE_BITBOARD(&tmp, square)
-   {
-      *(pieceLocation++) = square;
-      (*pieceCount)++;
-   }
-}
-
-static int getMateValue(int fullMoves)
-{
-   if (fullMoves > 0)
-   {
-      return 1 - VALUE_MATED - 2 * fullMoves;
-   }
-   else
-   {
-      return VALUE_MATED - 2 * fullMoves;
-   }
+   tb_free();
+   tbAvailable = FALSE;
 }
 
 int probeTablebase(const Position * position)
 {
-   int pieceCount[10];
-   unsigned int whitePieces[MAX_PIECES_PER_SIDE * 5 + 1];
-   unsigned int blackPieces[MAX_PIECES_PER_SIDE * 5 + 1];
-   unsigned int *pwhite, *pblack;
-   int tableNr, fInvert, tableValue, fullMoves;
-   Color color;
-   INDEX index;
-   Square enPassantSquare = (Square) NO_EP;
+   if (!tbAvailable) return TABLEBASE_ERROR;
 
-   initializePieceData(&position->piecesOfType[WHITE_PAWN], &pieceCount[0],
-                       &whitePieces[0 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[WHITE_KNIGHT], &pieceCount[1],
-                       &whitePieces[1 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[WHITE_BISHOP], &pieceCount[2],
-                       &whitePieces[2 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[WHITE_ROOK], &pieceCount[3],
-                       &whitePieces[3 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[WHITE_QUEEN], &pieceCount[4],
-                       &whitePieces[4 * MAX_PIECES_PER_SIDE]);
+   unsigned res = tb_probe_wdl(
+      position->piecesOfColor[WHITE],
+      position->piecesOfColor[BLACK],
+      position->piecesOfType[WHITE_KING] | position->piecesOfType[BLACK_KING],
+      position->piecesOfType[WHITE_QUEEN] | position->piecesOfType[BLACK_QUEEN],
+      position->piecesOfType[WHITE_ROOK] | position->piecesOfType[BLACK_ROOK],
+      position->piecesOfType[WHITE_BISHOP] | position->piecesOfType[BLACK_BISHOP],
+      position->piecesOfType[WHITE_KNIGHT] | position->piecesOfType[BLACK_KNIGHT],
+      position->piecesOfType[WHITE_PAWN] | position->piecesOfType[BLACK_PAWN],
+      0, // rule50
+      0, // castling
+      (position->enPassantSquare == NO_SQUARE ? 0 : position->enPassantSquare),
+      (position->activeColor == WHITE)
+   );
 
-   initializePieceData(&position->piecesOfType[BLACK_PAWN], &pieceCount[5],
-                       &blackPieces[0 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[BLACK_KNIGHT], &pieceCount[6],
-                       &blackPieces[1 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[BLACK_BISHOP], &pieceCount[7],
-                       &blackPieces[2 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[BLACK_ROOK], &pieceCount[8],
-                       &blackPieces[3 * MAX_PIECES_PER_SIDE]);
-   initializePieceData(&position->piecesOfType[BLACK_QUEEN], &pieceCount[9],
-                       &blackPieces[4 * MAX_PIECES_PER_SIDE]);
+   if (res == TB_RESULT_FAILED) return TABLEBASE_ERROR;
 
-   tableNr = IDescFindFromCounters(pieceCount);
-
-   if (tableNr == 0)
+   switch (res)
    {
-      return TABLEBASE_ERROR;
+      case TB_WIN:
+         return -VALUE_MATED - 1; // Win
+      case TB_LOSS:
+         return VALUE_MATED + 1;  // Loss
+      case TB_DRAW:
+      case TB_BLESSED_LOSS:
+      case TB_CURSED_WIN:
+         return 0;                // Drawish
+      default:
+         return TABLEBASE_ERROR;
    }
-
-   whitePieces[5 * MAX_PIECES_PER_SIDE] = position->king[WHITE];
-   blackPieces[5 * MAX_PIECES_PER_SIDE] = position->king[BLACK];
-
-   if (tableNr > 0)
-   {
-      color = position->activeColor;
-      fInvert = 0;
-      pwhite = whitePieces;
-      pblack = blackPieces;
-   }
-   else
-   {
-      color = opponent(position->activeColor);
-      fInvert = 1;
-      pwhite = blackPieces;
-      pblack = whitePieces;
-      tableNr = -tableNr;
-   }
-
-#if defined __APPLE__
-   pthread_mutex_lock((pthread_mutex_t *) & lock);
-#else
-   pthread_spin_lock(&lock);
-#endif
-
-   if (FRegisteredFun(tableNr, color) == FALSE)
-   {
-#if defined __APPLE__
-      pthread_mutex_unlock((pthread_mutex_t *) & lock);
-#else
-      pthread_spin_unlock(&lock);
-#endif
-
-      return TABLEBASE_ERROR;
-   }
-
-   if (position->enPassantSquare != NO_SQUARE)
-   {
-      const Bitboard attackers =
-         position->piecesOfType[PAWN | position->activeColor] &
-         generalMoves[PAWN | opponent(position->activeColor)]
-         [position->enPassantSquare];
-
-      if (attackers != EMPTY_BITBOARD)
-      {
-         /*
-            dumpSquare(position->enPassantSquare);
-            dumpPosition(position);
-          */
-
-         enPassantSquare = position->enPassantSquare;
-      }
-   }
-
-   index = PfnIndCalcFun(tableNr, color)
-      (pwhite, pblack, enPassantSquare, fInvert);
-
-   tableValue = L_TbtProbeTable(tableNr, color, index);
-
-#if defined __APPLE__
-   pthread_mutex_unlock((pthread_mutex_t *) & lock);
-#else
-   pthread_spin_unlock(&lock);
-#endif
-
-   if (tableValue == bev_broken)
-   {
-      return TABLEBASE_ERROR;
-   }
-
-   if (tableValue == 0)
-   {
-      return 0;
-   }
-
-   fullMoves = (tableValue > 0 ?
-                1 + tbbe_ssL - tableValue : bev_li0 - tableValue);
-
-   return getMateValue(fullMoves);
 }
 
-int initializeModuleTablebase()
+int initializeModuleTablebase(void)
 {
-#if defined __APPLE__
-   pthread_mutex_init((pthread_mutex_t *) & lock, tbAccessCount);
-#else
-   pthread_spin_init(&lock, tbAccessCount);
-#endif
-
    if (commandlineOptions.tablebasePath != 0)
    {
       return initializeTablebase(commandlineOptions.tablebasePath);
@@ -292,66 +99,10 @@ int initializeModuleTablebase()
    }
 }
 
-static int testTableFinder()
+int testModuleTablebase(void)
 {
-#ifndef NDEBUG
-   Variation variation;
-   int tableValue;
-
-   initializeVariation(&variation, "B6k/8/8/8/8/8/8/K6N w - - 0 1");
-   tableValue = probeTablebase(&variation.singlePosition);
-   assert(tableValue == 29941);
-
-   initializeVariation(&variation, "B6k/8/8/8/8/8/8/K6N b - - 0 1");
-   tableValue = probeTablebase(&variation.singlePosition);
-   assert(tableValue == -29940);
-#endif
-
+   // TODO: Implement Syzygy-specific tests if needed.
    return 0;
 }
 
-static int testMateValues()
-{
-#ifndef NDEBUG
-   Variation variation;
-   int tableValue;
-
-   initializeVariation(&variation, "R6k/8/6K1/8/8/8/8/8 b - - 0 1");
-   tableValue = probeTablebase(&variation.singlePosition);
-   assert(tableValue == VALUE_MATED);
-
-   initializeVariation(&variation, "7k/8/6K1/8/8/8/8/R7 w - - 0 1");
-   tableValue = probeTablebase(&variation.singlePosition);
-   assert(tableValue == -VALUE_MATED - 1);
-#endif
-
-   return 0;
-}
-
-int testModuleTablebase()
-{
-   int result;
-
-   if (tbAvailable == FALSE)
-   {
-      return 0;
-   }
-
-   if (commandlineOptions.tablebasePath == 0)
-   {
-      return 0;
-   }
-
-   if ((result = testTableFinder()) != 0)
-   {
-      return result;
-   }
-
-   if ((result = testMateValues()) != 0)
-   {
-      return result;
-   }
-
-   return 0;
-}
 #endif

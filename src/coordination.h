@@ -52,7 +52,7 @@ typedef struct
  * @return the effective number of threads that will be used
  */
 int setNumberOfThreads(int numThreads);
-int getNumberOfThreads();
+int getNumberOfThreads(void);
 
 /**
  * Set the size of the hashtable.
@@ -84,12 +84,12 @@ void startTimerThread(SearchTask * task);
 /**
  * Get the elapsed time of the current search.
  */
-long getElapsedTime();
+long getElapsedTime(void);
 
 /**
  * Get the hashtable shared by the search threads.
  */
-Hashtable *getSharedHashtable();
+Hashtable *getSharedHashtable(void);
 
 /**
  * Signal an abortion of the current search and copy 

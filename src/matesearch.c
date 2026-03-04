@@ -412,12 +412,12 @@ void searchForMate(Variation * variation, Movelist * foundSolutions,
    releaseGuiSearchMutex();
 }
 
-int initializeModuleMatesearch()
+int initializeModuleMatesearch(void)
 {
    return 0;
 }
 
-int testModuleMatesearch()
+int testModuleMatesearch(void)
 {
    return 0;
 }

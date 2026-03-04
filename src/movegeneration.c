@@ -2158,7 +2158,7 @@ bool kingCanEscape(Position * position)
    return FALSE;
 }
 
-int initializeModuleMovegeneration()
+int initializeModuleMovegeneration(void)
 {
    int i = 0;
 
@@ -2219,7 +2219,7 @@ int initializeModuleMovegeneration()
 
 #ifndef NDEBUG
 
-static int testPseudoLegalMoves()
+static int testPseudoLegalMoves(void)
 {
    Variation variation;
    Bitboard attackers, interested;
@@ -2349,7 +2349,7 @@ static int testPseudoLegalMoves()
    return 0;
 }
 
-static int testLegalMoves()
+static int testLegalMoves(void)
 {
    Variation variation;
 
@@ -2381,7 +2381,7 @@ static int testLegalMoves()
    return 0;
 }
 
-static int testStaticExchangeEvaluation()
+static int testStaticExchangeEvaluation(void)
 {
    Variation variation;
    Move move;
@@ -2508,7 +2508,7 @@ static int testStaticExchangeEvaluation()
    return 0;
 }
 
-static int testStaticExchangeEvaluationWithKing()
+static int testStaticExchangeEvaluationWithKing(void)
 {
    Variation variation;
    Move move;
@@ -2538,7 +2538,7 @@ static int testStaticExchangeEvaluationWithKing()
    return 0;
 }
 
-static int testStaticExchangeEvaluationWithEnPassantCapture()
+static int testStaticExchangeEvaluationWithEnPassantCapture(void)
 {
    Variation variation;
    Move move;
@@ -2562,7 +2562,7 @@ static int testStaticExchangeEvaluationWithEnPassantCapture()
 
 #define P1 "2b3k1/1p1n1pP1/5P2/2r2q2/4Q3/3N1p2/5Pp1/1R1B2K1 w - - 0 1"
 
-static int testAttackCalculations()
+static int testAttackCalculations(void)
 {
    Variation variation;
 
@@ -2590,7 +2590,7 @@ static int testAttackCalculations()
    return 0;
 }
 
-static int testLegalMoveGeneration()
+static int testLegalMoveGeneration(void)
 {
    Variation variation;
    Movelist movelist;
@@ -2605,7 +2605,7 @@ static int testLegalMoveGeneration()
    return 0;
 }
 
-static int testPinCheck()
+static int testPinCheck(void)
 {
    static const char *fen1 =
       "r1b1k2r/ppp2ppp/2n2n2/1B6/1b2qp2/2NP1N2/PPP1QPPP/R3K2R w KQkq - 0 9";
@@ -2627,7 +2627,7 @@ static int testPinCheck()
 
 #endif
 
-int testModuleMovegeneration()
+int testModuleMovegeneration(void)
 {
 
 #ifndef NDEBUG
