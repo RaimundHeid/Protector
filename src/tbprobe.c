@@ -32,6 +32,11 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef TB_NO_STDBOOL
+typedef uint8_t bool;
+#else
+#include <stdbool.h>
+#endif
 #include "tbprobe.h"
 
 #define TB_PIECES 7
@@ -846,21 +851,11 @@ bool tb_init(const char *path)
 {
   if (!initialized) {
     init_indices();
-#ifndef TB_KING_ATTACKS
     king_attacks_init();
-#endif
-#ifndef TB_KNIGHT_ATTACKS
     knight_attacks_init();
-#endif
-#ifndef TB_BISHOP_ATTACKS
     bishop_attacks_init();
-#endif
-#ifndef TB_ROOK_ATTACKS
     rook_attacks_init();
-#endif
-#ifndef TB_PAWN_ATTACKS
     pawn_attacks_init();
-#endif
     initialized = 1;
   }
 

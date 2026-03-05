@@ -44,14 +44,14 @@ typedef int int32_t;
 typedef long long int64_t;
 #endif
 
-#if defined(__cplusplus)
+#ifndef TB_NO_STDBOOL
 #include <stdbool.h>
 #else
-#include <stdint.h>
-typedef uint8_t tb_bool;
-#define bool tb_bool
-#define true 1
-#define false 0
+#ifndef __cplusplus
+typedef uint8_t bool;
+#define true    1
+#define false   0
+#endif
 #endif
 
 /*

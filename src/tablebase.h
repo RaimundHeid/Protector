@@ -69,4 +69,14 @@ int setTablebaseCacheSize(unsigned int size);
  */
 int probeTablebase(const Position * position);
 
+/**
+ * Probe the tablebase (WDL) for the specified position.
+ */
+int probeTablebaseWDL(const Position * position);
+
+/**
+ * Probe the tablebase (DTZ) for the specified position.
+ */
+int probeTablebaseDTZ(const Position * position, Move * move);
+
 #endif

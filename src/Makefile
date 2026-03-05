@@ -54,7 +54,7 @@ else
         CLEAN_PGO_DATA = rm -f *.gcda *.gcno
     endif
     LTO_FLAGS = -flto
-    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
+    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
 endif
 
 CFLAGS=$(COMMON_CFLAGS)
