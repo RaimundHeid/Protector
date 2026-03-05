@@ -758,25 +758,47 @@ static int searchBest(Variation * variation, int alpha, int beta,
 #ifdef INCLUDE_TABLEBASE_ACCESS
    /* Probe the tablebases in case of reduced material */
    /* ------------------------------------------------ */
-   if (ply >= 2 && (pvNode || restDepth >= 10 * DEPTH_RESOLUTION) &&
-       position->numberOfPieces[WHITE] +
-       position->numberOfPieces[BLACK] <= 6 &&
-       excludeMove == NO_MOVE && tbAvailable != FALSE)
+   if (tbAvailable != FALSE && excludeMove == NO_MOVE)
    {
-      int tbValue;
+      int numPieces = position->numberOfPieces[WHITE] +
+                      position->numberOfPieces[BLACK];
+      int wdlValue = TABLEBASE_ERROR;
 
-      tbValue = probeTablebase(position);
-
-      if (tbValue != TABLEBASE_ERROR)
+      if (restDepth >= 1 * DEPTH_RESOLUTION && numPieces <= 6)
       {
+         wdlValue = probeTablebaseWDL(position);
+      }
+
+      if (wdlValue != TABLEBASE_ERROR)
+      {
+         int score;
+
          variation->tbHits++;
 
-         if (tbValue == 0)
+         if (wdlValue == 2) // Win
+            score = -VALUE_MATED - MAX_DEPTH - 1 - ply;
+         else if (wdlValue == 1) // Cursed Win
+            score = 1;
+         else if (wdlValue == 0) // Draw
+            score = variation->drawScore[position->activeColor];
+         else if (wdlValue == -1) // Blessed Loss
+            score = -1;
+         else // Loss
+            score = VALUE_MATED + MAX_DEPTH + 1 + ply;
+
+         if (wdlValue == 0 || (wdlValue > 0 && score >= beta) || (wdlValue < 0 && score <= alpha))
          {
-            return variation->drawScore[position->activeColor];
+            return score;
          }
 
-         return (tbValue > 0 ? tbValue - ply : tbValue + ply);
+         if (score > alpha && wdlValue > 0)
+         {
+            alpha = score;
+         }
+         else if (score < beta && wdlValue < 0)
+         {
+            beta = score;
+         }
       }
    }
 #endif
@@ -1741,6 +1763,51 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
       initializeMoveValues(basemoves);
       resetPvsOfVariation(variation);
       best = VALUE_MATED;
+
+#ifdef INCLUDE_TABLEBASE_ACCESS
+   if (tbAvailable != FALSE &&
+       position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7)
+   {
+      int i;
+      bool allProbed = TRUE;
+
+      for (i = 0; i < basemoves->numberOfMoves; i++)
+      {
+         Move currentMove = basemoves->moves[i];
+         Move tbMove = NO_MOVE;
+         int score;
+
+         makeMoveFast(variation, currentMove);
+         score = probeTablebaseDTZ(&variation->singlePosition, &tbMove);
+         unmakeLastMove(variation);
+
+         if (score != TABLEBASE_ERROR)
+         {
+            // We need to invert the score because probeTablebaseDTZ returns it from the side to move's perspective
+            setMoveValue(&basemoves->moves[i], -score);
+         }
+         else
+         {
+            allProbed = FALSE;
+         }
+      }
+
+      if (allProbed)
+      {
+         variation->tbHits++;
+         sortMoves(basemoves);
+         
+         // Set the best move as found in TBs
+         variation->bestBaseMove = basemoves->moves[0];
+         
+         // Initialize PV with the best move
+         variation->completePv.move[0] = (UINT16)variation->bestBaseMove;
+         variation->completePv.move[1] = (UINT16)NO_MOVE;
+         variation->completePv.length = 1;
+         variation->completePv.score = getMoveValue(variation->bestBaseMove);
+      }
+   }
+#endif
 
       for (variation->numberOfCurrentBaseMove = 1;
            variation->numberOfCurrentBaseMove <= basemoves->numberOfMoves;
