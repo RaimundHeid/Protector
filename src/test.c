@@ -212,7 +212,7 @@ int processTestsuite(const char *filename)
       freePgnGame(game);
    }
 
-   formatLongInteger(overallNodes, ons);
+   formatLongInteger(overallNodes, ons, sizeof(ons));
    logReport(fmt, filename, solved, pgnfile.numGames, ons);
    logReport("Not solved: %s\n", notSolved.buffer);
    free(notSolved.buffer);

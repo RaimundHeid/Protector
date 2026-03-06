@@ -115,7 +115,7 @@ void getSquareName(Square square, char name[3]);
 /**
  * Get a dump of the specified move.
  */
-void getMoveDump(const Move move, char *buffer);
+void getMoveDump(const Move move, char *buffer, size_t bufferSize);
 
 /**
  * Close the logfile.
@@ -135,12 +135,12 @@ void logReport(const char *fmt, ...);
 /**
  * Format the given integer value by adding thousands separators.
  */
-void formatLongInteger(UINT64 n, char *buffer);
+void formatLongInteger(UINT64 n, char *buffer, size_t bufferSize);
 
 /**
  * Format the given centipawn value according to the uci protocol.
  */
-void formatUciValue(const int centipawnValue, char *buffer);
+void formatUciValue(const int centipawnValue, char *buffer, size_t bufferSize);
 
 /**
  * Write the specified table to a source code file.

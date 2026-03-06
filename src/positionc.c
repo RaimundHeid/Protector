@@ -205,7 +205,7 @@ int makeBlackMove(Variation * variation, const Move move)
    {
       char buffer[128];
 
-      getMoveDump(move, buffer);
+      getMoveDump(move, buffer, sizeof(buffer));
       logDebug("pos %llu after %s: %llu\n",
                variation->nodes, buffer, variation->singlePosition.hashKey);
    }

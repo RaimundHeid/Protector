@@ -563,7 +563,7 @@ static void postPv(Variation * var, bool sendAnyway)
       }
 
       getUciPv(pv, pvMovesBuffer, sizeof(pvMovesBuffer));
-      formatUciValue(pv->score, scoreBuffer);
+      formatUciValue(pv->score, scoreBuffer, sizeof(scoreBuffer));
 
       if (pv->scoreType == HASHVALUE_LOWER_LIMIT)
       {

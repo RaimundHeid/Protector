@@ -46,7 +46,7 @@ void getSquareName(Square square, char name[3])
    name[2] = '\0';
 }
 
-void getMoveDump(const Move move, char *buffer)
+void getMoveDump(const Move move, char *buffer, size_t bufferSize)
 {
    char from[3], to[3];
 
@@ -55,57 +55,67 @@ void getMoveDump(const Move move, char *buffer)
 
    if (getNewPiece(move) == NO_PIECE)
    {
-      sprintf(buffer, "%s-%s", from, to);
+      snprintf(buffer, bufferSize, "%s-%s", from, to);
    }
    else
    {
-      sprintf(buffer, "%s-%s=%c", from, to, pieceSymbol[getNewPiece(move)]);
+      snprintf(buffer, bufferSize, "%s-%s=%c", from, to, pieceSymbol[getNewPiece(move)]);
    }
 }
 
-static void getMovelistDump(const Movelist * movelist, char *buffer)
+static void getMovelistDump(const Movelist * movelist, char *buffer, size_t bufferSize)
 {
    int i;
    char movebuffer[128];
+   size_t currentLen;
 
    buffer[0] = '\0';
 
-   sprintf(buffer + strlen(buffer), "\nmoves:\n");
+   snprintf(buffer, bufferSize, "\nmoves:\n");
 
    for (i = 0; i < movelist->numberOfMoves; i++)
    {
-      getMoveDump(movelist->moves[i], movebuffer);
-      sprintf(buffer + strlen(buffer), "%d. %s (%d)\n", i + 1, movebuffer,
+      getMoveDump(movelist->moves[i], movebuffer, sizeof(movebuffer));
+      currentLen = strlen(buffer);
+      snprintf(buffer + currentLen, bufferSize - currentLen, "%d. %s (%d)\n", i + 1, movebuffer,
               getMoveValue(movelist->moves[i]));
    }
 
-   sprintf(buffer + strlen(buffer), "bad captures\n");
+   currentLen = strlen(buffer);
+   snprintf(buffer + currentLen, bufferSize - currentLen, "bad captures\n");
 
    for (i = 0; i < movelist->numberOfBadCaptures; i++)
    {
-      getMoveDump(movelist->badCaptures[i], movebuffer);
-      sprintf(buffer + strlen(buffer), "%d. %s (%d)\n", i + 1, movebuffer,
+      getMoveDump(movelist->badCaptures[i], movebuffer, sizeof(movebuffer));
+      currentLen = strlen(buffer);
+      snprintf(buffer + currentLen, bufferSize - currentLen, "%d. %s (%d)\n", i + 1, movebuffer,
               getMoveValue(movelist->badCaptures[i]));
    }
 }
 
-static void formatTime(long sec, char *buffer)
+static void formatTime(long sec, char *buffer, size_t bufferSize)
 {
    long seconds = sec % 60;
    long minutes = (sec / 60) % 60;
    long hours = (sec / 3600) % 60;
 
-   sprintf(buffer, "%02ld:%02ld:%02ld", hours, minutes, seconds);
+   snprintf(buffer, bufferSize, "%02ld:%02ld:%02ld", hours, minutes, seconds);
 }
 
-void formatLongInteger(UINT64 n, char *buffer)
+void formatLongInteger(UINT64 n, char *buffer, size_t bufferSize)
 {
    char tmp[32], *pBuffer, *fmt = "%llu";
    int i, j = 1, ol;
 
-   sprintf(tmp, fmt, n);
+   snprintf(tmp, sizeof(tmp), fmt, n);
    ol = (int) strlen(tmp);
-   pBuffer = buffer + ol + (ol - 1) / 3;
+   int targetLen = ol + (ol - 1) / 3;
+   if ((size_t)targetLen >= bufferSize) {
+       strncpy(buffer, tmp, bufferSize - 1);
+       buffer[bufferSize - 1] = '\0';
+       return;
+   }
+   pBuffer = buffer + targetLen;
    *pBuffer-- = '\0';
 
    for (i = ol - 1; i >= 0; i--)
@@ -122,51 +132,52 @@ void formatLongInteger(UINT64 n, char *buffer)
    }
 }
 
-static void formatCentipawnValue(int centipawnValue, char *buffer)
+static void formatCentipawnValue(int centipawnValue, char *buffer, size_t bufferSize)
 {
    float value = (float) centipawnValue;
 
    if (abs(centipawnValue) <= -(VALUE_MATED + 500))
    {
-      sprintf(buffer, "%.2f", value / 100.0);
+      snprintf(buffer, bufferSize, "%.2f", value / 100.0);
    }
    else
    {
       if (centipawnValue > 0)
       {
-         sprintf(buffer, "#%d", (1 - VALUE_MATED - centipawnValue) / 2);
+         snprintf(buffer, bufferSize, "#%d", (1 - VALUE_MATED - centipawnValue) / 2);
       }
       else
       {
-         sprintf(buffer, "-#%d", (centipawnValue - VALUE_MATED) / 2);
+         snprintf(buffer, bufferSize, "-#%d", (centipawnValue - VALUE_MATED) / 2);
       }
    }
 }
 
-void formatUciValue(const int centipawnValue, char *buffer)
+void formatUciValue(const int centipawnValue, char *buffer, size_t bufferSize)
 {
    if (abs(centipawnValue) <= -(VALUE_MATED + 500))
    {
-      sprintf(buffer, "cp %d", centipawnValue);
+      snprintf(buffer, bufferSize, "cp %d", centipawnValue);
    }
    else
    {
       if (centipawnValue > 0)
       {
-         sprintf(buffer, "mate %d", (1 - VALUE_MATED - centipawnValue) / 2);
+         snprintf(buffer, bufferSize, "mate %d", (1 - VALUE_MATED - centipawnValue) / 2);
       }
       else
       {
-         sprintf(buffer, "mate -%d", (centipawnValue - VALUE_MATED) / 2);
+         snprintf(buffer, bufferSize, "mate -%d", (centipawnValue - VALUE_MATED) / 2);
       }
    }
 }
 
-static void getBoardDump(const Position * position, char *buffer)
+static void getBoardDump(const Position * position, char *buffer, size_t bufferSize)
 {
    int file, rank;
    Square square;
    Piece piece;
+   size_t p = 0;
 
    for (rank = RANK_8; rank >= RANK_1; rank--)
    {
@@ -174,21 +185,21 @@ static void getBoardDump(const Position * position, char *buffer)
       {
          square = getSquare(file, rank);
          piece = position->piece[square];
-         *buffer++ = pieceName[piece];
+         if (p < bufferSize - 1) buffer[p++] = pieceName[piece];
       }
 
-      *buffer++ = '\n';
+      if (p < bufferSize - 1) buffer[p++] = '\n';
    }
 
-   *buffer = '\0';
+   buffer[p] = '\0';
 
    if (position->activeColor == WHITE)
    {
-      strcat(buffer, "White to move");
+      strncat(buffer, "White to move", bufferSize - strlen(buffer) - 1);
    }
    else
    {
-      strcat(buffer, "Black to move");
+      strncat(buffer, "Black to move", bufferSize - strlen(buffer) - 1);
    }
 }
 
@@ -205,7 +216,7 @@ void dumpMove(const Move move)
 {
    char buffer[128];
 
-   getMoveDump(move, buffer);
+   getMoveDump(move, buffer, sizeof(buffer));
 
    logDebug("%s (%d)\n", buffer, getMoveValue(move));
 }
@@ -214,7 +225,7 @@ void logMove(const Move move)
 {
    char buffer[128];
 
-   getMoveDump(move, buffer);
+   getMoveDump(move, buffer, sizeof(buffer));
 
    logReport("%s (%d)\n", buffer, getMoveValue(move));
 }
@@ -223,7 +234,7 @@ void dumpMovelist(const Movelist * movelist)
 {
    char buffer[4096];
 
-   getMovelistDump(movelist, buffer);
+   getMovelistDump(movelist, buffer, sizeof(buffer));
 
    logDebug("%s\n", buffer);
 }
@@ -234,15 +245,15 @@ void dumpPv(int depth, long timestamp,
 {
    char ts[32], ns[32], vs[32];
 
-   formatTime(timestamp / 1000, ts);
-   formatLongInteger(nodes, ns);
+   formatTime(timestamp / 1000, ts, sizeof(ts));
+   formatLongInteger(nodes, ns, sizeof(ns));
 
    if (activeColor == BLACK && value > 20000)
    {
       value--;
    }
 
-   formatCentipawnValue((activeColor == WHITE ? value : -value), vs);
+   formatCentipawnValue((activeColor == WHITE ? value : -value), vs, sizeof(vs));
    logReport("%d: %s %s (%s) %s\n", depth, ts, moves, vs, ns);
 }
 
@@ -250,7 +261,7 @@ void logPosition(const Position * position)
 {
    char buffer[1024];
 
-   getBoardDump(position, buffer);
+   getBoardDump(position, buffer, sizeof(buffer));
 
    logReport("%s\n", buffer);
 }
@@ -265,14 +276,14 @@ void dumpVariation(const Variation * variation)
    char buffer[1024], moveBuffer[16];
    int ply;
 
-   getBoardDump(&variation->singlePosition, buffer);
-   strcat(buffer, "\n");
+   getBoardDump(&variation->singlePosition, buffer, sizeof(buffer));
+   strncat(buffer, "\n", sizeof(buffer) - strlen(buffer) - 1);
 
    for (ply = 0; ply < variation->ply; ply++)
    {
-      getMoveDump(variation->plyInfo[ply].currentMove, moveBuffer);
-      strcat(buffer, moveBuffer);
-      strcat(buffer, " ");
+      getMoveDump(variation->plyInfo[ply].currentMove, moveBuffer, sizeof(moveBuffer));
+      strncat(buffer, moveBuffer, sizeof(buffer) - strlen(buffer) - 1);
+      strncat(buffer, " ", sizeof(buffer) - strlen(buffer) - 1);
    }
 
    logReport("%s\nnodeCount: %llu hashKey: %llu", buffer, variation->nodes,
@@ -284,14 +295,14 @@ void reportVariation(const Variation * variation)
    char buffer[1024], moveBuffer[16];
    int ply;
 
-   getBoardDump(&variation->startPosition, buffer);
-   strcat(buffer, "\n");
+   getBoardDump(&variation->startPosition, buffer, sizeof(buffer));
+   strncat(buffer, "\n", sizeof(buffer) - strlen(buffer) - 1);
 
    for (ply = 0; ply < variation->ply; ply++)
    {
-      getMoveDump(variation->plyInfo[ply].currentMove, moveBuffer);
-      strcat(buffer, moveBuffer);
-      strcat(buffer, " ");
+      getMoveDump(variation->plyInfo[ply].currentMove, moveBuffer, sizeof(moveBuffer));
+      strncat(buffer, moveBuffer, sizeof(buffer) - strlen(buffer) - 1);
+      strncat(buffer, " ", sizeof(buffer) - strlen(buffer) - 1);
    }
 
    logReport("%s\nnodeCount: %llu hashKey: %llu\nbest move=", buffer,
@@ -299,9 +310,10 @@ void reportVariation(const Variation * variation)
    logMove(variation->bestBaseMove);
 }
 
-static void bitboard2String(Bitboard bitboard, char *title, char *buffer)
+static void bitboard2String(Bitboard bitboard, char *title, char *buffer, size_t bufferSize)
 {
    int file, rank;
+   size_t p = 0;
 
    for (rank = RANK_8; rank >= RANK_1; rank = (Rank) (rank - 1))
    {
@@ -309,20 +321,21 @@ static void bitboard2String(Bitboard bitboard, char *title, char *buffer)
       {
          Square square = getSquare(file, rank);
 
-         *buffer++ = (testSquare(bitboard, square) ? '*' : '0');
+         if (p < bufferSize - 1) buffer[p++] = (testSquare(bitboard, square) ? '*' : '0');
       }
 
-      *buffer++ = '\n';
+      if (p < bufferSize - 1) buffer[p++] = '\n';
    }
 
-   sprintf(buffer, "%s", title);
+   buffer[p] = '\0';
+   strncat(buffer, title, bufferSize - strlen(buffer) - 1);
 }
 
 void dumpBitboard(Bitboard bitboard, char *title)
 {
    char buffer[128];
 
-   bitboard2String(bitboard, title, buffer);
+   bitboard2String(bitboard, title, buffer, sizeof(buffer));
 
    logDebug("\n%s\n\n", buffer);
 }
@@ -335,10 +348,12 @@ void dumpBalance(const INT32 balance)
    logDebug("op=%d eg=%d\n", opValue, egValue);
 }
 
-static void boardValues2String(const int value[64], char *buffer)
+static void boardValues2String(const int value[64], char *buffer, size_t bufferSize)
 {
    int file, rank;
    char valueBuffer[64];
+
+   buffer[0] = '\0';
 
    for (rank = RANK_8; rank >= RANK_1; rank = (Rank) (rank - 1))
    {
@@ -346,22 +361,19 @@ static void boardValues2String(const int value[64], char *buffer)
       {
          Square square = getSquare(file, rank);
 
-         sprintf(valueBuffer, "%i ", value[square]);
-         sprintf(buffer, "%s", valueBuffer);
-         buffer += strlen(valueBuffer);
+         snprintf(valueBuffer, sizeof(valueBuffer), "%i ", value[square]);
+         strncat(buffer, valueBuffer, bufferSize - strlen(buffer) - 1);
       }
 
-      *buffer++ = '\n';
+      strncat(buffer, "\n", bufferSize - strlen(buffer) - 1);
    }
-
-   *buffer++ = '\0';
 }
 
 void dumpBoardValues(const int value[64])
 {
    char buffer[1024];
 
-   boardValues2String(value, buffer);
+   boardValues2String(value, buffer, sizeof(buffer));
 
    logDebug("\n%s\n\n", buffer);
 }
@@ -380,13 +392,20 @@ void logDebug(const char *fmt, ...)
    {
       FILE *logfile = fopen(logfileName, "a");
 
-      fprintf(logfile, "%lu: ", getTimestamp());
-      vfprintf(logfile, fmt, args);
-      fflush(logfile);
-
-      if (fclose(logfile) != 0)
+      if (logfile != NULL)
       {
-         printf("Could not close file '%s'.", logfileName);
+         fprintf(logfile, "%lu: ", getTimestamp());
+         vfprintf(logfile, fmt, args);
+         fflush(logfile);
+
+         if (fclose(logfile) != 0)
+         {
+            printf("Could not close file '%s'.", logfileName);
+         }
+      }
+      else
+      {
+         printf("Could not open file '%s' for appending.", logfileName);
       }
    }
 
@@ -400,7 +419,7 @@ void logReport(const char *fmt, ...)
    va_list args;
 
    va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
 
    if (commandlineOptions.uciMode == FALSE)
@@ -419,7 +438,7 @@ void logReport(const char *fmt, ...)
    }
    else
    {
-      printf("Could not open file '%s'.", logfileName);
+      printf("Could not open file '%s' for appending.", logfileName);
    }
 }
 
@@ -429,6 +448,12 @@ void writeTableToFile(UINT64 * table, const int tablesize,
    FILE *file = fopen(fileName, "w");
    int i;
    const char *format = "%llullu, ";
+
+   if (file == NULL)
+   {
+      printf("Could not open file '%s' for writing.", fileName);
+      return;
+   }
 
    fprintf(file, "#include \"protector.h\"\n\n");
    fprintf(file, "UINT64 %s[%d] = {\n", tableName, tablesize);
@@ -476,11 +501,11 @@ int testModuleIo(void)
 {
    char buffer[32];
 
-   formatLongInteger(123, buffer);
+   formatLongInteger(123, buffer, sizeof(buffer));
    assert(strcmp(buffer, "123") == 0);
-   formatLongInteger(1234, buffer);
+   formatLongInteger(1234, buffer, sizeof(buffer));
    assert(strcmp(buffer, "1,234") == 0);
-   formatLongInteger(1234567, buffer);
+   formatLongInteger(1234567, buffer, sizeof(buffer));
    assert(strcmp(buffer, "1,234,567") == 0);
 
    return 0;
