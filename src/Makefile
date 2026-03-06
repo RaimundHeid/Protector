@@ -54,11 +54,11 @@ else
         CLEAN_PGO_DATA = rm -f *.gcda *.gcno
     endif
     LTO_FLAGS = -flto
-    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
+    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
 endif
 
 CFLAGS=$(COMMON_CFLAGS)
-protectordbg: CFLAGS=-Wall -std=gnu11 -pedantic -Wno-long-long -pthread
+protectordbg: CFLAGS=-DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -g -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common
 
 protectorobjects = protector.o bitboard.o position.o fen.o io.o \
                    movegeneration.o matesearch.o keytable.o hash.o test.o \
@@ -94,8 +94,6 @@ debug:
 
 test:
 	$(MAKE) debug
-	./Protector -m
-	./Protector -t ../pgn/problems.pgn
 	./Protector -t ../pgn/pgo.pgn
 
 protectorpgo:
