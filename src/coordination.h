@@ -55,11 +55,12 @@ int setNumberOfThreads(int numThreads);
 int getNumberOfThreads(void);
 
 /**
- * Set the size of the hashtable.
+ * Set the size of the shared hashtable.
  *
- * @var size the size of the hashtable in MB
+ * @param size the size of the hashtable in MB
+ * @return true if the hashtable was successfully allocated, false otherwise
  */
-void setHashtableSizeInMb(unsigned int size);
+bool setHashtableSizeInMb(unsigned int size);
 
 /**
  * Lock out either the gui or the search thread.

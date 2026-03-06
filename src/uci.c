@@ -940,7 +940,10 @@ static int processUciCommand(const char *command)
       {
          const unsigned int hashsize = (unsigned int) max(8, atoi(value));
 
-         setHashtableSizeInMb(hashsize);
+         if (!setHashtableSizeInMb(hashsize))
+         {
+            sendToUciNonDebug("info string Failed to set hashtable size to %u MB", hashsize);
+         }
 
          return TRUE;
       }
@@ -1556,7 +1559,11 @@ static int testHashUpdate(void)
 {
    Hashtable *hashtable = getSharedHashtable();
    Hashentry *tableHit;
-   char *transEntryStringFormat = "settransentry key %llx data %llx";
+#if defined(_WIN32) || defined(_WIN64)
+   const char *transEntryStringFormat = "settransentry key %I64x data %I64x";
+#else
+   const char *transEntryStringFormat = "settransentry key %llx data %llx";
+#endif
    char commandBuffer[256];
    UINT64 hashKey = 15021965ull;
    INT16 value = 2004;

@@ -358,12 +358,18 @@ void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit)
    }
 }
 
-void setHashtableSizeInMb(unsigned int size)
+bool setHashtableSizeInMb(unsigned int size)
 {
    const UINT64 tablesize = (UINT64)size * BYTES_PER_MB;
 
-   setHashtableSize(&sharedHashtable, tablesize);
-   resetHashtable(&sharedHashtable);
+   if (setHashtableSize(&sharedHashtable, tablesize))
+   {
+      resetHashtable(&sharedHashtable);
+
+      return TRUE;
+   }
+
+   return FALSE;
 }
 
 int initializeModuleCoordination(void)
@@ -371,7 +377,12 @@ int initializeModuleCoordination(void)
    int threadCount;
 
    initializeHashtable(&sharedHashtable);
-   setHashtableSize(&sharedHashtable, INITIAL_HASHTABLE_SIZE_MB * BYTES_PER_MB);
+
+   if (!setHashtableSize(&sharedHashtable, INITIAL_HASHTABLE_SIZE_MB * BYTES_PER_MB))
+   {
+      return -1;
+   }
+
    resetHashtable(&sharedHashtable);
 
    for (threadCount = 0; threadCount < MAX_THREADS; threadCount++)

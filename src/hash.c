@@ -33,7 +33,7 @@ const unsigned int NUM_DATES = 16;
 const unsigned int CLUSTER_SIZE = 4;
 const UINT8 DEPTH_NONE = 0;
 Nodeentry nodeUsageTable[NODE_TABLE_SIZE];
-long numNodeTableEntries;
+UINT64 numNodeTableEntries;
 
 INT16 getHashentryValue(const Hashentry * entry)
 {
@@ -72,6 +72,11 @@ UINT64 getHashentryKey(const Hashentry * entry)
 
 static int getAge(const Hashtable * hashtable, const UINT8 date)
 {
+   if (hashtable == NULL)
+   {
+      return 0;
+   }
+
    assert(date < NUM_DATES);
    assert(hashtable->date < NUM_DATES);
 
@@ -80,6 +85,11 @@ static int getAge(const Hashtable * hashtable, const UINT8 date)
 
 void incrementDate(Hashtable * hashtable)
 {
+   if (hashtable == NULL)
+   {
+      return;
+   }
+
    assert(hashtable->date < NUM_DATES);
 
    hashtable->date = (UINT8) ((hashtable->date + 1) % NUM_DATES);
@@ -89,10 +99,11 @@ void incrementDate(Hashtable * hashtable)
 
 static void deleteTables(Hashtable * hashtable)
 {
-   if (hashtable->table != 0)
+   if (hashtable != NULL && hashtable->table != NULL)
    {
       free(hashtable->table);
-      hashtable->table = 0;
+      hashtable->table = NULL;
+      hashtable->tableSize = 0;
    }
 }
 
@@ -100,10 +111,11 @@ static UINT64 _getHashData(INT16 value, INT16 staticValue, UINT8 importance,
                            UINT16 bestMove, UINT8 date, UINT8 flag)
 {
    return ((UINT64) (value & 0xFFFF)) |
-      ((UINT64) (staticValue & 0xFFFF)) << 16 |
-      ((UINT64) importance) << 32 |
-      ((UINT64) bestMove) << 40 |
-      ((UINT64) date) << 56 | ((UINT64) flag) << 60;
+      (((UINT64) (staticValue & 0xFFFF)) << 16) |
+      (((UINT64) importance) << 32) |
+      (((UINT64) bestMove) << 40) |
+      (((UINT64) date) << 56) |
+      (((UINT64) flag) << 60);
 }
 
 Hashentry constructHashEntry(UINT64 key, INT16 value, INT16 staticValue,
@@ -124,6 +136,11 @@ void resetHashtable(Hashtable * hashtable)
    UINT64 l;
    Hashentry emptyEntry;
 
+   if (hashtable == NULL || hashtable->table == NULL)
+   {
+      return;
+   }
+
    emptyEntry.key = ULONG_ZERO;
    emptyEntry.data = _getHashData(-VALUE_MATED, 0, DEPTH_NONE,
                                   (UINT16) NO_MOVE, 0, HASHVALUE_UPPER_LIMIT);
@@ -141,7 +158,7 @@ void resetHashtable(Hashtable * hashtable)
 
 void resetNodetable(void)
 {
-   int i;
+   size_t i;
 
    for (i = 0; i < NODE_TABLE_SIZE; i++)
    {
@@ -156,9 +173,13 @@ void finalizeHashtable(Hashtable * hashtable)
 
 void initializeHashtable(Hashtable * hashtable)
 {
-   hashtable->table = 0;
-   hashtable->tableSize = 0;
-   hashtable->entriesUsed = 0;
+   if (hashtable != NULL)
+   {
+      hashtable->table = NULL;
+      hashtable->tableSize = 0;
+      hashtable->entriesUsed = 0;
+      hashtable->date = 0;
+   }
 }
 
 bool isPrimeNumber(UINT64 n)
@@ -210,21 +231,45 @@ UINT64 getPreviousPrime(UINT64 n)
    return n;
 }
 
-void setHashtableSize(Hashtable * hashtable, UINT64 size)
+bool setHashtableSize(Hashtable * hashtable, UINT64 size)
 {
    const UINT64 ENTRY_SIZE = sizeof(Hashentry);
+   UINT64 newTableSize;
+   Hashentry *newTable;
+
+   if (hashtable == NULL)
+   {
+      return FALSE;
+   }
 
    deleteTables(hashtable);
-   hashtable->tableSize = getNextPrime(size / ENTRY_SIZE);
-   hashtable->table =
-      malloc((hashtable->tableSize + CLUSTER_SIZE) * ENTRY_SIZE);
 
-   /* logDebug("Hashtable size: %ld entries\n",
-      hashtable->tableSize); */
+   if (size == 0)
+   {
+      return TRUE;
+   }
+
+   newTableSize = getNextPrime(size / ENTRY_SIZE);
+   newTable = (Hashentry *) malloc((newTableSize + CLUSTER_SIZE) * ENTRY_SIZE);
+
+   if (newTable == NULL)
+   {
+      return FALSE;
+   }
+
+   hashtable->table = newTable;
+   hashtable->tableSize = newTableSize;
+
+   return TRUE;
 }
 
 UINT64 getHashIndex(Hashtable * hashtable, UINT64 key)
 {
+   if (hashtable == NULL || hashtable->tableSize == 0)
+   {
+      return 0;
+   }
+
    return key % ((hashtable)->tableSize);
 }
 
@@ -232,10 +277,16 @@ void setHashentry(Hashtable * hashtable, UINT64 key, INT16 value,
                   UINT8 importance, UINT16 bestMove, UINT8 flag,
                   INT16 staticValue)
 {
-   const UINT64 index = getHashIndex(hashtable, key);
-   UINT64 data, i, bestEntry = 0;
+   UINT64 index, data, i, bestEntry = 0;
    int bestEntryScore = -1024;
    Hashentry *entryToBeReplaced;
+
+   if (hashtable == NULL || hashtable->table == NULL)
+   {
+      return;
+   }
+
+   index = getHashIndex(hashtable, key);
 
    for (i = 0; i < CLUSTER_SIZE; i++)
    {
@@ -292,8 +343,14 @@ void setHashentry(Hashtable * hashtable, UINT64 key, INT16 value,
 
 Hashentry *getHashentry(Hashtable * hashtable, UINT64 key)
 {
-   const UINT64 index = getHashIndex(hashtable, key);
-   UINT64 i;
+   UINT64 index, i;
+
+   if (hashtable == NULL || hashtable->table == NULL)
+   {
+      return NULL;
+   }
+
+   index = getHashIndex(hashtable, key);
 
    for (i = 0; i < CLUSTER_SIZE; i++)
    {
@@ -331,17 +388,29 @@ Hashentry *getHashentry(Hashtable * hashtable, UINT64 key)
       }
    }
 
-   return 0;
+   return NULL;
 }
 
 UINT64 getNodeIndex(UINT64 key)
 {
+   if (numNodeTableEntries == 0)
+   {
+      return 0;
+   }
+
    return key % numNodeTableEntries;
 }
 
 bool nodeIsInUse(UINT64 key, UINT8 depth)
 {
-   UINT64 nodeIndex = getNodeIndex(key);
+   UINT64 nodeIndex;
+
+   if (numNodeTableEntries == 0)
+   {
+      return FALSE;
+   }
+
+   nodeIndex = getNodeIndex(key);
 
    return nodeUsageTable[nodeIndex].key == key &&
       nodeUsageTable[nodeIndex].depth >= depth && key != ULONG_ZERO;
@@ -349,7 +418,14 @@ bool nodeIsInUse(UINT64 key, UINT8 depth)
 
 bool setNodeUsage(UINT64 key, UINT8 depth)
 {
-   UINT64 nodeIndex = getNodeIndex(key);
+   UINT64 nodeIndex;
+
+   if (numNodeTableEntries == 0)
+   {
+      return FALSE;
+   }
+
+   nodeIndex = getNodeIndex(key);
 
    if (nodeUsageTable[nodeIndex].key == ULONG_ZERO)
    {
@@ -366,7 +442,14 @@ bool setNodeUsage(UINT64 key, UINT8 depth)
 
 void resetNodeUsage(UINT64 key, UINT8 depth)
 {
-   UINT64 nodeIndex = getNodeIndex(key);
+   UINT64 nodeIndex;
+
+   if (numNodeTableEntries == 0)
+   {
+      return;
+   }
+
+   nodeIndex = getNodeIndex(key);
 
    nodeUsageTable[nodeIndex].key = ULONG_ZERO;
 }
@@ -375,6 +458,11 @@ int initializeModuleHash(void)
 {
    resetNodetable();
    numNodeTableEntries = getPreviousPrime(NODE_TABLE_SIZE);
+
+   if (numNodeTableEntries == 0)
+   {
+      return -1;
+   }
 
    return 0;
 }

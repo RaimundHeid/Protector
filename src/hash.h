@@ -28,8 +28,9 @@
  * Define the size of the specified hashtable.
  *
  * @param size the size of the hashtable in bytes
+ * @return true if the hashtable was successfully allocated, false otherwise
  */
-void setHashtableSize(Hashtable * hashtable, UINT64 size);
+bool setHashtableSize(Hashtable * hashtable, UINT64 size);
 
 /**
  * Initialize the specified hashtable. Call this function exactly once
