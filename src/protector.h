@@ -44,6 +44,7 @@ extern int _distance[_64_][_64_];
 extern int _horizontalDistance[_64_][_64_];
 extern int _verticalDistance[_64_][_64_];
 extern int _taxiDistance[_64_][_64_];
+extern int castlingsOfColor[2];
 extern const int colorSign[2];
 extern int pieceIndex[16];
 extern int debugOutput;

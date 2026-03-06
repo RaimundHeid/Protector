@@ -52,7 +52,7 @@ CommandlineOptions commandlineOptions;
 UINT64 statCount1, statCount2;
 int debugOutput = FALSE;
 
-static void initializeModuleProctector(void)
+static int initializeModuleProtector(void)
 {
    int sq1, sq2;
 
@@ -74,21 +74,23 @@ static void initializeModuleProctector(void)
    castlingsOfColor[WHITE] = WHITE_00 | WHITE_000;
    castlingsOfColor[BLACK] = BLACK_00 | BLACK_000;
 
-   initializeModuleIo();
-   initializeModuleTools();
-   initializeModuleCoordination();
-   initializeModuleBitboard();
-   initializeModulePosition();
-   initializeModuleFen();
-   initializeModuleMovegeneration();
-   initializeModuleMatesearch();
-   initializeModuleSearch();
-   initializeModuleHash();
-   initializeModuleTest();
-   initializeModulePgn();
-   initializeModuleTablebase();
-   initializeModuleEvaluation();
-   initializeModuleUci();
+   if (initializeModuleIo() != 0) return -1;
+   if (initializeModuleTools() != 0) return -1;
+   if (initializeModuleCoordination() != 0) return -1;
+   if (initializeModuleBitboard() != 0) return -1;
+   if (initializeModulePosition() != 0) return -1;
+   if (initializeModuleFen() != 0) return -1;
+   if (initializeModuleMovegeneration() != 0) return -1;
+   if (initializeModuleMatesearch() != 0) return -1;
+   if (initializeModuleSearch() != 0) return -1;
+   if (initializeModuleHash() != 0) return -1;
+   if (initializeModuleTest() != 0) return -1;
+   if (initializeModulePgn() != 0) return -1;
+   if (initializeModuleTablebase() != 0) return -1;
+   if (initializeModuleEvaluation() != 0) return -1;
+   if (initializeModuleUci() != 0) return -1;
+
+   return 0;
 }
 
 static void reportSuccess(const char *moduleName)
@@ -250,8 +252,8 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    options->processModuleTest = FALSE;
    options->uciMode = TRUE;
    options->dumpEvaluation = FALSE;
-   options->testfile = 0;
-   options->tablebasePath = 0;
+   options->testfile = NULL;
+   options->tablebasePath = NULL;
 
    for (i = 0; i < argc; i++)
    {
@@ -281,17 +283,22 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
 
       if (strcmp(currentArg, "-v") == 0)
       {
-         printf("Protector %s", programVersionNumber);
+         printf("Protector %s\n", programVersionNumber);
       }
    }
 }
 
 int main(int argc, char **argv)
 {
-
    parseOptions(argc, argv, &commandlineOptions);
-   initializeModuleProctector();
-   /* logDebug("protector initialized\n"); */
+
+   if (initializeModuleProtector() != 0)
+   {
+      logDebug("Initialization failed. Terminating.\n");
+      finalizeModuleCoordination();
+
+      return -1;
+   }
 
    if (commandlineOptions.uciMode)
    {
@@ -302,16 +309,19 @@ int main(int argc, char **argv)
       if (testModuleProtector() != 0)
       {
          logDebug("\n##### Moduletest failed! #####\n");
-         //getKeyStroke();
+
+         finalizeModuleCoordination();
 
          return -1;
       }
    }
 
-   if (commandlineOptions.testfile != 0)
+   if (commandlineOptions.testfile != NULL)
    {
       if (processTestsuite(commandlineOptions.testfile) != 0)
       {
+         finalizeModuleCoordination();
+
          return -1;
       }
    }

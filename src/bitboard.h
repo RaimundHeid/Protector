@@ -79,7 +79,6 @@ extern Bitboard dlane[_64_][256];
 extern ObstacleSquareInfo obsi[_64_];
 extern Bitboard castlings[2][16][256];
 extern int castlingLane[2];
-extern int castlingsOfColor[2];
 extern SquareLaneInfo squareLaneInfo[_64_];
 extern Bitboard generalMoves[0x0f][_64_];
 extern const Bitboard squaresOfFile[8];
