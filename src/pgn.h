@@ -117,7 +117,7 @@ void freePgnGame(PGNGame * game);
 /**
  * Generate the SAN notation of the specified move.
  */
-void generateMoveText(Variation * variation, const Move move, char *pgnMove);
+void generateMoveText(Variation * variation, const Move move, char *pgnMove, size_t bufferSize);
 
 /**
  * Get the current principal variation of the specified variation.

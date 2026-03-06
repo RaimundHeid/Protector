@@ -100,15 +100,11 @@ String *appendToString(String * string, const char *fmt, ...)
 {
    va_list args;
 
-   /* int numBytesWritten; */
    char buffer[BUFFER_SIZE];
 
    va_start(args, fmt);
-   /*numBytesWritten = */
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
-
-   /* assert(numBytesWritten < BUFFER_SIZE); */
 
    return (appendBufferToString(string, buffer));
 }

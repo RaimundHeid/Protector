@@ -101,10 +101,16 @@ static int scanForIndex(PGNFile * pgnfile, int state, char buffer[],
          {
             if (pgnfile->numGames + 1 == pgnfile->indexSize)
             {
+               long *newIndex;
                pgnfile->indexSize += INCREMENT;
-               pgnfile->index = (long *) realloc(pgnfile->index,
+               newIndex = (long *) realloc(pgnfile->index,
                                                  pgnfile->indexSize *
                                                  sizeof(long));
+               if (newIndex == NULL)
+               {
+                  return 0; 
+               }
+               pgnfile->index = newIndex;
             }
 
             pgnfile->index[pgnfile->numGames++] = (long) (i + offset - 1L);
@@ -635,11 +641,15 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
                   logDebug("Existing glyphs: >%s<\n", lastMove->glyphs);
                }
 
-               lastMove->glyphs = realloc(lastMove->glyphs,
+               char *newGlyphs = realloc(lastMove->glyphs,
                                           strlen(lastMove->glyphs) +
                                           strlen(glyph) + 2);
-               strcat(lastMove->glyphs, " ");
-               strcat(lastMove->glyphs, glyph);
+               if (newGlyphs != NULL)
+               {
+                  lastMove->glyphs = newGlyphs;
+                  strcat(lastMove->glyphs, " ");
+                  strcat(lastMove->glyphs, glyph);
+               }
                free(glyph);
             }
             else
@@ -734,9 +744,8 @@ static void parseRoasterValue(const char *pgn, const char *name,
    char buffer[2 * PGN_ROASTERLINE_SIZE];
    size_t valueLength;
 
-   strcpy(value, "");
-   strcpy(buffer, "[");
-   strcat(buffer, name);
+   value[0] = '\0';
+   snprintf(buffer, sizeof(buffer), "[%s", name);
 
    if ((nameBegin = strstr(pgn, buffer)) == 0)
    {
@@ -753,7 +762,7 @@ static void parseRoasterValue(const char *pgn, const char *name,
       return;
    }
 
-   valueLength = min(PGN_ROASTERLINE_SIZE, valueEnd - valueBegin - 1);
+   valueLength = min(PGN_ROASTERLINE_SIZE - 1, (size_t)(valueEnd - valueBegin - 1));
    memcpy(value, valueBegin + 1, valueLength);
    value[valueLength] = '\0';
 }
@@ -792,9 +801,11 @@ static void parseRoasterValues(const char *pgn, PGNGame * pgngame)
 
    if (moves != 0)
    {
-      if ((pgngame->moveText = malloc(strlen(moves) + 1)) != 0)
+      size_t movesLength = strlen(moves);
+      if ((pgngame->moveText = malloc(movesLength + 1)) != 0)
       {
-         strcpy(pgngame->moveText, moves);
+         strncpy(pgngame->moveText, moves, movesLength);
+         pgngame->moveText[movesLength] = '\0';
          trim(pgngame->moveText);
 
          pgngame->firstMove =
@@ -876,7 +887,7 @@ static int examineAlternativeMoves(Variation * variation, const Move move)
    return result;
 }
 
-void generateMoveText(Variation * variation, const Move move, char *pgnMove)
+void generateMoveText(Variation * variation, const Move move, char *pgnMove, size_t bufferSize)
 {
    Position *position = &variation->singlePosition;
    const char *castlings[] = { "O-O", "O-O-O" };
@@ -896,7 +907,7 @@ void generateMoveText(Variation * variation, const Move move, char *pgnMove)
    if (!moveIsLegal(position, move))
    {
       getSquareName(from, origin);
-      sprintf(pgnMove, "(illegal move: %s-%s)", origin, destination);
+      snprintf(pgnMove, bufferSize, "(illegal move: %s-%s)", origin, destination);
 
       return;
    }
@@ -912,11 +923,13 @@ void generateMoveText(Variation * variation, const Move move, char *pgnMove)
 
          if (legalMoves.numberOfMoves == 0)
          {
-            strcpy(checkSign, "#");
+            strncpy(checkSign, "#", sizeof(checkSign));
+            checkSign[sizeof(checkSign) - 1] = '\0';
          }
          else
          {
-            strcpy(checkSign, "+");
+            strncpy(checkSign, "+", sizeof(checkSign));
+            checkSign[sizeof(checkSign) - 1] = '\0';
          }
       }
 
@@ -927,28 +940,31 @@ void generateMoveText(Variation * variation, const Move move, char *pgnMove)
    {
       if (file(from) != file(to))
       {
-         strcpy(captureSign, "x");
-         sprintf(origin, "%c", fileName(file(from)));
+         strncpy(captureSign, "x", sizeof(captureSign));
+         captureSign[sizeof(captureSign) - 1] = '\0';
+         snprintf(origin, sizeof(origin), "%c", fileName(file(from)));
       }
 
       if (newPiece != NO_PIECE)
       {
-         sprintf(promotionSign, "=%c", pieceName[newPiece]);
+         snprintf(promotionSign, sizeof(promotionSign), "=%c", pieceName[newPiece]);
       }
    }
    else
    {
       if (pieceType(movingPiece) == KING && _distance[from][to] > 1)
       {
-         strcpy(destination, castlings[file(to) == FILE_G ? 0 : 1]);
+         strncpy(destination, castlings[file(to) == FILE_G ? 0 : 1], sizeof(destination));
+         destination[sizeof(destination) - 1] = '\0';
       }
       else
       {
-         sprintf(pieceSign, "%c", pieceName[pieceType(movingPiece)]);
+         snprintf(pieceSign, sizeof(pieceSign), "%c", pieceName[pieceType(movingPiece)]);
 
          if (position->piece[to] != NO_PIECE)
          {
-            strcpy(captureSign, "x");
+            strncpy(captureSign, "x", sizeof(captureSign));
+            captureSign[sizeof(captureSign) - 1] = '\0';
          }
 
          ambiguityCheckResult = examineAlternativeMoves(variation, move);
@@ -962,17 +978,17 @@ void generateMoveText(Variation * variation, const Move move, char *pgnMove)
                break;
 
             case SAME_PIECE | SAME_FILE:
-               sprintf(origin, "%c", rankName(rank(from)));
+               snprintf(origin, sizeof(origin), "%c", rankName(rank(from)));
                break;
 
             default:
-               sprintf(origin, "%c", fileName(file(from)));
+               snprintf(origin, sizeof(origin), "%c", fileName(file(from)));
             }
          }
       }
    }
 
-   sprintf(pgnMove, "%s%s%s%s%s%s", pieceSign, origin, captureSign,
+   snprintf(pgnMove, bufferSize, "%s%s%s%s%s%s", pieceSign, origin, captureSign,
            destination, promotionSign, checkSign);
 }
 
@@ -997,7 +1013,7 @@ static char *generateMoveSection(Gamemove * gamemove, const char *result)
       setBasePosition(&variation, &gamemove->position);
       generateMoveText(&variation,
                        getPackedMove(gamemove->from, gamemove->to,
-                                     gamemove->newPiece), moveBuffer);
+                                     gamemove->newPiece), moveBuffer, sizeof(moveBuffer));
 
       if (gamemove->position.activeColor == WHITE)
       {
@@ -1047,7 +1063,7 @@ static char *generateRoasterLine(const char *tag, const char *tagValue,
 {
    if (tagValue[0] != '\0')
    {
-      sprintf(buffer, "[%s \"%s\"]\n", tag, tagValue);
+      snprintf(buffer, PGN_ROASTERLINE_SIZE, "[%s \"%s\"]\n", tag, tagValue);
    }
    else
    {
@@ -1163,7 +1179,8 @@ void initializeGameFromVariation(const Variation * variation, PGNGame * game,
 
    resetPGNGame(game);
    getFen(&variation->startPosition, game->fen);
-   strcpy(game->setup, "1");
+   strncpy(game->setup, "1", sizeof(game->setup));
+   game->setup[sizeof(game->setup) - 1] = '\0';
 
    if (copyPv != FALSE)
    {
@@ -1230,51 +1247,51 @@ static int testGeneration(void)
 
    initializeVariation(&variation, p1);
 
-   generateMoveText(&variation, getPackedMove(D4, D5, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(D4, D5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("d5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E1, G1, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E1, G1, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("O-O", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E1, C1, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E1, C1, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("O-O-O", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, D6, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E4, D6, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nxd6+", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, F6, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E4, F6, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nf6#", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(F3, G5, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(F3, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nfg5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, G5, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E4, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Neg5+", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B2, A3, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(B2, A3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("bxa3", pgnMove) == 0);
 
    initializeVariation(&variation, p2);
 
-   generateMoveText(&variation, getPackedMove(E7, F5, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(E7, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("(illegal move: e7-f5)", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D2, D1, WHITE_BISHOP), pgnMove);
+   generateMoveText(&variation, getPackedMove(D2, D1, WHITE_BISHOP), pgnMove, sizeof(pgnMove));
    assert(strcmp("d1=B", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B4, C3, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(B4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Qb4xc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B2, C3, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(B2, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Q2xc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D4, C3, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(D4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Qdxc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D6, F5, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(D6, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nf5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D6, C8, NO_PIECE), pgnMove);
+   generateMoveText(&variation, getPackedMove(D6, C8, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Ndc8", pgnMove) == 0);
 
    return 0;
