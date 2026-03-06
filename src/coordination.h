@@ -81,7 +81,7 @@ int scheduleTask(SearchTask * task);
  * Start the timer of the specified task.
  * @return 0 if successful, -1 otherwise.
  */
-int startTimerThread(SearchTask * task);
+int startTimerThread(const SearchTask * task);
 
 /**
  * Get the elapsed time of the current search.
