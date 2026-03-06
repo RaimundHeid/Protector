@@ -296,11 +296,8 @@ int main(int argc, char **argv)
    if (commandlineOptions.uciMode)
    {
       acceptGuiCommands();
-
-      return 0;
    }
-
-   if (commandlineOptions.processModuleTest)
+   else if (commandlineOptions.processModuleTest)
    {
       if (testModuleProtector() != 0)
       {
@@ -320,6 +317,7 @@ int main(int argc, char **argv)
    }
 
    logDebug("Main thread terminated.\n");
+   finalizeModuleCoordination();
 
    return 0;
 }

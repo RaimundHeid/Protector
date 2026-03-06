@@ -37,8 +37,11 @@ void setHashtableSize(Hashtable * hashtable, UINT64 size);
  */
 void initializeHashtable(Hashtable * hashtable);
 
+void finalizeHashtable(Hashtable * hashtable);
+
 /**
- * Reset the specified hashtable. Call this function in order to
+ * Reset the specified hashtable.
+ Call this function in order to
  * erase all stored data.
  */
 void resetHashtable(Hashtable * hashtable);

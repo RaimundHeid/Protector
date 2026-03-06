@@ -25,16 +25,18 @@
 #include "io.h"
 #include "hash.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
 #include <time.h>
 
 /* #define DEBUG_COORDINATION */
 
-pthread_t searchThread[MAX_THREADS];
-pthread_t timer;
+static pthread_t searchThread[MAX_THREADS];
+static bool searchThreadStarted[MAX_THREADS];
+static pthread_t timer;
+static bool timerStarted = FALSE;
 static pthread_mutex_t guiSearchMutex = PTHREAD_MUTEX_INITIALIZER;
-long searchThreadId[MAX_THREADS];
 
 static int numThreads = 1;
 static SearchTask dummyTask;
@@ -65,6 +67,7 @@ UINT64 getNodeCount(void)
    int threadCount;
    UINT64 sum = 0;
 
+   /* numThreads is only changed between searches, so reading it here is safe */
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
       sum += variations[threadCount].nodes;
@@ -147,7 +150,12 @@ static int startSearch(Variation * currentVariation)
          variations[threadCount].terminate = TRUE;
       }
 
-      pthread_cancel(timer);
+      /* Timer cancellation is kept for immediate response, 
+         but the thread is properly joined in waitForSearchTermination to avoid leaks. */
+      if (timerStarted)
+      {
+         pthread_cancel(timer);
+      }
    }
 
 #ifdef DEBUG_COORDINATION
@@ -184,9 +192,6 @@ static void *watchTime(void *arg)
    requested.tv_sec = timeLimit / 1000;
    requested.tv_nsec = 1000000 * (timeLimit - 1000 * requested.tv_sec);
 
-   /* logReport("### Timer thread working sec=%ld nsec=%ld ###\n",
-      requested.tv_sec, requested.tv_nsec); */
-
    result = nanosleep(&requested, &remaining);
 
    if (result != -1)
@@ -199,12 +204,13 @@ static void *watchTime(void *arg)
    return 0;
 }
 
-void startTimerThread(SearchTask * task)
+int startTimerThread(SearchTask * task)
 {
    if (task->variation->timeLimit > 0 && task->variation->ponderMode == FALSE)
    {
       if (pthread_create(&timer, NULL, &watchTime, task->variation) == 0)
       {
+         timerStarted = TRUE;
 #ifdef DEBUG_COORDINATION
          logDebug("Timer thread started.\n");
 #endif
@@ -212,30 +218,36 @@ void startTimerThread(SearchTask * task)
       else
       {
          logDebug("### Timer thread could not be started. ###\n");
-
-         exit(EXIT_FAILURE);
+         return -1;
       }
    }
+   return 0;
 }
 
-void scheduleTask(SearchTask * task)
+int scheduleTask(SearchTask * task)
 {
    const unsigned long startTime = getTimestamp();
    int threadCount;
    pthread_attr_t attr;
+   int result = 0;
 
    sharedHashtable.entriesUsed = 0;
 
    pthread_attr_init(&attr);
    pthread_attr_setstacksize(&attr, 2 * 1024 * 1024);   /* 2MB stack for search threads */
 
-   startTimerThread(task);
+   if (startTimerThread(task) != 0)
+   {
+      pthread_attr_destroy(&attr);
+      return -1;
+   }
+
+   currentTask = task;
 
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
       Variation *currentVariation = &variations[threadCount];
 
-      currentTask = task;
       *currentVariation = *(currentTask->variation);
       currentVariation->searchStatus = SEARCH_STATUS_TERMINATE;
       currentVariation->bestBaseMove = NO_MOVE;
@@ -249,6 +261,7 @@ void scheduleTask(SearchTask * task)
       if (pthread_create(&searchThread[threadCount], &attr,
                          &executeSearch, currentVariation) == 0)
       {
+         searchThreadStarted[threadCount] = TRUE;
 #ifdef DEBUG_COORDINATION
          logDebug("Search thread #%d created.\n", threadCount);
 #endif
@@ -257,74 +270,52 @@ void scheduleTask(SearchTask * task)
       {
          logDebug("### Search thread #%d could not be started. ###\n",
                   threadCount);
-
-         exit(EXIT_FAILURE);
+         result = -1;
+         break;
       }
    }
 
    pthread_attr_destroy(&attr);
+   return result;
 }
 
 void waitForSearchTermination(void)
 {
    int threadCount;
-   bool finished;
-   int count = 0;
 
-   do
+   /* Join search threads */
+   for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      finished = TRUE;
-
-      if (count > 1000)
+      if (searchThreadStarted[threadCount])
       {
-         logDebug("waiting for search termination.\n");
-         count = 0;
-      }
-
-      for (threadCount = 0; threadCount < numThreads; threadCount++)
-      {
-         Variation *currentVariation = &variations[threadCount];
-
-         if (currentVariation->searchStatus != SEARCH_STATUS_FINISHED)
-         {
-            if (searchThread[threadCount] != 0)
-            {
-               const int result = pthread_join(searchThread[threadCount], 0);
-
-               if (result == 0)
-               {
-                  searchThread[threadCount] = 0;
-               }
-               else
-               {
-                  finished = FALSE;
-               }
-            }
-         }
-         else
-         {
-            searchThread[threadCount] = 0;
-         }
-
+         pthread_join(searchThread[threadCount], NULL);
+         searchThreadStarted[threadCount] = FALSE;
 #ifdef DEBUG_COORDINATION
-         logDebug("Task %d finished.\n", threadCount);
+         logDebug("Task %d joined.\n", threadCount);
 #endif
       }
-
-      count++;
    }
-   while (finished == FALSE);
+
+   /* Join timer thread */
+   if (timerStarted)
+   {
+      pthread_join(timer, NULL);
+      timerStarted = FALSE;
+#ifdef DEBUG_COORDINATION
+      logDebug("Timer thread joined.\n");
+#endif
+   }
 }
 
 void completeTask(SearchTask * task)
 {
-   scheduleTask(task);
-
+   if (scheduleTask(task) == 0)
+   {
 #ifdef DEBUG_COORDINATION
-   logDebug("Task scheduled. Waiting for completion.\n");
+      logDebug("Task scheduled. Waiting for completion.\n");
 #endif
-
-   waitForSearchTermination();
+      waitForSearchTermination();
+   }
 }
 
 void prepareSearchAbort(void)
@@ -383,9 +374,16 @@ int initializeModuleCoordination(void)
       Variation *currentVariation = &variations[threadCount];
 
       currentVariation->searchStatus = SEARCH_STATUS_FINISHED;
+      searchThreadStarted[threadCount] = FALSE;
    }
 
    return 0;
+}
+
+void finalizeModuleCoordination(void)
+{
+   pthread_mutex_destroy(&guiSearchMutex);
+   finalizeHashtable(&sharedHashtable);
 }
 
 int testModuleCoordination(void)

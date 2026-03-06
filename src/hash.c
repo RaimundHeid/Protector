@@ -149,6 +149,11 @@ void resetNodetable(void)
    }
 }
 
+void finalizeHashtable(Hashtable * hashtable)
+{
+   deleteTables(hashtable);
+}
+
 void initializeHashtable(Hashtable * hashtable)
 {
    hashtable->table = 0;

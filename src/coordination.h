@@ -73,13 +73,15 @@ void releaseGuiSearchMutex(void);
 
 /**
  * Schedule the specified task as the next task to be calculated.
+ * @return 0 if successful, -1 otherwise.
  */
-void scheduleTask(SearchTask * task);
+int scheduleTask(SearchTask * task);
 
 /**
  * Start the timer of the specified task.
+ * @return 0 if successful, -1 otherwise.
  */
-void startTimerThread(SearchTask * task);
+int startTimerThread(SearchTask * task);
 
 /**
  * Get the elapsed time of the current search.
@@ -134,6 +136,11 @@ UINT64 getNodeCount(void);
  * @return 0 if no errors occurred.
  */
 int initializeModuleCoordination(void);
+
+/**
+ * Finalize this module and free all resources.
+ */
+void finalizeModuleCoordination(void);
 
 /**
  * Test this module.
