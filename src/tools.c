@@ -56,7 +56,16 @@ String getEmptyString(void)
 
    s.bufferSize = 256;
    s.buffer = s.tail = (char *) malloc(s.bufferSize);
-   *s.tail = '\0';
+
+   if (s.buffer != NULL)
+   {
+      *s.tail = '\0';
+   }
+   else
+   {
+      s.bufferSize = 0;
+      s.tail = NULL;
+   }
 
    return s;
 }
@@ -67,11 +76,31 @@ String getString(const char *buffer, const char *lastChar)
 
    s.bufferSize = (unsigned int) (lastChar - buffer + 2);
    s.buffer = (char *) malloc(s.bufferSize);
-   s.tail = s.buffer + s.bufferSize - 1;
-   strncpy(s.buffer, buffer, s.bufferSize - 1);
-   *s.tail = '\0';
+
+   if (s.buffer != NULL)
+   {
+      s.tail = s.buffer + s.bufferSize - 1;
+      strncpy(s.buffer, buffer, s.bufferSize - 1);
+      *s.tail = '\0';
+   }
+   else
+   {
+      s.bufferSize = 0;
+      s.tail = NULL;
+   }
 
    return s;
+}
+
+void deleteString(String * string)
+{
+   if (string != NULL)
+   {
+      free(string->buffer);
+      string->buffer = NULL;
+      string->tail = NULL;
+      string->bufferSize = 0;
+   }
 }
 
 static String *appendBufferToString(String * string, const char *buffer)
@@ -82,13 +111,21 @@ static String *appendBufferToString(String * string, const char *buffer)
    if (newLength > string->bufferSize)
    {
       size_t delta = string->tail - string->buffer;
+      char *newBuffer;
 
       string->bufferSize = (unsigned int) (2 * newLength);
-      string->buffer = (char *) realloc(string->buffer, string->bufferSize);
+      newBuffer = (char *) realloc(string->buffer, string->bufferSize);
+
+      if (newBuffer == NULL)
+      {
+         return NULL;
+      }
+
+      string->buffer = newBuffer;
       string->tail = string->buffer + delta;
    }
 
-   strcat(string->tail, buffer);
+   memcpy(string->tail, buffer, appendedLength + 1);
    string->tail += appendedLength;
 
    return string;
@@ -117,12 +154,12 @@ void breakLines(char *buffer, unsigned int maxLineLength)
    {
       lastChar = buffer + maxLineLength;
 
-      while (isspace((int) *lastChar) == 0 && lastChar > buffer)
+      while (isspace((unsigned char) *lastChar) == 0 && lastChar > buffer)
       {
          lastChar--;
       }
 
-      if (isspace((int) *lastChar))
+      if (isspace((unsigned char) *lastChar))
       {
          *lastChar = '\n';
          buffer = lastChar + 1;
@@ -131,7 +168,7 @@ void breakLines(char *buffer, unsigned int maxLineLength)
       {
          while (*buffer != '\0')
          {
-            if (isspace((int) *buffer))
+            if (isspace((unsigned char) *buffer))
             {
                *buffer++ = '\n';
 
@@ -156,7 +193,7 @@ void trim(char *buffer)
       return;
    }
 
-   while (isspace((int) *p))
+   while (isspace((unsigned char) *p))
    {
       p++;
    }
@@ -169,7 +206,7 @@ void trim(char *buffer)
 
    p = buffer + length - 1;
 
-   while (p >= buffer && isspace((int) *p))
+   while (p >= buffer && isspace((unsigned char) *p))
    {
       *(p--) = '\0';
    }
@@ -186,10 +223,14 @@ char *getToken(const char *token, const char *tokenDelimiters)
    }
 
    buffer = (char *) malloc(i + 1);
-   strncpy(buffer, token, i);
-   buffer[i] = '\0';
 
-   assert(strlen(buffer) == i);
+   if (buffer != NULL)
+   {
+      strncpy(buffer, token, i);
+      buffer[i] = '\0';
+
+      assert(strlen(buffer) == i);
+   }
 
    return buffer;
 }
@@ -251,15 +292,15 @@ unsigned long long getUnsignedLongLongFromHexString(const char *str)
    return number;
 }
 
-void getHexStringFromUnsignedLongLong(char *buffer, unsigned long long value)
+void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value)
 {
 #if defined(_WIN32) || defined(_WIN64)
-   char *fmt = "%I64x";
+   const char *fmt = "%I64x";
 #else
-   char *fmt = "%llx";
+   const char *fmt = "%llx";
 #endif
 
-   sprintf(buffer, fmt, value);
+   snprintf(buffer, bufferSize, fmt, value);
 }
 
 int initializeModuleTools(void)
@@ -366,7 +407,7 @@ static int testMiscFunctions(void)
           18446744073709551566llu);
    assert(getUnsignedLongLongFromHexString("FFFFFFFFFFFFFFCD") ==
           18446744073709551565llu);
-   getHexStringFromUnsignedLongLong(buffer, testValue);
+   getHexStringFromUnsignedLongLong(buffer, sizeof(buffer), testValue);
    assert(getUnsignedLongLongFromHexString(buffer) == testValue);
 
    return 0;

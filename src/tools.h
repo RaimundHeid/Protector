@@ -21,6 +21,8 @@
 #ifndef _tools_h_
 #define _tools_h_
 
+#include <stddef.h>
+
 
 
 #define min(x,y) ((x)<(y)?(x):(y))
@@ -121,7 +123,7 @@ int getLimitedValue(const int minValue, const int maxValue, const int value);
  * Convert unsigned long long to hex string and vice versa.
  */
 unsigned long long getUnsignedLongLongFromHexString(const char *str);
-void getHexStringFromUnsignedLongLong(char *buffer, unsigned long long value);
+void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value);
 
 /**
  * Initialize this module.
