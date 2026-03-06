@@ -118,42 +118,34 @@ static Move readUciMove(const char *buffer)
 
 static const char *getUciToken(const char *uciString, const char *tokenName)
 {
-   size_t tokenNameLength = strlen(tokenName);
-   const char *tokenHit = strstr(uciString, tokenName);
+   const size_t tokenNameLength = strlen(tokenName);
+   const char *current = uciString;
 
 #ifdef   DEBUG_GUI_PROTOCOL
    logDebug("find >%s< in >%s<\n", tokenName, uciString);
 #endif
 
-   if (tokenHit == 0)
+   while (current != NULL && *current != '\0')
    {
-      return 0;
-   }
-   else
-   {
+      const char *tokenHit = strstr(current, tokenName);
+
+      if (tokenHit == NULL)
+      {
+         return NULL;
+      }
+
       const char nextChar = *(tokenHit + tokenNameLength);
 
-      if ((tokenHit == uciString || isspace((int) *(tokenHit - 1))) &&
-          (nextChar == '\0' || isspace((int) nextChar)))
+      if ((tokenHit == uciString || isspace((unsigned char)*(tokenHit - 1))) &&
+          (nextChar == '\0' || isspace((unsigned char)nextChar)))
       {
          return tokenHit;
       }
-      else
-      {
-         const char *nextPosstibleTokenOccurence =
-            tokenHit + tokenNameLength + 1;
 
-         if (nextPosstibleTokenOccurence + tokenNameLength <=
-             uciString + strlen(uciString))
-         {
-            return getUciToken(nextPosstibleTokenOccurence, tokenName);
-         }
-         else
-         {
-            return 0;
-         }
-      }
+      current = tokenHit + 1;
    }
+
+   return NULL;
 }
 
 static void getNextUciToken(const char *uciString, char *buffer)
