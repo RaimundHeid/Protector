@@ -37,9 +37,7 @@
 #include "evaluation.h"
 #include "coordination.h"
 #include "uci.h"
-#ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
-#endif
 
 const char *programVersionNumber = "2.0.0";
 
@@ -88,9 +86,7 @@ static void initializeModuleProctector(void)
    initializeModuleHash();
    initializeModuleTest();
    initializeModulePgn();
-#ifdef INCLUDE_TABLEBASE_ACCESS
    initializeModuleTablebase();
-#endif
    initializeModuleEvaluation();
    initializeModuleUci();
 }
@@ -224,7 +220,6 @@ static int testModuleProtector(void)
       reportSuccess("Uci");
    }
 
-#ifdef INCLUDE_TABLEBASE_ACCESS
    if (testModuleTablebase() != 0)
    {
       return -1;
@@ -233,7 +228,6 @@ static int testModuleProtector(void)
    {
       reportSuccess("Tablebase");
    }
-#endif
 
    if (testModuleTest() != 0)
    {

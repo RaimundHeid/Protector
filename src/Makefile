@@ -40,7 +40,7 @@ ifeq ($(COMPILER),ICC)
     PGO_POST_GEN = @true
     CLEAN_PGO_DATA = rm -f *.dyn *.dpi *.dpi.lock
     LTO_FLAGS = -ipo
-    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -O3 -Wall -ansi -pedantic -Wno-long-long -pthread $(LTO_FLAGS) -axCORE-AVX2,CORE-AVX-1,AVX,SSE4.2,SSE4.1,SSSE3 -DNDEBUG
+    COMMON_CFLAGS = -O3 -Wall -ansi -pedantic -Wno-long-long -pthread $(LTO_FLAGS) -axCORE-AVX2,CORE-AVX-1,AVX,SSE4.2,SSE4.1,SSSE3 -DNDEBUG
 else
     ifeq ($(UNAME_S),Darwin)
         PGO_GEN_FLAGS = -fprofile-instr-generate
@@ -54,11 +54,11 @@ else
         CLEAN_PGO_DATA = rm -f *.gcda *.gcno
     endif
     LTO_FLAGS = -flto
-    COMMON_CFLAGS = -DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
+    COMMON_CFLAGS = -DTB_NO_STDBOOL -O3 -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common $(LTO_FLAGS) $(ARCH_FLAGS) -DNDEBUG
 endif
 
 CFLAGS=$(COMMON_CFLAGS)
-protectordbg: CFLAGS=-DINCLUDE_TABLEBASE_ACCESS -DTB_NO_STDBOOL -g -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common
+protectordbg: CFLAGS=-DTB_NO_STDBOOL -g -Wall -std=gnu11 -pedantic -Wno-long-long -pthread -fno-common
 
 protectorobjects = protector.o bitboard.o position.o fen.o io.o \
                    movegeneration.o matesearch.o keytable.o hash.o test.o \

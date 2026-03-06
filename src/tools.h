@@ -21,7 +21,7 @@
 #ifndef _tools_h_
 #define _tools_h_
 
-/*#define INCLUDE_TABLEBASE_ACCESS*/        /* activate egtb access code */
+
 
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))

@@ -24,9 +24,7 @@
 #include "io.h"
 #include "fen.h"
 #include "pgn.h"
-#ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
-#endif
 #include "hash.h"
 #include <signal.h>
 #include <stdio.h>
@@ -835,14 +833,12 @@ static int processUciCommand(const char *command)
       sendToUciNonDebug("id author Raimund Heid");
       sendToUciNonDebug
          ("option name Hash type spin default 16 min 8 max 65536");
-#ifdef INCLUDE_TABLEBASE_ACCESS
       sendToUciNonDebug
          ("option name NalimovPath type string default <empty>");
       sendToUciNonDebug
          ("option name SyzygyPath type string default <empty>");
       sendToUciNonDebug
          ("option name NalimovCache type spin default 4 min 1 max 64");
-#endif
       sendToUciNonDebug("option name Ponder type check default true");
       sendUciSpinOption(USN_NT, 1, 1, MAX_THREADS);
       sendUciSpinOption(USN_PO, DEFAULTVALUE_PAWN_OPENING,
@@ -943,7 +939,6 @@ static int processUciCommand(const char *command)
 
       getUciNamedValue(command, name, value);
 
-#ifdef INCLUDE_TABLEBASE_ACCESS
       if (strcmp(name, "NalimovPath") == 0)
       {
          initializeTablebase(value);
@@ -966,7 +961,6 @@ static int processUciCommand(const char *command)
 
          return TRUE;
       }
-#endif
 
       if (strcmp(name, "Hash") == 0)
       {

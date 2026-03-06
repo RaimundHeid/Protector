@@ -28,9 +28,7 @@
 #include "io.h"
 #include "evaluation.h"
 #include "tools.h"
-#ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
-#endif
 
 #ifndef NDEBUG
 PawnHashInfo localPawnHashtable[PAWN_HASHTABLE_SIZE];

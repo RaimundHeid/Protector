@@ -32,10 +32,7 @@
 #include "evaluation.h"
 #include "coordination.h"
 #include "uci.h"
-
-#ifdef INCLUDE_TABLEBASE_ACCESS
 #include "tablebase.h"
-#endif
 
 /* #define DEBUG_THREAD_COORDINATION */
 
@@ -755,7 +752,6 @@ static int searchBest(Variation * variation, int alpha, int beta,
       return 0;
    }
 
-#ifdef INCLUDE_TABLEBASE_ACCESS
    /* Probe the tablebases in case of reduced material */
    /* ------------------------------------------------ */
    if (tbAvailable != FALSE && excludeMove == NO_MOVE)
@@ -801,7 +797,6 @@ static int searchBest(Variation * variation, int alpha, int beta,
          }
       }
    }
-#endif
 
    /* Probe the transposition table */
    /* ----------------------------- */
@@ -1764,7 +1759,6 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
       resetPvsOfVariation(variation);
       best = VALUE_MATED;
 
-#ifdef INCLUDE_TABLEBASE_ACCESS
    if (tbAvailable != FALSE &&
        position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7)
    {
@@ -1807,7 +1801,6 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
          variation->completePv.score = getMoveValue(variation->bestBaseMove);
       }
    }
-#endif
 
       for (variation->numberOfCurrentBaseMove = 1;
            variation->numberOfCurrentBaseMove <= basemoves->numberOfMoves;
