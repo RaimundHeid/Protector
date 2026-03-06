@@ -44,7 +44,7 @@ int readFen(const char *fen, Position * position);
  * @param fen the buffer supposed to contain the fen string of the position
  *        specified by 'position'
  */
-void getFen(const Position * position, char *fen);
+void getFen(const Position * position, char *fen, size_t bufferSize);
 
 /**
  * Initialize this module.

@@ -1178,7 +1178,7 @@ void initializeGameFromVariation(const Variation * variation, PGNGame * game,
    const PrincipalVariation *pv = &variation->pv[0];
 
    resetPGNGame(game);
-   getFen(&variation->startPosition, game->fen);
+   getFen(&variation->startPosition, game->fen, sizeof(game->fen));
    strncpy(game->setup, "1", sizeof(game->setup));
    game->setup[sizeof(game->setup) - 1] = '\0';
 

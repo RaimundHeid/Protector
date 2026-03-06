@@ -89,19 +89,23 @@ static int setPieces(const char *fen, Position * position)
    {
       if (current == '/')
       {
+         if (rank == RANK_1) return -1;
          rank--;
          file = FILE_A;
       }
       else if (current >= '1' && current <= '8')
       {
-         file = (File) (file + current - '0');
+         int emptySquares = current - '0';
+         if (file + emptySquares > 8) return -1;
+         file = (File) (file + emptySquares);
       }
       else
       {
-         p = pieceCode[(int) current];
+         p = pieceCode[(unsigned char) current];
 
          if (p != NO_PIECE)
          {
+            if (file > FILE_H || rank < RANK_1) return -1;
             position->piece[getSquare(file, rank)] = p;
             file++;
          }
@@ -114,10 +118,10 @@ static int setPieces(const char *fen, Position * position)
       index++;
    }
 
-   return rank == RANK_1 ? index : -1;
+   return (rank == RANK_1 && index <= imax + 1) ? index : -1;
 }
 
-static int stringContainsChar(char *string, char c)
+static int stringContainsChar(const char *string, char c)
 {
    while (*string != '\0')
    {
@@ -133,6 +137,7 @@ static int stringContainsChar(char *string, char c)
 int readFen(const char *fen, Position * position)
 {
    int index;
+   size_t fenLength = strlen(fen);
 
    /*
     * Initialize this module.
@@ -150,12 +155,12 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the active color.
     */
-   while (fen[index] == ' ')
+   while (index < fenLength && fen[index] == ' ')
    {
       index++;
    }
 
-   if (stringContainsChar("bw", fen[index]))
+   if (index < fenLength && stringContainsChar("bw", fen[index]))
    {
       position->activeColor = (fen[index] == 'w' ? WHITE : BLACK);
       index++;
@@ -168,51 +173,55 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the castling rights.
     */
-   while (fen[index] == ' ')
+   while (index < fenLength && fen[index] == ' ')
    {
       index++;
    }
 
    position->castlingRights = NO_CASTLINGS;
 
-   while (fen[index] != ' ')
+   if (index < fenLength && fen[index] == '-')
    {
-      switch (fen[index++])
+      index++;
+   }
+   else
+   {
+      while (index < fenLength && fen[index] != ' ')
       {
-      case 'K':
-         position->castlingRights += WHITE_00;
-         break;
-      case 'Q':
-         position->castlingRights += WHITE_000;
-         break;
-      case 'k':
-         position->castlingRights += BLACK_00;
-         break;
-      case 'q':
-         position->castlingRights += BLACK_000;
-         break;
-      case '-':
-         position->castlingRights = NO_CASTLINGS;
-         break;
-      default:
-         return -1;             /* fen format error */
+         switch (fen[index++])
+         {
+         case 'K':
+            position->castlingRights |= WHITE_00;
+            break;
+         case 'Q':
+            position->castlingRights |= WHITE_000;
+            break;
+         case 'k':
+            position->castlingRights |= BLACK_00;
+            break;
+         case 'q':
+            position->castlingRights |= BLACK_000;
+            break;
+         default:
+            return -1;             /* fen format error */
+         }
       }
    }
 
    /*
     * Get the en passant square.
     */
-   while (fen[index] == ' ')
+   while (index < fenLength && fen[index] == ' ')
    {
       index++;
    }
 
-   if (fen[index] == '-')
+   if (index < fenLength && fen[index] == '-')
    {
       position->enPassantSquare = NO_SQUARE;
       index++;
    }
-   else if (fen[index] >= 'a' && fen[index] <= 'h' &&
+   else if (index + 1 < fenLength && fen[index] >= 'a' && fen[index] <= 'h' &&
             (fen[index + 1] == '3' || fen[index + 1] == '6'))
    {
       File file = (File) (fen[index++] - 'a');
@@ -228,40 +237,39 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the half move clock value.
     */
-   while (fen[index] == ' ')
+   while (index < fenLength && fen[index] == ' ')
    {
       index++;
    }
 
-   position->halfMoveClock = atoi(fen + index);
+   if (index < fenLength)
+   {
+      char *endptr;
+      position->halfMoveClock = (int)strtol(fen + index, &endptr, 10);
+      index = (int)(endptr - fen);
+   }
 
    /*
     * Get the move number value.
     */
-   while (fen[index] != ' ')
-   {
-      if (!isdigit((int) fen[index]))
-      {
-         return -1;             /* fen format error */
-      }
-
-      index++;
-   }
-
-   while (fen[index] == ' ')
+   while (index < fenLength && fen[index] == ' ')
    {
       index++;
    }
 
-   position->moveNumber = atoi(fen + index);
+   if (index < fenLength)
+   {
+      char *endptr;
+      position->moveNumber = (int)strtol(fen + index, &endptr, 10);
+   }
 
    return 0;
 }
 
-void getFen(const Position * position, char *fen)
+void getFen(const Position * position, char *fen, size_t bufferSize)
 {
    int rank, file;
-   char buffer[16];
+   size_t p = 0;
 
    /*
     * Initialize this module.
@@ -280,11 +288,11 @@ void getFen(const Position * position, char *fen)
          {
             if (emptyCount > 0)
             {
-               *fen++ = ((char) ('0' + emptyCount));
+               if (p < bufferSize - 1) fen[p++] = (char) ('0' + emptyCount);
                emptyCount = 0;
             }
 
-            *fen++ = pieceToken[position->piece[square]];
+            if (p < bufferSize - 1) fen[p++] = pieceToken[position->piece[square]];
          }
          else
          {
@@ -294,64 +302,66 @@ void getFen(const Position * position, char *fen)
 
       if (emptyCount > 0)
       {
-         *fen++ = ((char) ('0' + emptyCount));
+         if (p < bufferSize - 1) fen[p++] = (char) ('0' + emptyCount);
       }
 
       if (rank > RANK_1)
       {
-         *fen++ = '/';
+         if (p < bufferSize - 1) fen[p++] = '/';
       }
    }
 
-   *fen++ = ' ';
-   *fen++ = (position->activeColor == WHITE ? 'w' : 'b');
-   *fen++ = ' ';
+   if (p < bufferSize - 1) fen[p++] = ' ';
+   if (p < bufferSize - 1) fen[p++] = (position->activeColor == WHITE ? 'w' : 'b');
+   if (p < bufferSize - 1) fen[p++] = ' ';
 
    if (position->castlingRights)
    {
       if (position->castlingRights & WHITE_00)
       {
-         *fen++ = 'K';
+         if (p < bufferSize - 1) fen[p++] = 'K';
       }
 
       if (position->castlingRights & WHITE_000)
       {
-         *fen++ = 'Q';
+         if (p < bufferSize - 1) fen[p++] = 'Q';
       }
 
       if (position->castlingRights & BLACK_00)
       {
-         *fen++ = 'k';
+         if (p < bufferSize - 1) fen[p++] = 'k';
       }
 
       if (position->castlingRights & BLACK_000)
       {
-         *fen++ = 'q';
+         if (p < bufferSize - 1) fen[p++] = 'q';
       }
    }
    else
    {
-      *fen++ = '-';
+      if (p < bufferSize - 1) fen[p++] = '-';
    }
 
-   *fen++ = ' ';
+   if (p < bufferSize - 1) fen[p++] = ' ';
 
    if (position->enPassantSquare != NO_SQUARE)
    {
-      char file = (char) (file(position->enPassantSquare) + 'a');
-      char rank = (char) (rank(position->enPassantSquare) + '1');
+      char f = (char) (file(position->enPassantSquare) + 'a');
+      char r = (char) (rank(position->enPassantSquare) + '1');
 
-      *fen++ = file;
-      *fen++ = rank;
+      if (p < bufferSize - 1) fen[p++] = f;
+      if (p < bufferSize - 1) fen[p++] = r;
    }
    else
    {
-      *fen++ = '-';
+      if (p < bufferSize - 1) fen[p++] = '-';
    }
 
-   *fen = '\0';
-   sprintf(buffer, " %i %i", position->halfMoveClock, position->moveNumber);
-   strcat(fen, buffer);
+   fen[p] = '\0';
+   
+   char buffer[32];
+   snprintf(buffer, sizeof(buffer), " %i %i", position->halfMoveClock, position->moveNumber);
+   strncat(fen, buffer, bufferSize - strlen(fen) - 1);
 }
 
 int initializeModuleFen(void)
@@ -370,7 +380,7 @@ int testModuleFen(void)
    Square square;
 
    readFen(fen1, &position);
-   getFen(&position, buffer);
+   getFen(&position, buffer, sizeof(buffer));
    assert(strcmp(buffer, fen1) == 0);
 
    assert(position.activeColor == WHITE);
@@ -408,11 +418,11 @@ int testModuleFen(void)
    }
 
    readFen(fen2, &position);
-   getFen(&position, buffer);
+   getFen(&position, buffer, sizeof(buffer));
    assert(strcmp(buffer, fen2) == 0);
 
    readFen(fen3, &position);
-   getFen(&position, buffer);
+   getFen(&position, buffer, sizeof(buffer));
    assert(strcmp(buffer, fen3) == 0);
 
    return 0;
