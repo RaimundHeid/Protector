@@ -49,11 +49,6 @@ void closeTablebaseFiles(void)
    // tb_init handles cleanup if called with NULL or implicitly on exit
 }
 
-int setTablebaseCacheSize(unsigned int size)
-{
-   // Syzygy implementation usually handles cache internally or via tb_init
-   return 0;
-}
 
 int probeTablebaseWDL(const Position * position)
 {

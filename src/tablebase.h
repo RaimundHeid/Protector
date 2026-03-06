@@ -55,14 +55,6 @@ int initializeTablebase(const char *path);
  */
 void closeTablebaseFiles(void);
 
-/**
- * Set the size of the tablebase cache.
- *
- * @var size the size of the tablebase cache in MB
- *
- * @return 0 if no errors occurred
- */
-int setTablebaseCacheSize(unsigned int size);
 
 /**
  * Probe the tablebase for the specified position.

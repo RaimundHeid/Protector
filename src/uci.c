@@ -834,11 +834,7 @@ static int processUciCommand(const char *command)
       sendToUciNonDebug
          ("option name Hash type spin default 16 min 8 max 65536");
       sendToUciNonDebug
-         ("option name NalimovPath type string default <empty>");
-      sendToUciNonDebug
          ("option name SyzygyPath type string default <empty>");
-      sendToUciNonDebug
-         ("option name NalimovCache type spin default 4 min 1 max 64");
       sendToUciNonDebug("option name Ponder type check default true");
       sendUciSpinOption(USN_NT, 1, 1, MAX_THREADS);
       sendUciSpinOption(USN_PO, DEFAULTVALUE_PAWN_OPENING,
@@ -939,25 +935,9 @@ static int processUciCommand(const char *command)
 
       getUciNamedValue(command, name, value);
 
-      if (strcmp(name, "NalimovPath") == 0)
-      {
-         initializeTablebase(value);
-
-         return TRUE;
-      }
-
       if (strcmp(name, "SyzygyPath") == 0)
       {
          initializeTablebase(value);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, "NalimovCache") == 0)
-      {
-         const int cacheSize = atoi(value);
-
-         setTablebaseCacheSize(cacheSize);
 
          return TRUE;
       }
@@ -1541,21 +1521,21 @@ static int testUciTokenizer(void)
 {
    char buffer[64], name[64], value[64];
    const char *uciString =
-      "setoption name\tNalimovPath    value  \t  C:\\chess\\tablebases   time  641273423";
+      "setoption name\tSyzygyPath    value  \t  C:\\chess\\tablebases   time  641273423";
    const char *trickyUciString =
-      "setoption name\tNalimovPathvalue    value  \t  C:\\chess\\tablebases   time  641273423 tablebases";
-   const char *token1 = getUciToken(uciString, "NalimovPath");
+      "setoption name\tSyzygyPathvalue    value  \t  C:\\chess\\tablebases   time  641273423 tablebases";
+   const char *token1 = getUciToken(uciString, "SyzygyPath");
    const char *token2 = getUciToken(uciString, "tablebases");
    const char *token3 = getUciToken(uciString, "name");
    const char *token4 = getUciToken(uciString, "value");
    const char *token5 = getUciToken(trickyUciString, "tablebases");
 
-   assert(strstr(token1, "NalimovPath") == token1);
+   assert(strstr(token1, "SyzygyPath") == token1);
    assert(token2 == 0);
    assert(strstr(token3, "name") == token3);
 
    getNextUciToken(token3 + 4, buffer);
-   assert(strcmp(buffer, "NalimovPath") == 0);
+   assert(strcmp(buffer, "SyzygyPath") == 0);
 
    getNextUciToken(token4 + 5, buffer);
    assert(strcmp(buffer, "C:\\chess\\tablebases") == 0);
@@ -1565,11 +1545,11 @@ static int testUciTokenizer(void)
    assert(strstr(trickyUciString, "423 tablebases") == token5 - 4);
 
    getUciNamedValue(uciString, name, value);
-   assert(strcmp(name, "NalimovPath") == 0);
+   assert(strcmp(name, "SyzygyPath") == 0);
    assert(strcmp(value, "C:\\chess\\tablebases") == 0);
 
    getUciNamedValue(trickyUciString, name, value);
-   assert(strcmp(name, "NalimovPathvalue") == 0);
+   assert(strcmp(name, "SyzygyPathvalue") == 0);
    assert(strcmp(value, "C:\\chess\\tablebases") == 0);
 
    return 0;
