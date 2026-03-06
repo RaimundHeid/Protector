@@ -148,7 +148,7 @@ static const char *getUciToken(const char *uciString, const char *tokenName)
    return NULL;
 }
 
-static void getNextUciToken(const char *uciString, char *buffer)
+static void getNextUciToken(const char *uciString, char *buffer, size_t bufferSize)
 {
    const char *start = uciString, *end;
    unsigned int tokenLength;
@@ -160,7 +160,8 @@ static void getNextUciToken(const char *uciString, char *buffer)
 
    if (*start == '\0')
    {
-      strcpy(buffer, "");
+      strncpy(buffer, "", bufferSize);
+      buffer[bufferSize - 1] = '\0';
 
       return;
    }
@@ -178,8 +179,9 @@ static void getNextUciToken(const char *uciString, char *buffer)
 
    tokenLength = (unsigned int) (end - start);
 
-   strncpy(buffer, start, tokenLength);
-   buffer[tokenLength] = '\0';
+   unsigned int copyLength = (unsigned int) min(tokenLength, (unsigned int)bufferSize - 1);
+   strncpy(buffer, start, copyLength);
+   buffer[copyLength] = '\0';
 }
 
 static long getLongUciValue(const char *uciString, const char *name,
@@ -195,7 +197,7 @@ static long getLongUciValue(const char *uciString, const char *name,
    }
    else
    {
-      getNextUciToken(nameStart + strlen(name), valueBuffer);
+      getNextUciToken(nameStart + strlen(name), valueBuffer, sizeof(valueBuffer));
       value = atol(valueBuffer);
    }
 
@@ -207,7 +209,7 @@ static long getLongUciValue(const char *uciString, const char *name,
 }
 
 static void getStringUciValue(const char *uciString, const char *name,
-                              char *stringValue)
+                              char *stringValue, size_t bufferSize)
 {
    const char *nameStart = getUciToken(uciString, name);
 
@@ -217,7 +219,7 @@ static void getStringUciValue(const char *uciString, const char *name,
    }
    else
    {
-      getNextUciToken(nameStart + strlen(name), stringValue);
+      getNextUciToken(nameStart + strlen(name), stringValue, bufferSize);
    }
 
 #ifdef   DEBUG_GUI_PROTOCOL
@@ -225,7 +227,7 @@ static void getStringUciValue(const char *uciString, const char *name,
 #endif
 }
 
-static void getUciNamedValue(const char *uciString, char *name, char *value)
+static void getUciNamedValue(const char *uciString, char *name, size_t nameSize, char *value, size_t valueSize)
 {
    const char *nameTagStart = getUciToken(uciString, "name");
    const char *valueTagStart = getUciToken(uciString, "value");
@@ -237,9 +239,10 @@ static void getUciNamedValue(const char *uciString, char *name, char *value)
    {
       const int nameLength = (int) (valueTagStart - 1 - (nameTagStart + 5));
 
-      strncpy(name, nameTagStart + 5, nameLength);
-      name[nameLength] = '\0';
-      getNextUciToken(valueTagStart + 6, value);
+      unsigned int copyLength = (unsigned int) min(nameLength, (int)nameSize - 1);
+      strncpy(name, nameTagStart + 5, copyLength);
+      name[copyLength] = '\0';
+      getNextUciToken(valueTagStart + 6, value, valueSize);
 
       trim(name);
       trim(value);
@@ -253,7 +256,7 @@ static void getUciNamedValue(const char *uciString, char *name, char *value)
  * Get the specified move in uci format.
  *
  ******************************************************************************/
-static void getGuiMoveString(const Move move, char *buffer)
+static void getGuiMoveString(const Move move, char *buffer, size_t bufferSize)
 {
    char from[16], to[16];
 
@@ -262,13 +265,13 @@ static void getGuiMoveString(const Move move, char *buffer)
 
    if (getNewPiece(move) == NO_PIECE)
    {
-      sprintf(buffer, "%s%s", from, to);
+      snprintf(buffer, bufferSize, "%s%s", from, to);
    }
    else
    {
       const int pieceIndex = getLimitedValue(0, 15, getNewPiece(move));
 
-      sprintf(buffer, "%s%s%c", from, to, pieceSymbol[pieceIndex]);
+      snprintf(buffer, bufferSize, "%s%s%c", from, to, pieceSymbol[pieceIndex]);
    }
 }
 
@@ -327,7 +330,7 @@ static void sendToUci(const char *fmt, ...)
    char buffer[4096];
 
    va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
 
    fprintf(stdout, "%s\n", buffer);
@@ -349,7 +352,7 @@ static void sendToUciNonDebug(const char *fmt, ...)
    char buffer[4096];
 
    va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
 
    fprintf(stdout, "%s\n", buffer);
@@ -502,11 +505,11 @@ static void deletePonderResult(void)
  * Get a UCI-compliant pv.
  *
  ******************************************************************************/
-static char *getUciPv(const PrincipalVariation * pv, char *buffer)
+static char *getUciPv(const PrincipalVariation * pv, char *buffer, size_t bufferSize)
 {
    int i;
 
-   strcpy(buffer, "");
+   buffer[0] = '\0';
 
    for (i = 0; i < min(32, pv->length); i++)
    {
@@ -518,11 +521,11 @@ static char *getUciPv(const PrincipalVariation * pv, char *buffer)
 
          if (i > 0)
          {
-            strcat(buffer, " ");
+            strncat(buffer, " ", bufferSize - strlen(buffer) - 1);
          }
 
-         getGuiMoveString(move, moveBuffer);
-         strcat(buffer, moveBuffer);
+         getGuiMoveString(move, moveBuffer, sizeof(moveBuffer));
+         strncat(buffer, moveBuffer, bufferSize - strlen(buffer) - 1);
       }
       else
       {
@@ -556,22 +559,22 @@ static void postPv(Variation * var, bool sendAnyway)
 
       if (numPvs > 1)
       {
-         sprintf(multiPvBuffer, "multipv %d", var->pvId + 1);
+         snprintf(multiPvBuffer, sizeof(multiPvBuffer), "multipv %d", var->pvId + 1);
       }
 
-      getUciPv(pv, pvMovesBuffer);
+      getUciPv(pv, pvMovesBuffer, sizeof(pvMovesBuffer));
       formatUciValue(pv->score, scoreBuffer);
 
       if (pv->scoreType == HASHVALUE_LOWER_LIMIT)
       {
-         sprintf(scoreTypeBuffer, "lowerbound");
+         snprintf(scoreTypeBuffer, sizeof(scoreTypeBuffer), "lowerbound");
       }
       else if (pv->scoreType == HASHVALUE_UPPER_LIMIT)
       {
-         sprintf(scoreTypeBuffer, "upperbound");
+         snprintf(scoreTypeBuffer, sizeof(scoreTypeBuffer), "upperbound");
       }
 
-      sprintf(pvBuffer, format, var->iteration, var->selDepth, time,
+      snprintf(pvBuffer, sizeof(pvBuffer), format, var->iteration, var->selDepth, time,
               nodeCount, scoreBuffer, scoreTypeBuffer, var->tbHits,
               multiPvBuffer, pvMovesBuffer);
 
@@ -593,7 +596,7 @@ static void reportBaseMoveUpdate(const Variation * var)
 
    if (time >= 500)
    {
-      getGuiMoveString(var->currentBaseMove, movetext);
+      getGuiMoveString(var->currentBaseMove, movetext, sizeof(movetext));
 
       sendToUciNonDebug
          ("info depth %d seldepth %d currmove %s currmovenumber %d",
@@ -643,7 +646,7 @@ static void sendBestmoveInfo(Variation * var)
    {
       Variation tmp = *var;
 
-      getGuiMoveString(var->bestBaseMove, moveBuffer);
+      getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
       status.ponderingMove = (Move) var->completePv.move[1];
       setBasePosition(&tmp, &var->startPosition);
       makeMove(&tmp, var->bestBaseMove);
@@ -653,7 +656,7 @@ static void sendBestmoveInfo(Variation * var)
       {
          char ponderMoveBuffer[16];
 
-         getGuiMoveString(status.ponderingMove, ponderMoveBuffer);
+         getGuiMoveString(status.ponderingMove, ponderMoveBuffer, sizeof(ponderMoveBuffer));
          sendToUciNonDebug("bestmove %s ponder %s", moveBuffer,
                               ponderMoveBuffer);
 #ifdef DEBUG_GUI_PROTOCOL_BRIEF
@@ -673,7 +676,7 @@ static void sendBestmoveInfo(Variation * var)
    }
    else
    {
-      getGuiMoveString(var->bestBaseMove, moveBuffer);
+      getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
 
 #ifdef DEBUG_GUI_CONVERSATION
       logDebug("### Illegal best move %s ###\n", moveBuffer);
@@ -819,8 +822,7 @@ static int processUciCommand(const char *command)
       char nameString[256];
 
       getGuiSearchMutex();
-      strcpy(nameString, "id name Protector ");
-      strcat(nameString, programVersionNumber);
+      snprintf(nameString, sizeof(nameString), "id name Protector %s", programVersionNumber);
       sendToUciNonDebug("%s", nameString);
       sendToUciNonDebug("id author Raimund Heid");
       sendToUciNonDebug
@@ -925,7 +927,7 @@ static int processUciCommand(const char *command)
    {
       char name[256], value[256];
 
-      getUciNamedValue(command, name, value);
+      getUciNamedValue(command, name, sizeof(name), value, sizeof(value));
 
       if (strcmp(name, "SyzygyPath") == 0)
       {
@@ -1111,18 +1113,21 @@ static int processUciCommand(const char *command)
 
          if (fenEnd == 0)
          {
-            strcpy(game.fen, fenStart);
+            strncpy(game.fen, fenStart, sizeof(game.fen));
+            game.fen[sizeof(game.fen) - 1] = '\0';
          }
          else
          {
             const int length = (int) (fenEnd - fenStart - 1);
 
-            strncpy(game.fen, fenStart, length);
-            game.fen[length] = '\0';
+            unsigned int copyLength = (unsigned int) min(length, (int)sizeof(game.fen) - 1);
+            strncpy(game.fen, fenStart, copyLength);
+            game.fen[copyLength] = '\0';
          }
 
          trim(game.fen);
-         strcpy(game.setup, "1");
+         strncpy(game.setup, "1", sizeof(game.setup));
+         game.setup[sizeof(game.setup) - 1] = '\0';
 
 #ifdef   DEBUG_GUI_PROTOCOL
          logDebug("fen set: >%s<\n", game.fen);
@@ -1138,7 +1143,7 @@ static int processUciCommand(const char *command)
 
          do
          {
-            getNextUciToken(currentMove, moveBuffer);
+            getNextUciToken(currentMove, moveBuffer, sizeof(moveBuffer));
 
             if (strlen(moveBuffer) > 0)
             {
@@ -1355,7 +1360,7 @@ static int processUciCommand(const char *command)
       Hashentry entry;
       bool entryIsValid = TRUE;
 
-      getStringUciValue(command, "key", value);
+      getStringUciValue(command, "key", value, sizeof(value));
 
       if (strlen(value) > 0)
       {
@@ -1368,7 +1373,7 @@ static int processUciCommand(const char *command)
          entryIsValid = FALSE;
       }
 
-      getStringUciValue(command, "data", value);
+      getStringUciValue(command, "data", value, sizeof(value));
 
       if (strlen(value) > 0)
       {
@@ -1526,21 +1531,21 @@ static int testUciTokenizer(void)
    assert(token2 == 0);
    assert(strstr(token3, "name") == token3);
 
-   getNextUciToken(token3 + 4, buffer);
+   getNextUciToken(token3 + 4, buffer, sizeof(buffer));
    assert(strcmp(buffer, "SyzygyPath") == 0);
 
-   getNextUciToken(token4 + 5, buffer);
+   getNextUciToken(token4 + 5, buffer, sizeof(buffer));
    assert(strcmp(buffer, "C:\\chess\\tablebases") == 0);
 
    assert(getLongUciValue(uciString, "time", 0) == 641273423);
 
    assert(strstr(trickyUciString, "423 tablebases") == token5 - 4);
 
-   getUciNamedValue(uciString, name, value);
+   getUciNamedValue(uciString, name, sizeof(name), value, sizeof(value));
    assert(strcmp(name, "SyzygyPath") == 0);
    assert(strcmp(value, "C:\\chess\\tablebases") == 0);
 
-   getUciNamedValue(trickyUciString, name, value);
+   getUciNamedValue(trickyUciString, name, sizeof(name), value, sizeof(value));
    assert(strcmp(name, "SyzygyPathvalue") == 0);
    assert(strcmp(value, "C:\\chess\\tablebases") == 0);
 
@@ -1564,7 +1569,7 @@ static int testHashUpdate(void)
       constructHashEntry(hashKey, value, staticValue, importance,
                          bestMove, date, flag);
 
-   sprintf(commandBuffer, transEntryStringFormat, entry.key, entry.data);
+   snprintf(commandBuffer, sizeof(commandBuffer), transEntryStringFormat, entry.key, entry.data);
    processUciCommand(commandBuffer);
    tableHit = getHashentry(hashtable, hashKey);
 
