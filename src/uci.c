@@ -153,7 +153,7 @@ static void getNextUciToken(const char *uciString, char *buffer)
    const char *start = uciString, *end;
    unsigned int tokenLength;
 
-   while (*start != '\0' && isspace(*start))
+   while (*start != '\0' && isspace((unsigned char)*start))
    {
       start++;
    }
@@ -165,16 +165,16 @@ static void getNextUciToken(const char *uciString, char *buffer)
       return;
    }
 
-   assert(*start != '\0' && isspace(*start) == FALSE);
+   assert(*start != '\0' && isspace((unsigned char)*start) == FALSE);
 
    end = start + 1;
 
-   while (*end != '\0' && isspace(*end) == FALSE)
+   while (*end != '\0' && isspace((unsigned char)*end) == FALSE)
    {
       end++;
    }
 
-   assert(*end == '\0' || isspace(*end));
+   assert(*end == '\0' || isspace((unsigned char)*end));
 
    tokenLength = (unsigned int) (end - start);
 
@@ -296,11 +296,11 @@ static void getTokenByNumber(const char *command, int paramNumber,
          escapeMode = FALSE;
       }
 
-      if (isspace(currentChar) && escapeMode == FALSE)
+      if (isspace((unsigned char)currentChar) && escapeMode == FALSE)
       {
          paramCount++;
 
-         while (isspace(*command))
+         while (isspace((unsigned char)*command))
          {
             command++;
          }
@@ -809,7 +809,7 @@ static int processUciCommand(const char *command)
    char buffer[8192];
 
 #ifdef DEBUG_GUI_PROTOCOL_BRIEF
-   logDebug("%s\n", command);
+   logDebug("%s", command);
 #endif
 
    getTokenByNumber(command, 0, buffer);
@@ -821,7 +821,7 @@ static int processUciCommand(const char *command)
       getGuiSearchMutex();
       strcpy(nameString, "id name Protector ");
       strcat(nameString, programVersionNumber);
-      sendToUciNonDebug(nameString);
+      sendToUciNonDebug("%s", nameString);
       sendToUciNonDebug("id author Raimund Heid");
       sendToUciNonDebug
          ("option name Hash type spin default 16 min 8 max 65536");
