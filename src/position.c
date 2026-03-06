@@ -56,7 +56,6 @@ Square rookOrigin[_64_];
 int pieceCountShift[16];
 UINT64 pieceCountWeight[16];
 UINT64 bishopPieceCountWeight[2][_64_];
-UINT32 matSigOfPieceCount[0xFFff];
 int krqIndexWhite[4096], bbpIndexWhite[4096];
 int krqIndexBlack[4096], bbpIndexBlack[4096];
 
@@ -416,9 +415,15 @@ void appendMoveToPv(const PrincipalVariation * oldPv,
                     PrincipalVariation * newPv, const Move move)
 {
    newPv->move[0] = packedMove(move);
-   newPv->length = oldPv->length + 1;
-   memmove((void *) &newPv->move[1], (void *) &oldPv->move[0],
-           oldPv->length * sizeof(UINT16));
+   newPv->length = min(oldPv->length + 1, MAX_DEPTH_ARRAY_SIZE - 1);
+
+   const int movesToCopy = min(oldPv->length, MAX_DEPTH_ARRAY_SIZE - 1);
+
+   if (movesToCopy > 0)
+   {
+      memmove((void *) &newPv->move[1], (void *) &oldPv->move[0],
+              movesToCopy * sizeof(UINT16));
+   }
 }
 
 /**
@@ -1483,10 +1488,12 @@ bool moveIsCheck(const Move move, const Position * position)
          }
       }
    }
-   else if (pieceType(piece) == KING && abs(to - from) == 2)
+   else if (pieceType(piece) == KING &&
+            (from == E1 || from == E8) &&
+            (to == G1 || to == C1 || to == G8 || to == C8))
    {
       const Bitboard blockers = position->allPieces & maxValue[from];
-      const int rookSquare = (to + from) / 2;
+      const int rookSquare = (int) ((to + from) / 2);
 
       return (bool)
          (testSquare(generalMoves[ROOK][rookSquare], kingSquare) &&

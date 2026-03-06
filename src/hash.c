@@ -72,11 +72,7 @@ UINT64 getHashentryKey(const Hashentry * entry)
 
 static int getAge(const Hashtable * hashtable, const UINT8 date)
 {
-   if (hashtable == NULL)
-   {
-      return 0;
-   }
-
+   assert(hashtable != NULL);
    assert(date < NUM_DATES);
    assert(hashtable->date < NUM_DATES);
 
@@ -85,11 +81,7 @@ static int getAge(const Hashtable * hashtable, const UINT8 date)
 
 void incrementDate(Hashtable * hashtable)
 {
-   if (hashtable == NULL)
-   {
-      return;
-   }
-
+   assert(hashtable != NULL);
    assert(hashtable->date < NUM_DATES);
 
    hashtable->date = (UINT8) ((hashtable->date + 1) % NUM_DATES);
@@ -136,7 +128,7 @@ void resetHashtable(Hashtable * hashtable)
    UINT64 l;
    Hashentry emptyEntry;
 
-   if (hashtable == NULL || hashtable->table == NULL)
+   if (hashtable->table == NULL)
    {
       return;
    }
@@ -265,7 +257,9 @@ bool setHashtableSize(Hashtable * hashtable, UINT64 size)
 
 UINT64 getHashIndex(Hashtable * hashtable, UINT64 key)
 {
-   if (hashtable == NULL || hashtable->tableSize == 0)
+   assert(hashtable != NULL);
+
+   if (hashtable->tableSize == 0)
    {
       return 0;
    }
@@ -281,7 +275,9 @@ void setHashentry(Hashtable * hashtable, UINT64 key, INT16 value,
    int bestEntryScore = -1024;
    Hashentry *entryToBeReplaced;
 
-   if (hashtable == NULL || hashtable->table == NULL)
+   assert(hashtable != NULL);
+
+   if (hashtable->table == NULL)
    {
       return;
    }
@@ -345,7 +341,9 @@ Hashentry *getHashentry(Hashtable * hashtable, UINT64 key)
 {
    UINT64 index, i;
 
-   if (hashtable == NULL || hashtable->table == NULL)
+   assert(hashtable != NULL);
+
+   if (hashtable->table == NULL)
    {
       return NULL;
    }
