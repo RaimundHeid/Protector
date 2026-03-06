@@ -154,7 +154,8 @@ int processTestsuite(const char *filename)
       entry.solutions.numberOfMoves = 0;
       gamemove = game->firstMove;
 
-      while (gamemove != 0)
+      while (gamemove != 0 &&
+             entry.solutions.numberOfMoves < MAX_MOVES_PER_POSITION)
       {
          entry.solutions.moves
             [entry.solutions.numberOfMoves++] =
@@ -167,12 +168,11 @@ int processTestsuite(const char *filename)
       resetSharedHashtable = TRUE;
       variation.handleSearchEvent = &handleSearchEvent;
 
-      if (strstr(game->white, "[#") != NULL)
+      char *mateMarker = strstr(game->white, "[#");
+      if (mateMarker != NULL)
       {
-         char *tmp = strstr(game->white, "[#");
-
          entry.type = TASKTYPE_TEST_MATE_IN_N;
-         entry.numberOfMoves = atoi(tmp + 2);
+         entry.numberOfMoves = atoi(mateMarker + 2);
 
          if (solveMateProblem(&entry) != FALSE)
          {
@@ -180,7 +180,8 @@ int processTestsuite(const char *filename)
          }
          else
          {
-            assert(0);
+            logReport("##### Mate problem %ld NOT solved! #####\n", i);
+            appendToString(&notSolved, "%d ", i);
          }
 
          overallNodes += entry.nodes;
