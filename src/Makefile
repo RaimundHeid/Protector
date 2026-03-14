@@ -63,7 +63,7 @@ protectordbg: CFLAGS=-DTB_NO_STDBOOL -g -Wall -std=gnu11 -pedantic -Wno-long-lon
 protectorobjects = protector.o bitboard.o position.o fen.o io.o \
                    movegeneration.o matesearch.o keytable.o hash.o test.o \
                    pgn.o tools.o search.o evaluation.o coordination.o \
-                   uci.o tablebase.o tbprobe.o
+                   uci.o tablebase.o tbprobe.o nnue.o
 
 protectorsources = $(protectorobjects:.o=.c)
 

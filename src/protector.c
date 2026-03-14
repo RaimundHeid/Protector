@@ -38,6 +38,7 @@
 #include "coordination.h"
 #include "uci.h"
 #include "tablebase.h"
+#include "nnue.h"
 
 const char *programVersionNumber = "2.0.0";
 
@@ -88,6 +89,7 @@ static int initializeModuleProtector(void)
    if (initializeModulePgn() != 0) return -1;
    if (initializeModuleTablebase() != 0) return -1;
    if (initializeModuleEvaluation() != 0) return -1;
+   if (initializeModuleNnue() != 0) return -1;
    if (initializeModuleUci() != 0) return -1;
 
    return 0;
@@ -229,6 +231,15 @@ static int testModuleProtector(void)
    else
    {
       reportSuccess("Tablebase");
+   }
+
+   if (testModuleNnue() != 0)
+   {
+      return -1;
+   }
+   else
+   {
+      reportSuccess("Nnue");
    }
 
    if (testModuleTest() != 0)

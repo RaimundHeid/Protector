@@ -232,6 +232,24 @@ int initializeModuleTest(void)
    return 0;
 }
 
+
+#include "nnue.h"
+#include "fen.h"
+
+int testModuleNnue(void)
+{
+   if (loadNnue("nn-47fc8b7fff06.nnue") != 0)
+   {
+      return -1;
+   }
+
+   Position pos;
+   readFen(FEN_GAMESTART, &pos);
+   evaluateNnue(&pos);
+
+   return 0;
+}
+
 int testModuleTest(void)
 {
    int result;
