@@ -35,7 +35,7 @@
 #include <ctype.h>
 
 static SearchTask task;
-static Variation variation;
+static Variation *variation_ptr = NULL;
 static PGNGame game;
 static UciStatus status;
 bool resetSharedHashtable = FALSE;
@@ -432,8 +432,8 @@ static int determineCalculationTime(bool targetTime)
    {
       TimecontrolData *tcd = &status.timecontrolData[status.engineColor];
 
-      initializeVariationFromGame(&variation, &game);
-      tcd->numberOfMovesPlayed = variation.singlePosition.moveNumber - 1;
+      initializeVariationFromGame(variation_ptr, &game);
+      tcd->numberOfMovesPlayed = variation_ptr->singlePosition.moveNumber - 1;
 
       if (targetTime)
       {
@@ -453,14 +453,14 @@ static int determineCalculationTime(bool targetTime)
  ******************************************************************************/
 static void startCalculation(void)
 {
-   variation.timeTarget = determineCalculationTime(TRUE);
-   variation.timeLimit = determineCalculationTime(FALSE);
-   setDrawScore(&variation, drawScore, status.engineColor);
+   variation_ptr->timeTarget = determineCalculationTime(TRUE);
+   variation_ptr->timeLimit = determineCalculationTime(FALSE);
+   setDrawScore(variation_ptr, drawScore, status.engineColor);
    status.bestMoveWasSent = FALSE;
 
 #ifdef DEBUG_GUI_CONVERSATION
-   logDebug("Scheduling task. Timelimits: %d/%d\n", variation.timeTarget,
-            variation.timeLimit);
+   logDebug("Scheduling task. Timelimits: %d/%d\n", variation_ptr->timeTarget,
+            variation_ptr->timeLimit);
 #endif
 
    scheduleTask(&task);
@@ -469,22 +469,22 @@ static void startCalculation(void)
 static void startPostPonderCalculation(void)
 {
    const long elapsedTime = getElapsedTime();
-   const long nominalRestTime = variation.timeLimit - elapsedTime;
-   const long minimalRestTime = max(1, variation.timeLimit / 4);
+   const long nominalRestTime = variation_ptr->timeLimit - elapsedTime;
+   const long minimalRestTime = max(1, variation_ptr->timeLimit / 4);
 
    /* logDebug
       ("Preparing post ponder calculation. timelimit: %d elapsed time: %d nomimalRestTime: %d minimal rest time: %d \n",
-      variation.timeLimit, elapsedTime, nominalRestTime, minimalRestTime); */
+      variation_ptr->timeLimit, elapsedTime, nominalRestTime, minimalRestTime); */
 
-   variation.timeLimit = max(nominalRestTime, minimalRestTime);
-   variation.ponderMode = FALSE;
+   variation_ptr->timeLimit = max(nominalRestTime, minimalRestTime);
+   variation_ptr->ponderMode = FALSE;
 
    /* logDebug("Starting post ponder calculation. Timelimits: %d/%d\n",
-      variation.timeTarget, variation.timeLimit); */
+      variation_ptr->timeTarget, variation_ptr->timeLimit); */
 
 #ifdef DEBUG_GUI_CONVERSATION
    logDebug("Starting post ponder calculation. Timelimits: %d/%d\n",
-            variation.timeTarget, variation.timeLimit);
+            variation_ptr->timeTarget, variation_ptr->timeLimit);
 #endif
 
    startTimerThread(&task);
@@ -1275,8 +1275,8 @@ static int processUciCommand(const char *command)
       status.engineIsActive = TRUE;
       task.type = TASKTYPE_BEST_MOVE;
 
-      initializeVariationFromGame(&variation, &game);
-      status.engineColor = variation.singlePosition.activeColor;
+      initializeVariationFromGame(variation_ptr, &game);
+      status.engineColor = variation_ptr->singlePosition.activeColor;
 
       if (getUciToken(command, "depth") != 0)
       {
@@ -1312,7 +1312,7 @@ static int processUciCommand(const char *command)
       }
       else
       {
-         const int numMovesPlayed = variation.singlePosition.moveNumber - 1;
+         const int numMovesPlayed = variation_ptr->singlePosition.moveNumber - 1;
          const int movesToGo = (int) getLongUciValue(command, "movestogo", 0);
 
          status.operationMode = UCI_OPERATIONMODE_USERGAME;
@@ -1343,12 +1343,12 @@ static int processUciCommand(const char *command)
 
       if (getUciToken(command, "ponder") == 0)
       {
-         status.engineIsPondering = variation.ponderMode = FALSE;
+         status.engineIsPondering = variation_ptr->ponderMode = FALSE;
       }
       else
       {
-         status.engineIsPondering = variation.ponderMode = TRUE;
-         variation.terminateSearchOnPonderhit = FALSE;  /* avoid premature search aborts */
+         status.engineIsPondering = variation_ptr->ponderMode = TRUE;
+         variation_ptr->terminateSearchOnPonderhit = FALSE;  /* avoid premature search aborts */
       }
 
       startCalculation();
@@ -1473,10 +1473,14 @@ int initializeModuleUci(void)
    deletePonderResult();
 
    initializePGNGame(&game);
-   variation.timeLimit = 5000;
-   variation.ponderMode = FALSE;
-   variation.handleSearchEvent = &handleSearchEvent;
-   task.variation = &variation;
+   
+   if (variation_ptr == NULL) {
+       variation_ptr = malloc(sizeof(Variation));
+   }
+   variation_ptr->timeLimit = 5000;
+   variation_ptr->ponderMode = FALSE;
+   variation_ptr->handleSearchEvent = &handleSearchEvent;
+   task.variation = variation_ptr;
    task.type = TASKTYPE_BEST_MOVE;
 
    return 0;

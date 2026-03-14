@@ -104,7 +104,7 @@ int getEvalValue(Variation * variation)
    base.ownColor = variation->ownColor;
    return
       getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-               variation->kingsafetyHashtable);
+               variation->kingsafetyHashtable, &variation->plyInfo[variation->ply].accumulator);
 }
 
 static int getStaticValue(Variation * variation, const int ply)
@@ -118,7 +118,7 @@ static int getStaticValue(Variation * variation, const int ply)
       base.ownColor = variation->ownColor;
       pi->staticValue = pi->refinedStaticValue =
          getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-                  variation->kingsafetyHashtable);
+                  variation->kingsafetyHashtable, &pi->accumulator);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -140,7 +140,7 @@ static int getRefinedStaticValue(Variation * variation, const int ply)
       base.ownColor = variation->ownColor;
       pi->staticValue = pi->refinedStaticValue =
          getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-                  variation->kingsafetyHashtable);
+                  variation->kingsafetyHashtable, &pi->accumulator);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -422,7 +422,8 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
          best = getValue(position,
                          &base,
                          variation->pawnHashtable,
-                         variation->kingsafetyHashtable);
+                         variation->kingsafetyHashtable,
+                         &variation->plyInfo[ply].accumulator);
          variation->plyInfo[ply].staticValue =
             variation->plyInfo[ply].refinedStaticValue = best;
          variation->plyInfo[ply].staticValueAvailable = TRUE;
@@ -2018,8 +2019,9 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    getLegalMoves(variation, &movelist);
 
 #ifdef TRACE_EVAL
-   getValue(&variation->singlePosition, VALUE_MATED, -VALUE_MATED,
-            variation->pawnHashtable, variation->kingsafetyHashtable);
+   getValue(&variation->singlePosition, NULL,
+            variation->pawnHashtable, variation->kingsafetyHashtable,
+            &variation->plyInfo[0].accumulator);
 #endif
 
    variation->numberOfBaseMoves = movelist.numberOfMoves;

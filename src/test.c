@@ -105,7 +105,8 @@ static bool dumpEvaluation(SearchTask * entry)
    getValue(&entry->variation->startPosition,
             &base,
             entry->variation->pawnHashtable,
-            entry->variation->kingsafetyHashtable);
+            entry->variation->kingsafetyHashtable,
+            &entry->variation->plyInfo[0].accumulator);
 
    return TRUE;
 }
@@ -340,8 +341,13 @@ int testModuleTest(void)
 
    if ((result = processTestsuite("moduletest.pgn")) != 0)
    {
-      return result;
+      if (commandlineOptions.engineDirectory[0] != '\0')
+      {
+         char path[2048];
+         snprintf(path, sizeof(path), "%s/%s", commandlineOptions.engineDirectory, "moduletest.pgn");
+         result = processTestsuite(path);
+      }
    }
 
-   return 0;
+   return result;
 }

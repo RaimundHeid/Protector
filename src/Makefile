@@ -24,9 +24,9 @@ CLEAN_CMD=@rm -f *.o *.bak *.bin *.lrn game.* log.* protector.log
 
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_M),x86_64)
-    ARCH_FLAGS = -msse
+    ARCH_FLAGS = -mavx2
 else ifeq ($(UNAME_M),arm64)
-    ARCH_FLAGS =
+    ARCH_FLAGS = -march=native
 else ifeq ($(UNAME_M),aarch64)
     ARCH_FLAGS =
 else

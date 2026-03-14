@@ -69,10 +69,6 @@ int phaseValue(const INT32 value, const Position * position,
 INT32 materialBalance(const Position * position);
 INT32 positionalBalance(const Position * position, EvaluationBase * base);
 int basicPositionalBalance(Position * position);
-int getValue(const Position * position,
-             EvaluationBase * base,
-             PawnHashInfo * pawnHashtable,
-             KingSafetyHashInfo * kingsafetyHashtable);
 bool hasWinningPotential(Position * position, Color color);
 Bitboard calculateKingPawnSafetyHashKey(const Position * position,
                                         const Color color);
@@ -80,6 +76,8 @@ int getPawnWidth(const Position * position, const Color color);
 int getPassedPawnWidth(const Position * position,
                        const EvaluationBase * base, const Color color);
 int getMaterialUpPawnCountWeight(int numPawns);
+
+#include "nnue.h"
 
 /**
  * Calculate the value of the specified position.
@@ -89,7 +87,8 @@ int getMaterialUpPawnCountWeight(int numPawns);
 int getValue(const Position * position,
              EvaluationBase * base,
              PawnHashInfo * pawnHashtable,
-             KingSafetyHashInfo * kingsafetyHashtable);
+             KingSafetyHashInfo * kingsafetyHashtable,
+             Accumulator * acc);
 
 /**
  * Check if the pawn at the specified square is a passed pawn.

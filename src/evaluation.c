@@ -2332,87 +2332,10 @@ static void getPositionalValue(const Position * position,
 int getValue(const Position * position,
              EvaluationBase * base,
              PawnHashInfo * pawnHashtable,
-             KingSafetyHashInfo * kingsafetyHashtable)
+             KingSafetyHashInfo * kingsafetyHashtable,
+             Accumulator * acc)
 {
-   PawnHashInfo *pawnHashInfo =
-      &pawnHashtable[position->pawnHashKey & PAWN_HASHTABLE_MASK];
-
-   initializeEvaluationBase(base, kingsafetyHashtable, position);
-
-   if (pawnHashInfo->hashKey == position->pawnHashKey &&
-       pawnHashInfo->hashKey != 0)
-   {
-#ifndef NDEBUG
-      getPawnInfo(position, base);
-      evaluatePawns(position, base);
-
-      assert(base->balance == pawnHashInfo->balance);
-      assert(base->pawnProtectedSquares[WHITE] ==
-             pawnHashInfo->pawnProtectedSquares[WHITE]);
-      assert(base->pawnProtectedSquares[BLACK] ==
-             pawnHashInfo->pawnProtectedSquares[BLACK]);
-      assert(base->passedPawns[WHITE] == pawnHashInfo->passedPawns[WHITE]);
-      assert(base->passedPawns[BLACK] == pawnHashInfo->passedPawns[BLACK]);
-#endif
-
-      base->balance = pawnHashInfo->balance;
-      base->passedPawns[WHITE] = pawnHashInfo->passedPawns[WHITE];
-      base->passedPawns[BLACK] = pawnHashInfo->passedPawns[BLACK];
-      base->pawnProtectedSquares[WHITE] =
-         pawnHashInfo->pawnProtectedSquares[WHITE];
-      base->pawnProtectedSquares[BLACK] =
-         pawnHashInfo->pawnProtectedSquares[BLACK];
-      base->pawnAttackableSquares[WHITE] =
-         pawnHashInfo->pawnAttackableSquares[WHITE];
-      base->pawnAttackableSquares[BLACK] =
-         pawnHashInfo->pawnAttackableSquares[BLACK];
-#ifdef BONUS_HIDDEN_PASSER
-      base->hasPassersOrCandidates[WHITE] =
-         pawnHashInfo->hasPassersOrCandidates[WHITE];
-      base->hasPassersOrCandidates[BLACK] =
-         pawnHashInfo->hasPassersOrCandidates[BLACK];
-#endif
-   }
-   else
-   {
-      getPawnInfo(position, base);
-      evaluatePawns(position, base);
-
-      pawnHashInfo->hashKey = position->pawnHashKey;
-      pawnHashInfo->balance = base->balance;
-      pawnHashInfo->pawnProtectedSquares[WHITE] =
-         base->pawnProtectedSquares[WHITE];
-      pawnHashInfo->pawnProtectedSquares[BLACK] =
-         base->pawnProtectedSquares[BLACK];
-      pawnHashInfo->passedPawns[WHITE] = base->passedPawns[WHITE];
-      pawnHashInfo->passedPawns[BLACK] = base->passedPawns[BLACK];
-      pawnHashInfo->pawnAttackableSquares[WHITE] =
-         base->pawnAttackableSquares[WHITE];
-      pawnHashInfo->pawnAttackableSquares[BLACK] =
-         base->pawnAttackableSquares[BLACK];
-#ifdef BONUS_HIDDEN_PASSER
-      pawnHashInfo->hasPassersOrCandidates[WHITE] =
-         base->hasPassersOrCandidates[WHITE];
-      pawnHashInfo->hasPassersOrCandidates[BLACK] =
-         base->hasPassersOrCandidates[BLACK];
-#endif
-   }
-
-#ifdef TRACE_EVAL
-   logDebug("\nStarting evaluation.\n");
-   logDebug("phaseIndex = %d\n", phaseIndex(position));
-   logDebug("opvWhite = %d egvWhite = %d\n",
-            position->openingValue[WHITE], position->endgameValue[WHITE]);
-   logDebug("opvBlack = %d egvBlack = %d\n",
-            position->openingValue[BLACK], position->endgameValue[BLACK]);
-   logDebug("basicValue = %d\n\n", basicValue);
-   logPosition(position);
-   logDebug("\n");
-#endif
-
-   getPositionalValue(position, base);
-
-   return positionalBalance(position, base);
+   return evaluateNnue((Position *)position, acc);
 }
 
 static void transposeMatrix(const int human[], int machine[])

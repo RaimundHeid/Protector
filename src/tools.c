@@ -449,3 +449,24 @@ int testModuleTools(void)
 
    return 0;
 }
+
+void getDirectory(const char *path, char *directory, size_t bufferSize)
+{
+   const char *lastSlash = strrchr(path, '/');
+#if defined(_WIN32) || defined(_WIN64)
+   const char *lastBackslash = strrchr(path, '\\');
+   if (lastBackslash > lastSlash) lastSlash = lastBackslash;
+#endif
+
+   if (lastSlash == NULL)
+   {
+      strncpy(directory, "", bufferSize);
+   }
+   else
+   {
+      size_t length = (size_t) (lastSlash - path);
+      if (length >= bufferSize) length = bufferSize - 1;
+      strncpy(directory, path, length);
+      directory[length] = '\0';
+   }
+}

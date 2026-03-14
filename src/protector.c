@@ -265,8 +265,10 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    options->dumpEvaluation = FALSE;
    options->testfile = NULL;
    options->tablebasePath = NULL;
+   getDirectory(argv[0], options->engineDirectory, sizeof(options->engineDirectory));
 
    for (i = 0; i < argc; i++)
+
    {
       const char *currentArg = argv[i];
 

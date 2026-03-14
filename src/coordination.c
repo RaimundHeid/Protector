@@ -32,7 +32,7 @@
 
 /* #define DEBUG_COORDINATION */
 
-#define SEARCH_THREAD_STACK_SIZE (2 * 1024 * 1024)
+#define SEARCH_THREAD_STACK_SIZE (4 * 1024 * 1024)
 #define INITIAL_HASHTABLE_SIZE_MB 16
 #define BYTES_PER_MB (1024ULL * 1024ULL)
 
@@ -45,7 +45,7 @@ static pthread_mutex_t guiSearchMutex = PTHREAD_MUTEX_INITIALIZER;
 static int numThreads = 1;
 static SearchTask dummyTask;
 static SearchTask *currentTask = &dummyTask;
-static Variation variations[MAX_THREADS];
+static Variation *variations[MAX_THREADS];
 static Hashtable sharedHashtable;
 static PawnHashInfo pawnHashtable[MAX_THREADS][PAWN_HASHTABLE_SIZE];
 
@@ -74,7 +74,8 @@ UINT64 getNodeCount(void)
    /* numThreads is only changed between searches, so reading it here is safe */
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      totalNodes += variations[threadCount].nodes;
+      if (variations[threadCount] != NULL)
+         totalNodes += variations[threadCount]->nodes;
    }
 
    return totalNodes;
@@ -82,7 +83,7 @@ UINT64 getNodeCount(void)
 
 Variation *getCurrentVariation(void)
 {
-   return &variations[0];
+   return variations[0];
 }
 
 void getGuiSearchMutex(void)
@@ -157,7 +158,8 @@ static int startSearch(Variation * currentVariation)
 
       for (threadCount = 1; threadCount < numThreads; threadCount++)
       {
-         variations[threadCount].terminate = TRUE;
+         if (variations[threadCount] != NULL)
+            variations[threadCount]->terminate = TRUE;
       }
 
       /* Timer cancellation is kept for immediate response, 
@@ -180,7 +182,7 @@ static int startSearch(Variation * currentVariation)
 
 long getElapsedTime(void)
 {
-   return getTimestamp() - variations[0].startTime;
+   return getTimestamp() - variations[0]->startTime;
 }
 
 static void *executeSearch(void *arg)
@@ -253,7 +255,7 @@ int scheduleTask(SearchTask * task)
 
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      Variation *currentVariation = &variations[threadCount];
+      Variation *currentVariation = variations[threadCount];
 
       *currentVariation = *(currentTask->variation);
       currentVariation->searchStatus = SEARCH_STATUS_TERMINATE;
@@ -331,7 +333,8 @@ void prepareSearchAbort(void)
 
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      variations[threadCount].terminate = TRUE;
+      if (variations[threadCount] != NULL)
+         variations[threadCount]->terminate = TRUE;
    }
 }
 
@@ -341,7 +344,8 @@ void unsetPonderMode(void)
 
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      variations[threadCount].ponderMode = FALSE;
+      if (variations[threadCount] != NULL)
+         variations[threadCount]->ponderMode = FALSE;
    }
 }
 
@@ -351,10 +355,12 @@ void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit)
 
    for (threadCount = 0; threadCount < numThreads; threadCount++)
    {
-      Variation *currentVariation = &variations[threadCount];
+      Variation *currentVariation = variations[threadCount];
 
-      currentVariation->timeTarget = timeTarget;
-      currentVariation->timeLimit = timeLimit;
+      if (currentVariation != NULL) {
+          currentVariation->timeTarget = timeTarget;
+          currentVariation->timeLimit = timeLimit;
+      }
    }
 }
 
@@ -387,7 +393,8 @@ int initializeModuleCoordination(void)
 
    for (threadCount = 0; threadCount < MAX_THREADS; threadCount++)
    {
-      variations[threadCount].searchStatus = SEARCH_STATUS_FINISHED;
+      variations[threadCount] = malloc(sizeof(Variation));
+      variations[threadCount]->searchStatus = SEARCH_STATUS_FINISHED;
       searchThreadStarted[threadCount] = FALSE;
    }
 
@@ -396,8 +403,14 @@ int initializeModuleCoordination(void)
 
 void finalizeModuleCoordination(void)
 {
+   int threadCount;
    pthread_mutex_destroy(&guiSearchMutex);
    finalizeHashtable(&sharedHashtable);
+   for (threadCount = 0; threadCount < MAX_THREADS; threadCount++)
+   {
+      free(variations[threadCount]);
+      variations[threadCount] = NULL;
+   }
 }
 
 int testModuleCoordination(void)

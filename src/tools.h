@@ -84,6 +84,11 @@ void breakLines(char *buffer, unsigned int maxLineLength);
 void trim(char *buffer);
 
 /**
+ * Get the directory part of the specified path.
+ */
+void getDirectory(const char *path, char *directory, size_t bufferSize);
+
+/**
  * Get a token delimited by 'tokenDelimiters'.
  *
  * @return a substring of token, obtained using 'malloc'

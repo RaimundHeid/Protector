@@ -243,6 +243,7 @@ typedef struct
    bool dumpEvaluation;
    char *testfile;
    char *tablebasePath;
+   char engineDirectory[1024];
 }
 CommandlineOptions;
 
