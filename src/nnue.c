@@ -93,42 +93,64 @@ static const int KingBuckets[64] = {
 };
 #undef B
 
-static int get_piece_square_index(Piece pc, Color perspective) {
-    int type = pieceType(pc);
+// Mapping from piece to Stockfish internal piece types
+// W_PAWN=1, W_KNIGHT=2, W_BISHOP=3, W_ROOK=4, W_QUEEN=5, W_KING=6
+// B_PAWN=9, B_KNIGHT=10, B_BISHOP=11, B_ROOK=12, B_QUEEN=13, B_KING=14
+static int get_sf_piece(Piece pc) {
+    int pt = pieceType(pc);
     int color = pieceColor(pc);
-    if (type == KING) return 10 * 64;
-    int sf_type;
-    if (color == perspective) {
-        if (type == PAWN) sf_type = 0;
-        else if (type == KNIGHT) sf_type = 2;
-        else if (type == BISHOP) sf_type = 4;
-        else if (type == ROOK) sf_type = 6;
-        else sf_type = 8;
-    } else {
-        if (type == PAWN) sf_type = 1;
-        else if (type == KNIGHT) sf_type = 3;
-        else if (type == BISHOP) sf_type = 5;
-        else if (type == ROOK) sf_type = 7;
-        else sf_type = 9;
-    }
-    return sf_type * 64;
+    int sf_pt;
+    if (pt == PAWN) sf_pt = 1;
+    else if (pt == KNIGHT) sf_pt = 2;
+    else if (pt == BISHOP) sf_pt = 3;
+    else if (pt == ROOK) sf_pt = 4;
+    else if (pt == QUEEN) sf_pt = 5;
+    else sf_pt = 6;
+    return (color == WHITE) ? sf_pt : sf_pt + 8;
 }
 
 static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) {
     const int flip = 56 * perspective;
-    return (int)(s ^ OrientTBL[ksq] ^ flip) + get_piece_square_index(pc, perspective)
-         + KingBuckets[ksq ^ flip];
+    int sf_pc = get_sf_piece(pc);
+    
+    // PieceSquareIndex[perspective][sf_pc]
+    // perspective 0 (White): {0, 0, 128, 256, 384, 512, 640, 0, 0, 64, 192, 320, 448, 576, 640, 0}
+    // perspective 1 (Black): {0, 64, 192, 320, 448, 576, 640, 0, 0, 0, 128, 256, 384, 512, 640, 0}
+    
+    int sf_type;
+    int color = pieceColor(pc);
+    if (sf_pc == 6 || sf_pc == 14) sf_type = 10;
+    else {
+        int pt = pieceType(pc);
+        if (color == perspective) {
+            if (pt == PAWN) sf_type = 0;
+            else if (pt == KNIGHT) sf_type = 2;
+            else if (pt == BISHOP) sf_type = 4;
+            else if (pt == ROOK) sf_type = 6;
+            else sf_type = 8;
+        } else {
+            if (pt == PAWN) sf_type = 1;
+            else if (pt == KNIGHT) sf_type = 3;
+            else if (pt == BISHOP) sf_type = 5;
+            else if (pt == ROOK) sf_type = 7;
+            else sf_type = 9;
+        }
+    }
+
+    return (int)(s ^ OrientTBL[ksq] ^ flip) + sf_type * 64 + KingBuckets[ksq ^ flip];
 }
 
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
         memcpy(acc->v[p], ft_biases, sizeof(int16_t) * L1);
+        memset(acc->psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         Square ksq = pos->king[p];
         for (Square s = 0; s < 64; s++) {
             Piece pc = pos->piece[s];
             if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
                 const int16_t* weights = &ft_weights[idx * L1];
+                const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
                 for (int i = 0; i < L1; i += 16) {
                     __m256i v = _mm256_load_si256((__m256i*)&acc->v[p][i]);
@@ -140,6 +162,9 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
                     acc->v[p][i] += weights[i];
                 }
 #endif
+                for (int i = 0; i < 8; i++) {
+                    acc->psqtAccumulation[p][i] += psqt_weights[i];
+                }
             }
         }
     }
@@ -148,9 +173,11 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
 void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq) {
     for (int p = 0; p < 2; p++) {
         memcpy(next->v[p], prev->v[p], sizeof(int16_t) * L1);
+        memcpy(next->psqtAccumulation[p], prev->psqtAccumulation[p], sizeof(int32_t) * 8);
         for (int j = 0; j < removed_count; j++) {
             int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
             const int16_t* weights = &ft_weights[idx * L1];
+            const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
             for (int i = 0; i < L1; i += 16) {
                 __m256i v = _mm256_load_si256((__m256i*)&next->v[p][i]);
@@ -162,10 +189,14 @@ void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Sq
                 next->v[p][i] -= weights[i];
             }
 #endif
+            for (int i = 0; i < 8; i++) {
+                next->psqtAccumulation[p][i] -= psqt_weights[i];
+            }
         }
         for (int j = 0; j < added_count; j++) {
             int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
             const int16_t* weights = &ft_weights[idx * L1];
+            const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
             for (int i = 0; i < L1; i += 16) {
                 __m256i v = _mm256_load_si256((__m256i*)&next->v[p][i]);
@@ -177,6 +208,9 @@ void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Sq
                 next->v[p][i] += weights[i];
             }
 #endif
+            for (int i = 0; i < 8; i++) {
+                next->psqtAccumulation[p][i] += psqt_weights[i];
+            }
         }
     }
 }
@@ -221,7 +255,6 @@ int initializeModuleNnue(void) {
     read_data = nnue_model_data;
     read_pos = 0;
     
-    // Simple check to see if we have data
     if (read_data[0] == 0 && (size_t)(nnue_model_end - nnue_model_data) <= 1) return -1;
 
     uint32_t version, hash, desc_size;
@@ -285,9 +318,13 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
 
     int num_pieces = 0;
     for (int i = 0; i < 16; i++) num_pieces += getNumberOfSetSquares(pos->piecesOfType[i]);
-    int s = min(7, (num_pieces - 2) / 4);
+    int bucket = min(7, (num_pieces - 1) / 4);
 
     Color side = pos->activeColor;
+    
+    // PSQT part
+    int32_t psqt = (acc->psqtAccumulation[side][bucket] - acc->psqtAccumulation[!side][bucket]) / 2;
+
     uint8_t transformed[L1] __attribute__((aligned(64))); 
     for (int p = 0; p < 2; p++) {
         Color perspective = (p == 0 ? side : !side);
@@ -325,7 +362,7 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     for (int i = 0; i <= L2; i++) {
 #if defined(__x86_64__)
         __m256i sum = _mm256_setzero_si256();
-        const int8_t* weights = &fc0_weights[s][i * L1];
+        const int8_t* weights = &fc0_weights[bucket][i * L1];
         for (int j = 0; j < L1; j += 32) {
             __m256i t = _mm256_load_si256((__m256i*)&transformed[j]);
             __m256i w = _mm256_load_si256((__m256i*)&weights[j]);
@@ -340,11 +377,11 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(1, 0, 3, 2)));
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(0, 0, 0, 1)));
         
-        fc0_out[i] = fc0_biases[s][i] + _mm_cvtsi128_si32(sum128);
+        fc0_out[i] = fc0_biases[bucket][i] + _mm_cvtsi128_si32(sum128);
 #else
-        fc0_out[i] = fc0_biases[s][i];
+        fc0_out[i] = fc0_biases[bucket][i];
         for (int j = 0; j < L1; j++) {
-            fc0_out[i] += (int32_t)transformed[j] * fc0_weights[s][i * L1 + j];
+            fc0_out[i] += (int32_t)transformed[j] * fc0_weights[bucket][i * L1 + j];
         }
 #endif
     }
@@ -358,9 +395,9 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
 
     int32_t fc1_out[L3];
     for (int i = 0; i < L3; i++) {
-        fc1_out[i] = fc1_biases[s][i];
+        fc1_out[i] = fc1_biases[bucket][i];
         for (int j = 0; j < 30; j++) {
-            fc1_out[i] += ac0_out[j] * fc1_weights[s][i * 32 + j];
+            fc1_out[i] += ac0_out[j] * fc1_weights[bucket][i * 32 + j];
         }
     }
 
@@ -369,14 +406,18 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
         ac1_out[i] = clipped_relu(fc1_out[i] >> 6);
     }
 
-    int32_t fc2_out = fc2_biases[s][0];
+    int32_t fc2_out = fc2_biases[bucket][0];
     for (int i = 0; i < L3; i++) {
-        fc2_out += ac1_out[i] * fc2_weights[s][i];
+        fc2_out += ac1_out[i] * fc2_weights[bucket][i];
     }
 
     int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2] * (600 * 16) / (127 * 64));
-    int32_t outputValue = fc2_out + fwdOut;
-    int v = outputValue / 16;
+    int32_t positional = fc2_out + fwdOut;
+
+    // Scale components to Stockfish's internal score units (OutputScale = 16)
+    int v = (psqt / 16) + (positional / 16);
+
+    // Scale to centipawns using win rate model
     int a = win_rate_scaling(pos);
     return v * 100 / a;
 }

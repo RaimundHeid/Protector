@@ -250,8 +250,8 @@ static int testNnuePlausibility(void) {
         {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -100, 100},
         {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -100, 100},
         {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -100, 200},
-        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -300, 300},
-        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", -100, 400},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -500, 300},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", -100, 800},
         {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -100, 100},
         {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", -50, 50},
         {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -500, -50},
@@ -309,6 +309,14 @@ int testModuleNnue(void)
                if (current->v[p][j] != refreshed.v[p][j]) {
                    logDebug("Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
                             variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
+                   logDebug("Piece at from: %d, piece at to: %d\n", variation.singlePosition.piece[moves[i-1] & 0x3f], variation.singlePosition.piece[(moves[i-1] >> 6) & 0x3f]);
+                   return -1;
+               }
+           }
+           for (int j = 0; j < 8; j++) {
+               if (current->psqtAccumulation[p][j] != refreshed.psqtAccumulation[p][j]) {
+                   logDebug("PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->psqtAccumulation[p][j], refreshed.psqtAccumulation[p][j]);
                    return -1;
                }
            }
@@ -326,6 +334,13 @@ int testModuleNnue(void)
                if (current->v[p][j] != refreshed.v[p][j]) {
                    logDebug("Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
                             variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
+                   return -1;
+               }
+           }
+           for (int j = 0; j < 8; j++) {
+               if (current->psqtAccumulation[p][j] != refreshed.psqtAccumulation[p][j]) {
+                   logDebug("PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->psqtAccumulation[p][j], refreshed.psqtAccumulation[p][j]);
                    return -1;
                }
            }

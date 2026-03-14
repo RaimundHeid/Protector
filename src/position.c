@@ -1263,32 +1263,7 @@ int makeMove(Variation * variation, const Move move)
    position->allPieces =
       position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
 
-   {
-      Square added_sq[2], removed_sq[2];
-      Piece added_pc[2], removed_pc[2];
-      int added_cnt = 0, removed_cnt = 0;
-
-      removed_sq[removed_cnt] = from;
-      removed_pc[removed_cnt++] = movingPiece;
-      if (capturedPiece != NO_PIECE)
-      {
-         removed_sq[removed_cnt] = to;
-         removed_pc[removed_cnt++] = capturedPiece;
-      }
-      // Note: This simplified update doesn't handle all cases (castling, ep, promotion) perfectly yet, 
-      // but it's a start. For king moves, we should refresh.
-      if (pieceType(movingPiece) == KING)
-      {
-         refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
-      }
-      else
-      {
-         added_sq[added_cnt] = to;
-         added_pc[added_cnt++] = position->piece[to];
-         updateAccumulator(&plyInfo->accumulator, &variation->plyInfo[variation->ply].accumulator,
-                           added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king);
-      }
-   }
+   refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
 
    assert(checkVariation(variation) == 0);
 

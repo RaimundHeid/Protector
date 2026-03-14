@@ -17,6 +17,7 @@
 
 typedef struct {
     int16_t v[2][L1];
+    int32_t psqtAccumulation[2][8];
 } Accumulator;
 
 typedef struct {
