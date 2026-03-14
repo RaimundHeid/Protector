@@ -123,6 +123,11 @@ void getMoveDump(const Move move, char *buffer, size_t bufferSize);
 void closeLogfile(void);
 
 /**
+ * Write the specified message to the logfile (reserved for severe malfunctions).
+ */
+void logSevere(const char *fmt, ...);
+
+/**
  * Write the specified message to the logfile.
  */
 void logDebug(const char *fmt, ...);

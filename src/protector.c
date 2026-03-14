@@ -40,7 +40,7 @@
 #include "tablebase.h"
 #include "nnue.h"
 
-const char *programVersionNumber = "2.0.0";
+const char *programVersionNumber = "2.1";
 
 int _distance[_64_][_64_];
 int _horizontalDistance[_64_][_64_];

@@ -72,6 +72,21 @@ typedef unsigned char bool;
 extern UINT64 statCount1, statCount2;
 extern const char *programVersionNumber;
 
+/**
+ * Write the specified message to the logfile (reserved for severe malfunctions).
+ */
+void logSevere(const char *fmt, ...);
+
+#ifndef NDEBUG
+#define ASSERT_SEVERE(cond) \
+   if (!(cond)) { \
+      logSevere("Assertion failed: %s, file %s, line %d\n", #cond, __FILE__, __LINE__); \
+      assert(cond); \
+   }
+#else
+#define ASSERT_SEVERE(cond)
+#endif
+
 typedef enum
 {
    WHITE, BLACK

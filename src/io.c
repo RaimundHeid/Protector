@@ -378,6 +378,24 @@ void dumpBoardValues(const int value[64])
    logDebug("\n%s\n\n", buffer);
 }
 
+void logSevere(const char *fmt, ...)
+{
+   va_list args;
+   FILE *logfile = fopen(logfileName, "a");
+
+   va_start(args, fmt);
+   if (logfile != NULL)
+   {
+      fprintf(logfile, "SEVERE %lu: ", getTimestamp());
+      vfprintf(logfile, fmt, args);
+      fflush(logfile);
+      fclose(logfile);
+   }
+   // Also log to stderr so it's visible
+   vfprintf(stderr, fmt, args);
+   va_end(args);
+}
+
 void logDebug(const char *fmt, ...)
 {
    va_list args;
@@ -390,23 +408,8 @@ void logDebug(const char *fmt, ...)
    }
    else
    {
-      FILE *logfile = fopen(logfileName, "a");
-
-      if (logfile != NULL)
-      {
-         fprintf(logfile, "%lu: ", getTimestamp());
-         vfprintf(logfile, fmt, args);
-         fflush(logfile);
-
-         if (fclose(logfile) != 0)
-         {
-            printf("Could not close file '%s'.", logfileName);
-         }
-      }
-      else
-      {
-         printf("Could not open file '%s' for appending.", logfileName);
-      }
+      // In UCI mode, debug output goes to stderr instead of a file
+      vfprintf(stderr, fmt, args);
    }
 
    va_end(args);
@@ -415,7 +418,6 @@ void logDebug(const char *fmt, ...)
 void logReport(const char *fmt, ...)
 {
    char buffer[1024];
-   FILE *logfile = fopen(logfileName, "a");
    va_list args;
 
    va_start(args, fmt);
@@ -426,19 +428,10 @@ void logReport(const char *fmt, ...)
    {
       printf("%s", buffer);
    }
-
-   if (logfile != NULL)
-   {
-      fprintf(logfile, "%s", buffer);
-
-      if (fclose(logfile) != 0)
-      {
-         printf("Could not close file '%s'.", logfileName);
-      }
-   }
    else
    {
-      printf("Could not open file '%s' for appending.", logfileName);
+      // In UCI mode, report output goes to stderr instead of a file
+      fprintf(stderr, "%s", buffer);
    }
 }
 
