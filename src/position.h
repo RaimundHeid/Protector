@@ -214,75 +214,12 @@ extern KingSafetyHashInfo
 
 #define BONUS_HIDDEN_PASSER
 
-typedef enum
-{
-   Se_None,
-   Se_KpK,
-   Se_KnnKp,
-   Se_KbpK,
-   Se_KrpKb,
-   Se_KrpKr,
-   Se_KrppKr,
-   Se_KqpKq,
-   Se_KqppKq,
-   Se_KppxKx,
-   Se_KpxKpx
-} SpecialEvalType;
-
 typedef struct
 {
-   UINT8 chancesWhite, chancesBlack;
-   SpecialEvalType specialEvalWhite, specialEvalBlack;
    INT32 materialBalance;
    int phaseIndex;
 }
 MaterialInfo;
-
-typedef struct
-{
-   Bitboard upwardRealm[2];
-   Bitboard downwardRealm[2];
-   Bitboard pawnAttackableSquares[2];
-   Bitboard pawnProtectedSquares[2];
-   Bitboard doubledPawns[2];
-   Bitboard passedPawns[2];
-   Bitboard candidatePawns[2];
-
-#ifdef BONUS_HIDDEN_PASSER
-   Bitboard hiddenCandidatePawns[2];
-   bool hasPassersOrCandidates[2];
-#endif
-
-#ifdef MALUS_SLIGHTLY_BACKWARD
-   Bitboard slightlyBackward[2];
-#endif
-
-   Bitboard weakPawns[2];
-   Bitboard fixedPawns[2];
-   Bitboard countedSquares[2];
-   Bitboard unprotectedPieces[2];
-   Bitboard kingAttackSquares[2];
-   Bitboard attackedSquares[2];
-   Bitboard knightAttackedSquares[2];
-   Bitboard bishopAttackedSquares[2];
-   Bitboard rookAttackedSquares[2];
-   Bitboard rookDoubleAttackedSquares[2];
-   Bitboard queenAttackedSquares[2];
-   Bitboard queenSupportedSquares[2];
-   Bitboard chainPawns[2];
-   Bitboard pinnedCandidatesDia[2];
-   Bitboard pinnedCandidatesOrtho[2];
-   Bitboard pinnedPieces[2];
-   INT32 attackInfo[2];
-   int kingSquaresAttackCount[2];
-   int spaceAttackPoints[2];
-   bool evaluateKingSafety[2];
-   KingSafetyHashInfo *kingsafetyHashtable;
-   INT32 balance, materialBalance;
-   MaterialInfo *materialInfo;
-   Color ownColor;
-}
-EvaluationBase;
 
 typedef struct
 {

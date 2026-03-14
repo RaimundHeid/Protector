@@ -105,11 +105,7 @@ INT32 materialBalance(const Position * position)
    return balance;
 }
 
-int getValue(const Position * position,
-             EvaluationBase * base,
-             PawnHashInfo * pawnHashtable,
-             KingSafetyHashInfo * kingsafetyHashtable,
-             Accumulator * acc)
+int getValue(const Position * position, Accumulator * acc)
 {
    return evaluateNnue((Position *)position, acc);
 }
@@ -263,21 +259,15 @@ int initializeModuleEvaluation(void)
    return 0;
 }
 
-bool flipTest(Position * position,
-              PawnHashInfo * pawnHashtable,
-              KingSafetyHashInfo * kingsafetyHashtable)
+bool flipTest(Position * position)
 {
    int v1, v2;
    Position flippedPosition;
-   EvaluationBase base;
 
-   base.ownColor = position->activeColor;
-
-   v1 = getValue(position, &base, pawnHashtable, kingsafetyHashtable, NULL);
+   v1 = getValue(position, NULL);
    memcpy(&flippedPosition, position, sizeof(Position));
    flipPosition(&flippedPosition);
-   base.ownColor = flippedPosition.activeColor;
-   v2 = getValue(&flippedPosition, &base, pawnHashtable, kingsafetyHashtable, NULL);
+   v2 = getValue(&flippedPosition, NULL);
 
    return (bool) (v1 == v2);
 }

@@ -42,11 +42,7 @@ bool hasBishopPair(const Position * position, const Color color);
  *
  * @return the value of the specified position
  */
-int getValue(const Position * position,
-             EvaluationBase * base,
-             PawnHashInfo * pawnHashtable,
-             KingSafetyHashInfo * kingsafetyHashtable,
-             Accumulator * acc);
+int getValue(const Position * position, Accumulator * acc);
 
 /**
  * Check if the pawn at the specified square is a passed pawn.
@@ -59,8 +55,7 @@ bool pawnIsPassed(const Position * position, const Square pawnSquare,
  *
  * @return FALSE if the flipped position yields a diffent result
  */
-bool flipTest(Position * position, PawnHashInfo * pawnHashtable,
-              KingSafetyHashInfo * kingsafetyHashtable);
+bool flipTest(Position * position);
 
 /**
  * Initialize this module.

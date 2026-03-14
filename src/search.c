@@ -99,12 +99,8 @@ static bool hasDangerousPawns(const Position * position, const Color color)
 
 int getEvalValue(Variation * variation)
 {
-   EvaluationBase base;
-
-   base.ownColor = variation->ownColor;
    return
-      getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-               variation->kingsafetyHashtable, &variation->plyInfo[variation->ply].accumulator);
+      getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
 }
 
 static int getStaticValue(Variation * variation, const int ply)
@@ -113,12 +109,8 @@ static int getStaticValue(Variation * variation, const int ply)
 
    if (pi->staticValueAvailable == FALSE)
    {
-      EvaluationBase base;
-
-      base.ownColor = variation->ownColor;
       pi->staticValue = pi->refinedStaticValue =
-         getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-                  variation->kingsafetyHashtable, &pi->accumulator);
+         getValue(&variation->singlePosition, &pi->accumulator);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -135,12 +127,8 @@ static int getRefinedStaticValue(Variation * variation, const int ply)
 
    if (pi->staticValueAvailable == FALSE)
    {
-      EvaluationBase base;
-
-      base.ownColor = variation->ownColor;
       pi->staticValue = pi->refinedStaticValue =
-         getValue(&variation->singlePosition, &base, variation->pawnHashtable,
-                  variation->kingsafetyHashtable, &pi->accumulator);
+         getValue(&variation->singlePosition, &pi->accumulator);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -338,7 +326,6 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    Movelist movelist;
    Move currentMove, bestReply, hashmove = NO_MOVE;
    const bool inCheck = variation->plyInfo[ply - 1].currentMoveIsCheck;
-   EvaluationBase base;
    Hashentry *bestTableHit = 0;
    int hashValue;
 
@@ -418,11 +405,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
 
       if (staticValueAvailable == FALSE)
       {
-         base.ownColor = variation->ownColor;
          best = getValue(position,
-                         &base,
-                         variation->pawnHashtable,
-                         variation->kingsafetyHashtable,
                          &variation->plyInfo[ply].accumulator);
          variation->plyInfo[ply].staticValue =
             variation->plyInfo[ply].refinedStaticValue = best;

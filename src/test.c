@@ -99,13 +99,8 @@ static bool solveBestMoveProblem(SearchTask * entry)
 
 static bool dumpEvaluation(SearchTask * entry)
 {
-   EvaluationBase base;
-
    prepareSearch(entry->variation);
    getValue(&entry->variation->startPosition,
-            &base,
-            entry->variation->pawnHashtable,
-            entry->variation->kingsafetyHashtable,
             &entry->variation->plyInfo[0].accumulator);
 
    return TRUE;
