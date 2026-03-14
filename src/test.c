@@ -243,9 +243,54 @@ int testModuleNnue(void)
       return -1;
    }
 
-   Position pos;
-   readFen(FEN_GAMESTART, &pos);
-   evaluateNnue(&pos);
+   Variation variation;
+   initializeVariation(&variation, FEN_GAMESTART);
+   
+   // Make some moves and check accumulator consistency
+   Move moves[] = {
+       getOrdinaryMove(E2, E4),
+       getOrdinaryMove(E7, E5),
+       getOrdinaryMove(G1, F3),
+       getOrdinaryMove(B8, C6),
+       getOrdinaryMove(F1, B5),
+       getOrdinaryMove(A7, A6),
+       getOrdinaryMove(B5, C6) // Capture
+   };
+   
+   for (int i = 0; i < 7; i++) {
+       makeMove(&variation, moves[i]);
+       
+       Accumulator refreshed;
+       refreshAccumulator(&variation.singlePosition, &refreshed);
+       
+       Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
+       for (int p = 0; p < 2; p++) {
+           for (int j = 0; j < L1; j++) {
+               if (current->v[p][j] != refreshed.v[p][j]) {
+                   logDebug("Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
+                   return -1;
+               }
+           }
+       }
+   }
+   
+   // Unmake moves and check consistency (by comparing with stored accumulators in plyInfo)
+   while (variation.ply > 0) {
+       unmakeLastMove(&variation);
+       Accumulator refreshed;
+       refreshAccumulator(&variation.singlePosition, &refreshed);
+       Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
+       for (int p = 0; p < 2; p++) {
+           for (int j = 0; j < L1; j++) {
+               if (current->v[p][j] != refreshed.v[p][j]) {
+                   logDebug("Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
+                   return -1;
+               }
+           }
+       }
+   }
 
    return 0;
 }

@@ -23,6 +23,8 @@
 
 #include "protector.h"
 #include "bitboard.h"
+#include "nnue.h"
+#include "position_struct.h"
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -83,29 +85,6 @@ extern int krqIndexWhite[4096], bbpIndexWhite[4096];
 extern int krqIndexBlack[4096], bbpIndexBlack[4096];
 extern const int materialUpPawnCountWeight[9];
 
-typedef struct
-{
-   Piece piece[_64_];
-   Color activeColor;
-   BYTE castlingRights;
-   Square enPassantSquare;
-   int moveNumber, halfMoveClock;
-
-   /**
-    * Redundant data
-    */
-   Bitboard allPieces;
-   Bitboard piecesOfColor[2];
-   Bitboard piecesOfType[16];
-   Square king[2];
-   int numberOfPieces[2];
-   int numberOfPawns[2];
-   UINT64 pieceCount;
-   INT32 balance;
-   UINT64 hashKey, pawnHashKey;
-}
-Position;
-
 typedef UINT32 Move;
 
 typedef struct
@@ -151,6 +130,7 @@ typedef struct
    bool staticValueAvailable, gainsUpdated;
    bool quietMove, isHashMove;
    UINT64 pieceCount;
+   Accumulator accumulator;
    PrincipalVariation pv;
 }
 PlyInfo;
