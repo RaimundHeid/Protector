@@ -9,6 +9,8 @@
 #define L2 15
 #define L3 32
 
+#define LAYER_STACKS 8
+
 #include "position_struct.h"
 
 #define MAX_ACTIVE_FEATURES 32
@@ -24,7 +26,8 @@ typedef struct {
 
 int initializeModuleNnue(void);
 int loadNnue(const char* filename);
-int evaluateNnue(Position* pos);
+int evaluateNnue(Position* pos, Accumulator* acc);
+int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc);
 
 void refreshAccumulator(Position* pos, Accumulator* acc);
 void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq);

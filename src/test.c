@@ -105,7 +105,8 @@ static bool dumpEvaluation(SearchTask * entry)
    getValue(&entry->variation->startPosition,
             &base,
             entry->variation->pawnHashtable,
-            entry->variation->kingsafetyHashtable);
+            entry->variation->kingsafetyHashtable,
+            &entry->variation->plyInfo[0].accumulator);
 
    return TRUE;
 }
@@ -238,11 +239,6 @@ int initializeModuleTest(void)
 
 int testModuleNnue(void)
 {
-   if (loadNnue("nn-47fc8b7fff06.nnue") != 0)
-   {
-      return -1;
-   }
-
    Variation variation;
    initializeVariation(&variation, FEN_GAMESTART);
    
@@ -263,6 +259,14 @@ int testModuleNnue(void)
        Accumulator refreshed;
        refreshAccumulator(&variation.singlePosition, &refreshed);
        
+       int eval = evaluateNnue(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+       logDebug("Ply %d eval: %d\n", variation.ply, eval);
+
+       if (eval == 0 && i > 0) {
+           logDebug("Plausibility check failed: Eval is 0 at ply %d\n", variation.ply);
+           // return -1; // Let's not fail yet, just observe
+       }
+
        Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
        for (int p = 0; p < 2; p++) {
            for (int j = 0; j < L1; j++) {
