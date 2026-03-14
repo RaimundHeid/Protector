@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,7 +86,7 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
         Square ksq = pos->king[p];
         for (Square s = 0; s < 64; s++) {
             Piece pc = pos->piece[s];
-            if (pc != NO_PIECE && pieceType(pc) != KING) {
+            if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
                 for (int i = 0; i < L1; i++) {
                     acc->v[p][i] += ft_weights[idx * L1 + i];
@@ -120,6 +119,7 @@ static void read_leb128(FILE* f, void* out, size_t count, size_t element_size) {
     if (fread(magic, 1, 17, f) != 17) return;
     uint32_t bytes_left;
     if (fread(&bytes_left, 4, 1, f) != 1) return;
+    uint32_t total_bytes = bytes_left;
     for (size_t i = 0; i < count; i++) {
         int32_t result = 0;
         int shift = 0;
@@ -139,6 +139,7 @@ static void read_leb128(FILE* f, void* out, size_t count, size_t element_size) {
             if (bytes_left == 0 && (byte & 0x80)) return; // Safety break
         }
     }
+    if (bytes_left > 0) fseek(f, bytes_left, SEEK_CUR);
 }
 
 int initializeModuleNnue(void) {
@@ -162,27 +163,18 @@ int loadNnue(const char* filename) {
     read_leb128(f, ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
     
     for (int s = 0; s < LAYER_STACKS; s++) {
-        uint32_t arch_hash, l_hash;
+        uint32_t arch_hash;
         if (fread(&arch_hash, 4, 1, f) != 1) break;
         
         // FC0
-        fread(&l_hash, 4, 1, f);
         fread(fc0_biases[s], 4, L2 + 1, f);
         fread(fc0_weights[s], 1, (L2 + 1) * L1, f);
         
-        // AC0 hash skip
-        fread(&l_hash, 4, 1, f);
-        
         // FC1
-        fread(&l_hash, 4, 1, f);
         fread(fc1_biases[s], 4, L3, f);
         fread(fc1_weights[s], 1, L3 * 32, f);
         
-        // AC1 hash skip
-        fread(&l_hash, 4, 1, f);
-        
         // FC2
-        fread(&l_hash, 4, 1, f);
         fread(fc2_biases[s], 4, 1, f);
         fread(fc2_weights[s], 1, 1 * L3, f);
     }
@@ -193,12 +185,29 @@ int loadNnue(const char* filename) {
 }
 
 static inline int32_t clipped_relu(int32_t x) {
-    return max(0, min(255, x));
+    return max(0, min(127, x));
 }
 
 static inline int32_t sqr_clipped_relu(int32_t x) {
-    int32_t c = max(0, min(255, x));
-    return (c * c) >> 7; // Scaled to fit
+    int32_t c = max(0, min(127, x));
+    return (c * c) >> 7; // Scaled to fit (matching Stockfish >> 19 raw)
+}
+
+static int win_rate_scaling(Position* pos) {
+    int material = getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN])
+                 + 3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT]))
+                 + 3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP]))
+                 + 5 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_ROOK]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_ROOK]))
+                 + 9 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_QUEEN]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN]));
+
+    // The fitted model only uses data for material counts in [17, 78], and is anchored at count 58.
+    double m = max(17.0, min(78.0, (double)material)) / 58.0;
+
+    // Return a = p_a(material), see github.com/official-stockfish/WDL_model
+    const double as[] = {-72.32565836, 185.93832038, -144.58862193, 416.44950446};
+    double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
+
+    return (int)a;
 }
 
 int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
@@ -215,9 +224,9 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
         for (int i = 0; i < L1 / 2; i++) {
             int16_t v0 = acc->v[perspective][i];
             int16_t v1 = acc->v[perspective][L1 / 2 + i];
-            int32_t clipped0 = max(0, min(127, v0));
-            int32_t clipped1 = max(0, min(127, v1));
-            transformed[p * 64 + i] = (uint8_t)((clipped0 * clipped1) / 128);
+            int32_t clipped0 = max(0, min(255, v0));
+            int32_t clipped1 = max(0, min(255, v1));
+            transformed[p * 64 + i] = (uint8_t)((clipped0 * clipped1) / 512);
         }
     }
 
@@ -225,7 +234,7 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     for (int i = 0; i <= L2; i++) {
         fc0_out[i] = fc0_biases[s][i];
         for (int j = 0; j < L1; j++) {
-            fc0_out[i] += (int32_t)transformed[j] * fc0_weights[s][j * (L2 + 1) + i];
+            fc0_out[i] += (int32_t)transformed[j] * fc0_weights[s][i * L1 + j];
         }
     }
 
@@ -239,8 +248,8 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     int32_t fc1_out[L3];
     for (int i = 0; i < L3; i++) {
         fc1_out[i] = fc1_biases[s][i];
-        for (int j = 0; j < 32; j++) {
-            fc1_out[i] += ac0_out[j] * fc1_weights[s][j * L3 + i];
+        for (int j = 0; j < 30; j++) {
+            fc1_out[i] += ac0_out[j] * fc1_weights[s][i * 32 + j];
         }
     }
 
@@ -251,13 +260,18 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
 
     int32_t fc2_out = fc2_biases[s][0];
     for (int i = 0; i < L3; i++) {
-        fc2_out += ac1_out[i] * fc2_weights[s][i];
+        fc2_out += ac1_out[i] * fc2_weights[s][i]; // Only one output, so i * 1 + 0 is just i
     }
 
-    int32_t fwdOut = (fc0_out[L2] >> 6) * (600 * 16) / (127 * 64);
+    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2] * (600 * 16) / (127 * 64));
     int32_t outputValue = fc2_out + fwdOut;
 
-    return outputValue / 16;
+    // Internal value matching Stockfish search units
+    int v = outputValue / 16;
+
+    // Scale to centipawns using win rate model
+    int a = win_rate_scaling(pos);
+    return v * 100 / a;
 }
 
 int evaluateNnue(Position* pos, Accumulator* acc) {

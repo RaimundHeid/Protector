@@ -105,8 +105,7 @@ static bool dumpEvaluation(SearchTask * entry)
    getValue(&entry->variation->startPosition,
             &base,
             entry->variation->pawnHashtable,
-            entry->variation->kingsafetyHashtable,
-            &entry->variation->plyInfo[0].accumulator);
+            entry->variation->kingsafetyHashtable);
 
    return TRUE;
 }
@@ -237,6 +236,42 @@ int initializeModuleTest(void)
 #include "nnue.h"
 #include "fen.h"
 
+static int testNnuePlausibility(void) {
+    typedef struct {
+        const char* fen;
+        const char* description;
+        int min_eval;
+        int max_eval;
+    } NnueTestCase;
+
+    NnueTestCase cases[] = {
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", -50, 50},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -100, 100},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -100, 100},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -100, 200},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -300, 300},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", -100, 400},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -100, 100},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", -50, 50},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -500, -50},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 20, 1000}
+    };
+
+    int result = 0;
+    for (int i = 0; i < 10; i++) {
+        Variation variation;
+        initializeVariation(&variation, cases[i].fen);
+        refreshAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        int eval = evaluateNnue(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        logDebug("Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
+        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
+            logDebug("Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
+            result = -1;
+        }
+    }
+    return result;
+}
+
 int testModuleNnue(void)
 {
    Variation variation;
@@ -296,7 +331,7 @@ int testModuleNnue(void)
        }
    }
 
-   return 0;
+   return testNnuePlausibility();
 }
 
 int testModuleTest(void)
