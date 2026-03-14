@@ -50,6 +50,10 @@ int makeBlackMove(Variation * variation, const Move move)
 
    if (to == from)
    {
+      variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
+      variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
+      variation->plyInfo[variation->ply].gainsUpdated = FALSE;
+
       assert(checkVariation(variation) == 0);
 
       return result;            /* Nullmove */
@@ -198,8 +202,8 @@ int makeBlackMove(Variation * variation, const Move move)
       position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
 
    {
-      Square added_sq[2], removed_sq[2];
-      Piece added_pc[2], removed_pc[2];
+      Square added_sq[2], removed_sq[3];
+      Piece added_pc[2], removed_pc[3];
       int added_cnt = 0, removed_cnt = 0;
 
       removed_sq[removed_cnt] = from;
@@ -209,6 +213,13 @@ int makeBlackMove(Variation * variation, const Move move)
          removed_sq[removed_cnt] = to;
          removed_pc[removed_cnt++] = capturedPiece;
       }
+      else if (to == plyInfo->enPassantSquare && pieceType(movingPiece) == PAWN)
+      {
+         const Square captureSquare = (Square)(to + (rank(from) - rank(to)) * 8);
+         removed_sq[removed_cnt] = captureSquare;
+         removed_pc[removed_cnt++] = (Piece)(PAWN | OPPCOLOR);
+      }
+
       if (pieceType(movingPiece) == KING)
       {
          refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);

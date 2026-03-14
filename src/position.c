@@ -1102,6 +1102,10 @@ int makeMove(Variation * variation, const Move move)
 
    if (to == from)
    {
+      variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
+      variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
+      variation->plyInfo[variation->ply].gainsUpdated = FALSE;
+
       assert(checkVariation(variation) == 0);
 
       return result;            /* Nullmove */

@@ -238,7 +238,7 @@ static bool positionIsWellKnown(Variation * variation,
       assert(getHashentryStaticValue(tableHit) ==
              getStaticValue(variation, ply));
 
-      if (pi->staticValueAvailable == FALSE)
+      if (pi->staticValueAvailable == FALSE && pvNode == FALSE)
       {
          pi->staticValue = pi->refinedStaticValue =
             getHashentryStaticValue(tableHit);
