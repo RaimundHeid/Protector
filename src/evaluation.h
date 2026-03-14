@@ -26,56 +26,14 @@
 #include "keytable.h"
 #include "io.h"
 
-#ifndef NDEBUG
-extern bool debugEval;
-#endif
-
 #define MATERIALINFO_TABLE_SIZE ( 648 * 648 )
 extern MaterialInfo materialInfo[MATERIALINFO_TABLE_SIZE];
-extern Bitboard companionFiles[_64_];
-extern Bitboard troitzkyArea[2];
-extern Bitboard pawnOpponents[2][_64_];
-extern Bitboard krprkDrawFiles;
-extern Bitboard A1C1, F1H1, A1B1, G1H1;
+extern Bitboard passedPawnCorridor[2][_64_];
+extern Bitboard candidateDefenders[2][_64_];
 
-#define VALUE_TEMPO_OPENING 20
-#define VALUE_TEMPO_ENDGAME 10
-#define MIN_PIECE_WEIGHT_FOR_KING_ATTACK 14
-
-void addEvalBonusForColor(EvaluationBase * base, const Color color,
-                          const INT32 bonus);
-void addEvalMalusForColor(EvaluationBase * base, const Color color,
-                          const INT32 bonus);
-Color getWinningColor(const Position * position, const int value);
-Bitboard getPromotablePawns(const Position * position, const Color color);
-bool oppositeColoredBishops(const Position * position);
-int getKnnkpChances(const Position * position, const Color color);
-bool passiveKingStopsPawn(const Square kingSquare,
-                          const Square pawnSquare, const Color pawnColor);
-int getKrppkrChances(const Position * position, const Color color);
-int getKrpkrChances(const Position * position, const Color color);
-int getKqppkqChances(const Position * position, const Color color);
-int getKqpkqChances(const Position * position, const Color color);
-int getKpkChances(const Position * position, const Color color);
-int getKbpkChances(const Position * position, const Color color);
-int specialPositionChances(const Position * position,
-                           const EvaluationBase * base,
-                           const SpecialEvalType type, const Color color);
-int getChances(const Position * position, const EvaluationBase * base,
-               const Color winningColor);
-bool hasBishopPair(const Position * position, const Color color);
-int phaseValue(const INT32 value, const Position * position,
-               EvaluationBase * base);
 INT32 materialBalance(const Position * position);
-INT32 positionalBalance(const Position * position, EvaluationBase * base);
-int basicPositionalBalance(Position * position);
 bool hasWinningPotential(Position * position, Color color);
-Bitboard calculateKingPawnSafetyHashKey(const Position * position,
-                                        const Color color);
-int getPawnWidth(const Position * position, const Color color);
-int getPassedPawnWidth(const Position * position,
-                       const EvaluationBase * base, const Color color);
-int getMaterialUpPawnCountWeight(int numPawns);
+bool hasBishopPair(const Position * position, const Color color);
 
 #include "nnue.h"
 
@@ -95,17 +53,6 @@ int getValue(const Position * position,
  */
 bool pawnIsPassed(const Position * position, const Square pawnSquare,
                   const Color pawnColor);
-
-/**
- * Check if a pawn capture creates at least one passer.
- */
-bool captureCreatesPasser(Position * position, const Square captureSquare,
-                          const Piece capturingPiece);
-
-/**
- * Reset the pawn hashtable.
- */
-void resetPawnHashtable(void);
 
 /**
  * Flip the given position and check if it yields the same result.
