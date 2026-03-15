@@ -885,24 +885,26 @@ static int searchBest(Variation * variation, int alpha, int beta,
        numPieces >= 2 &&
        !hasDangerousPawns(position, opponent(position->activeColor)))
    {
-      const int referenceValue =
-         getRefinedStaticValue(variation, ply) - (40 + 41 * restDepth);
+      const int staticValue = getRefinedStaticValue(variation, ply);
+      const bool improving = (ply >= 2 && staticValue > variation->plyInfo[ply - 2].staticValue);
+      const int margin = (40 + 41 * restDepth) - (improving ? 40 : 0);
 
-      if (referenceValue >= beta)
+      if (staticValue - margin >= beta)
       {
-         return referenceValue;
+         return (2 * beta + staticValue) / 3;
       }
    }
 
    /* Nullmove pruning with verification */
    if (restDepth >= 2 * DEPTH_RESOLUTION && inCheck == FALSE &&
        pvNode == FALSE && cutsAreAllowed && excludeMove == NO_MOVE &&
-       numPieces >= 2 && getRefinedStaticValue(variation, ply) >= beta)
+       numPieces >= 2 && getRefinedStaticValue(variation, ply) >= beta &&
+       (cutNode != FALSE || restDepth >= 6 * DEPTH_RESOLUTION))
    {                            /* 16-32% */
       const int diff = getRefinedStaticValue(variation, ply) - beta;
       const int additionalReduction = min(diff / 110, 3) * DEPTH_RESOLUTION;
       const int newDepth =
-         restDepth - 3 * DEPTH_RESOLUTION - restDepth / 4 -
+         restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 -
          additionalReduction;
       const int verificationDepth =
          (numPieces >= 3 ? 12 : 6) * DEPTH_RESOLUTION;
@@ -2243,7 +2245,7 @@ static void initializeArrays(void)
 
    for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++)
    {
-      futilityMargin[i] = (3125 * i) / 64 - 12800 / 256;
+      futilityMargin[i] = (3350 * i) / 64 - 12800 / 256;
 
 #ifdef DEBUG_FUT_VALUES
       if (j <= 2)
