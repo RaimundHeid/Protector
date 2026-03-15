@@ -487,7 +487,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    {
       int value, newDepth =
          (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
-      int optValue = currentValue + 43 +
+      int optValue = currentValue + 350 +
          maxPieceValue[position->piece[getToSquare(currentMove)]];
       const Square toSquare = getToSquare(currentMove);
 
@@ -1921,21 +1921,11 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
 
 static void updatePieceValues(void)
 {
-   maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] =
-      max(getOpeningValue(basicValue[WHITE_QUEEN]),
-          getEndgameValue(basicValue[WHITE_QUEEN])) - 42;
-   maxPieceValue[WHITE_ROOK] = maxPieceValue[BLACK_ROOK] =
-      max(getOpeningValue(basicValue[WHITE_ROOK]),
-          getEndgameValue(basicValue[WHITE_ROOK]));
-   maxPieceValue[WHITE_BISHOP] = maxPieceValue[BLACK_BISHOP] =
-      max(getOpeningValue(basicValue[WHITE_BISHOP]),
-          getEndgameValue(basicValue[WHITE_BISHOP]));
-   maxPieceValue[WHITE_KNIGHT] = maxPieceValue[BLACK_KNIGHT] =
-      max(getOpeningValue(basicValue[WHITE_KNIGHT]),
-          getEndgameValue(basicValue[WHITE_KNIGHT]));
-   maxPieceValue[WHITE_PAWN] = maxPieceValue[BLACK_PAWN] =
-      max(getOpeningValue(basicValue[WHITE_PAWN]),
-          getEndgameValue(basicValue[WHITE_PAWN]));
+   maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] = 2538;
+   maxPieceValue[WHITE_ROOK] = maxPieceValue[BLACK_ROOK] = 1276;
+   maxPieceValue[WHITE_BISHOP] = maxPieceValue[BLACK_BISHOP] = 825;
+   maxPieceValue[WHITE_KNIGHT] = maxPieceValue[BLACK_KNIGHT] = 781;
+   maxPieceValue[WHITE_PAWN] = maxPieceValue[BLACK_PAWN] = 208;
 }
 
 Move search(Variation * variation, Movelist * acceptableSolutions)
