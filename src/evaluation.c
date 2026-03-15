@@ -107,7 +107,7 @@ INT32 materialBalance(const Position * position)
 
 int getValue(const Position * position, Accumulator * acc)
 {
-   return evaluateNnue((Position *)position, acc);
+   return evaluateNnueWithAccumulator((Position *)position, acc);
 }
 
 bool pawnIsPassed(const Position * position, const Square pawnSquare,

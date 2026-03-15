@@ -421,7 +421,3 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     int a = win_rate_scaling(pos);
     return v * 100 / a;
 }
-
-int evaluateNnue(Position* pos, Accumulator* acc) {
-    return evaluateNnueWithAccumulator(pos, acc);
-}

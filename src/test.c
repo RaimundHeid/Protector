@@ -258,7 +258,7 @@ static int testNnuePlausibility(void) {
         Variation variation;
         initializeVariation(&variation, cases[i].fen);
         refreshAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
-        int eval = evaluateNnue(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        int eval = evaluateNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
         logDebug("Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
         if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
             logDebug("Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
@@ -290,7 +290,7 @@ int testModuleNnue(void)
        Accumulator refreshed;
        refreshAccumulator(&variation.singlePosition, &refreshed);
        
-       int eval = evaluateNnue(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+       int eval = evaluateNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
        logDebug("Ply %d eval: %d\n", variation.ply, eval);
 
        if (eval == 0 && i > 0) {

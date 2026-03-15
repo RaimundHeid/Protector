@@ -27,7 +27,6 @@ typedef struct {
 
 int initializeModuleNnue(void);
 int loadNnue(const char* filename);
-int evaluateNnue(Position* pos, Accumulator* acc);
 int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc);
 
 void refreshAccumulator(Position* pos, Accumulator* acc);
