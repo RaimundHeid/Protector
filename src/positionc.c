@@ -32,7 +32,6 @@ int makeBlackMove(Variation * variation, const Move move)
    variation->positionHistory[POSITION_HISTORY_OFFSET - 1 + variation->ply] =
       plyInfo->hashKey = position->hashKey;
    plyInfo->currentMove = move;
-   plyInfo->pieceCount = position->pieceCount;
    variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
    position->hashKey = ~position->hashKey;
@@ -88,12 +87,6 @@ int makeBlackMove(Variation * variation, const Move move)
       {
          position->numberOfPawns[OPPCOLOR]--;
       }
-      else
-      {
-         position->pieceCount -= (capturedPiece == (BISHOP | OPPCOLOR) ?
-                                  bishopPieceCountWeight[OPPCOLOR][to] :
-                                  pieceCountWeight[capturedPiece]);
-      }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
    }
@@ -132,10 +125,6 @@ int makeBlackMove(Variation * variation, const Move move)
          plyInfo->restorePiece1 = movingPiece;
          position->piece[to] = effectiveNewPiece;
          position->numberOfPawns[COLOR]--;
-         position->pieceCount +=
-            (newPiece == (Piece) BISHOP ?
-             bishopPieceCountWeight[COLOR][to] :
-             pieceCountWeight[effectiveNewPiece]);
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];

@@ -76,7 +76,6 @@ extern int VALUE_BISHOP_PAIR_ENDGAME;
 #define ENDGAME 1
 
 extern int basicValue[16];
-extern int pieceCountShift[16];
 
 typedef UINT32 Move;
 
@@ -121,7 +120,6 @@ typedef struct
    int staticValue, refinedStaticValue;
    bool staticValueAvailable, gainsUpdated;
    bool quietMove, isHashMove;
-   UINT64 pieceCount;
    Accumulator accumulator;
    PrincipalVariation pv;
 }
@@ -382,7 +380,6 @@ Bitboard getOrdinaryPieces(const Position * position, const Color color);
 Bitboard getNonPawnPieces(const Position * position, const Color color);
 Bitboard getOrthoPieces(const Position * position, const Color color);
 bool movesAreEqual(const Move m1, const Move m2);
-int getPieceCount(const Position * position, const Piece piece);
 bool pieceIsPresent(const Position * position, const Piece piece);
 int historyIndex(const Move move, const Position * position);
 int moveIndex(const Move move, const Position * position);

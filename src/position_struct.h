@@ -22,7 +22,6 @@ typedef struct
    Square king[2];
    int numberOfPieces[2];
    int numberOfPawns[2];
-   UINT64 pieceCount;
    UINT64 hashKey;
 }
 Position;

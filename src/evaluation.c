@@ -58,19 +58,26 @@ bool pawnIsPassed(const Position * position, const Square pawnSquare,
 
 bool hasBishopPair(const Position * position, const Color color)
 {
-   return (bool) (getPieceCount(position, (Piece) (WHITE_BISHOP_LIGHT | color)) > 0 &&
-                  getPieceCount(position, (Piece) (WHITE_BISHOP_DARK | color)) > 0);
+   const Bitboard bishops = position->piecesOfType[BISHOP | color];
+
+   return (bool) ((bishops & lightSquares) != EMPTY_BITBOARD &&
+                  (bishops & darkSquares) != EMPTY_BITBOARD);
 }
 
 bool hasWinningPotential(Position * position, Color color)
 {
-   const int numQueens = getPieceCount(position, (Piece) (QUEEN | color));
-   const int numRooks = getPieceCount(position, (Piece) (ROOK | color));
-   const int numBishops = getPieceCount(position, (Piece) (BISHOP | color));
-   const int numKnights = getPieceCount(position, (Piece) (KNIGHT | color));
+   if (position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD ||
+       position->piecesOfType[ROOK | color] != EMPTY_BITBOARD)
+   {
+      return TRUE;
+   }
 
-   if (numQueens > 0 || numRooks > 0 || numBishops >= 2 ||
-       (numBishops > 0 && numKnights > 0))
+   const Bitboard bishops = position->piecesOfType[BISHOP | color];
+   const int numBishops = getNumberOfSetSquares(bishops);
+
+   if (numBishops >= 2 ||
+       (numBishops > 0 &&
+        position->piecesOfType[KNIGHT | color] != EMPTY_BITBOARD))
    {
       return TRUE;
    }

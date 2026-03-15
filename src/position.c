@@ -52,9 +52,6 @@ int VALUE_BISHOP_PAIR_ENDGAME = DEFAULTVALUE_BISHOP_PAIR_ENDGAME;
 int basicValue[16];
 BYTE remainingCastlings[_64_];
 Square rookOrigin[_64_];
-int pieceCountShift[16];
-UINT64 pieceCountWeight[16];
-UINT64 bishopPieceCountWeight[2][_64_];
 
 Square relativeSquare(const Square square, const Color color)
 {
@@ -481,14 +478,6 @@ bool movesAreEqual(const Move m1, const Move m2)
 }
 
 /**
- * Get the population count for the specified piece in the specified position.
- */
-int getPieceCount(const Position * position, const Piece piece)
-{
-   return (int) ((position->pieceCount >> pieceCountShift[piece]) & 0x0F);
-}
-
-/**
  * Check if the specified piece is present in the specified position.
  */
 bool pieceIsPresent(const Position * position, const Piece piece)
@@ -606,7 +595,6 @@ void initializePosition(Position * position)
    position->allPieces = EMPTY_BITBOARD;
    position->piecesOfColor[WHITE] = EMPTY_BITBOARD;
    position->piecesOfColor[BLACK] = EMPTY_BITBOARD;
-   position->pieceCount = 0;
 
    for (i = 0x00; i <= 0x0F; i++)
    {
@@ -675,15 +663,6 @@ void initializePosition(Position * position)
          if (pieceType(piece) == KING)
          {
             position->king[color] = square;
-         }
-
-         if (pieceType(piece) == BISHOP)
-         {
-            position->pieceCount += bishopPieceCountWeight[color][square];
-         }
-         else
-         {
-            position->pieceCount += pieceCountWeight[piece];
          }
       }
    }
@@ -904,7 +883,6 @@ int makeMove(Variation * variation, const Move move)
    plyInfo->allPieces = position->allPieces;
    plyInfo->whitePieces = position->piecesOfColor[WHITE];
    plyInfo->blackPieces = position->piecesOfColor[BLACK];
-   plyInfo->pieceCount = position->pieceCount;
    variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
    position->piecesOfColor[activeColor] &= maxFrom;
@@ -937,12 +915,6 @@ int makeMove(Variation * variation, const Move move)
       if (pieceType(capturedPiece) == PAWN)
       {
          position->numberOfPawns[passiveColor]--;
-      }
-      else
-      {
-         position->pieceCount -= (capturedPiece == (BISHOP | passiveColor) ?
-                                  bishopPieceCountWeight[passiveColor][to] :
-                                  pieceCountWeight[capturedPiece]);
       }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
@@ -982,10 +954,6 @@ int makeMove(Variation * variation, const Move move)
          plyInfo->restorePiece1 = movingPiece;
          position->piece[to] = effectiveNewPiece;
          position->numberOfPawns[activeColor]--;
-         position->pieceCount +=
-            (newPiece == (Piece) BISHOP ?
-             bishopPieceCountWeight[activeColor][to] :
-             pieceCountWeight[effectiveNewPiece]);
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
@@ -1082,7 +1050,6 @@ void unmakeLastMove(Variation * variation)
    position->king[activeColor] = plyInfo->kingSquare;
    position->piece[from] = position->piece[to];
    position->piece[to] = plyInfo->captured;
-   position->pieceCount = plyInfo->pieceCount;
 
    if (newPiece != NO_PIECE)
    {
@@ -1354,31 +1321,6 @@ int checkConsistency(const Position * position)
    assert(testSquare
           (position->piecesOfType[BLACK_KING], position->king[BLACK]));
    assert(getNumberOfSetSquares(position->piecesOfType[BLACK_KING]) == 1);
-
-   assert(getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) ==
-          getPieceCount(position, WHITE_QUEEN));
-   assert(getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) ==
-          getPieceCount(position, WHITE_ROOK));
-   assert(getNumberOfSetSquares
-          (position->piecesOfType[WHITE_BISHOP] & lightSquares) ==
-          getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT));
-   assert(getNumberOfSetSquares
-          (position->piecesOfType[WHITE_BISHOP] & darkSquares) ==
-          getPieceCount(position, (Piece) WHITE_BISHOP_DARK));
-   assert(getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) ==
-          getPieceCount(position, WHITE_KNIGHT));
-   assert(getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]) ==
-          getPieceCount(position, BLACK_QUEEN));
-   assert(getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK]) ==
-          getPieceCount(position, BLACK_ROOK));
-   assert(getNumberOfSetSquares
-          (position->piecesOfType[BLACK_BISHOP] & lightSquares) ==
-          getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT));
-   assert(getNumberOfSetSquares
-          (position->piecesOfType[BLACK_BISHOP] & darkSquares) ==
-          getPieceCount(position, (Piece) BLACK_BISHOP_DARK));
-   assert(getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT]) ==
-          getPieceCount(position, BLACK_KNIGHT));
 
    ITERATE(square)
    {
@@ -1764,7 +1706,6 @@ bool positionsAreIdentical(const Position * position1,
 int initializeModulePosition(void)
 {
    Square square;
-   int i;
 
    ITERATE(square)
    {
@@ -1821,50 +1762,6 @@ int initializeModulePosition(void)
       max(VALUE_KNIGHT_OPENING, VALUE_KNIGHT_ENDGAME);
    basicValue[WHITE_PAWN] = basicValue[BLACK_PAWN] =
       max(VALUE_PAWN_OPENING, VALUE_PAWN_ENDGAME);
-
-   /*logDebug("size of Variation: %d bytes\n", sizeof(Variation)); */
-
-   pieceCountShift[WHITE_KING] = 40;
-   pieceCountShift[WHITE_QUEEN] = 0;
-   pieceCountShift[WHITE_ROOK] = 4;
-   pieceCountShift[WHITE_KNIGHT] = 8;
-   pieceCountShift[WHITE_BISHOP_LIGHT] = 12;
-   pieceCountShift[WHITE_BISHOP_DARK] = 16;
-   pieceCountShift[WHITE_PAWN] = 40;
-   pieceCountShift[BLACK_KING] = 40;
-   pieceCountShift[BLACK_QUEEN] = 20;
-   pieceCountShift[BLACK_ROOK] = 24;
-   pieceCountShift[BLACK_KNIGHT] = 28;
-   pieceCountShift[BLACK_BISHOP_LIGHT] = 32;
-   pieceCountShift[BLACK_BISHOP_DARK] = 36;
-   pieceCountShift[BLACK_PAWN] = 40;
-
-   for (i = 0; i < 16; i++)
-   {
-      pieceCountWeight[i] =
-         (pieceCountShift[i] < 40 ? ((UINT64) (1)) << pieceCountShift[i] : 0);
-
-      /* logDebug("pcw(%d) = %lu (%d)\n", i, pieceCountWeight[i], pieceCountShift[i]); */
-   }
-
-   ITERATE(square)
-   {
-      if (testSquare(darkSquares, square))
-      {
-         bishopPieceCountWeight[WHITE][square] =
-            pieceCountWeight[WHITE_BISHOP_DARK];
-         bishopPieceCountWeight[BLACK][square] =
-            pieceCountWeight[BLACK_BISHOP_DARK];
-      }
-      else
-      {
-         bishopPieceCountWeight[WHITE][square] =
-            pieceCountWeight[WHITE_BISHOP_LIGHT];
-         bishopPieceCountWeight[BLACK][square] =
-            pieceCountWeight[BLACK_BISHOP_LIGHT];
-      }
-   }
-
 
    return 0;
 }
