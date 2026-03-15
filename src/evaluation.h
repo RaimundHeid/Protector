@@ -26,12 +26,9 @@
 #include "keytable.h"
 #include "io.h"
 
-#define MATERIALINFO_TABLE_SIZE ( 648 * 648 )
-extern MaterialInfo materialInfo[MATERIALINFO_TABLE_SIZE];
 extern Bitboard passedPawnCorridor[2][_64_];
 extern Bitboard candidateDefenders[2][_64_];
 
-INT32 materialBalance(const Position * position);
 bool hasWinningPotential(Position * position, Color color);
 bool hasBishopPair(const Position * position, const Color color);
 

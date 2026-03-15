@@ -43,9 +43,6 @@
 #define DEFAULTVALUE_PAWN_OPENING     (85)
 #define DEFAULTVALUE_PAWN_ENDGAME     (123)
 
-#define PHASE_MAX 62
-#define PHASE_INDEX_MAX 256
-#define PIECE_WEIGHT_ENDGAME 16
 #define DELTA (-3)
 
 #define DEFAULTVALUE_KNIGHT_OPENING    (343)
@@ -78,12 +75,9 @@ extern int VALUE_BISHOP_PAIR_ENDGAME;
 #define OPENING 0
 #define ENDGAME 1
 
-extern int basicValue[16], simplePieceValue[16];
+extern int basicValue[16];
 extern INT32 pieceSquareBonus[16][_64_];
 extern int pieceCountShift[16];
-extern int krqIndexWhite[4096], bbpIndexWhite[4096];
-extern int krqIndexBlack[4096], bbpIndexBlack[4096];
-extern const int materialUpPawnCountWeight[9];
 
 typedef UINT32 Move;
 
@@ -124,7 +118,7 @@ typedef struct
    Square enPassantSquare, restoreSquare1, restoreSquare2, kingSquare;
    BYTE castlingRights;
    int halfMoveClock;
-   Bitboard allPieces, whitePieces, blackPieces, hashKey, pawnHashKey;
+   Bitboard allPieces, whitePieces, blackPieces, hashKey;
    INT32 balance;
    int staticValue, refinedStaticValue;
    bool staticValueAvailable, gainsUpdated;
@@ -213,13 +207,6 @@ extern KingSafetyHashInfo
    kingSafetyHashtable[MAX_THREADS][KINGSAFETY_HASHTABLE_SIZE];
 
 #define BONUS_HIDDEN_PASSER
-
-typedef struct
-{
-   INT32 materialBalance;
-   int phaseIndex;
-}
-MaterialInfo;
 
 typedef struct
 {
@@ -380,14 +367,6 @@ bool positionIsLegal(const Position * position);
 bool positionsAreIdentical(const Position * position1,
                            const Position * position2);
 
-/**
- * Calculate the signature for a given set of piece counters.
- */
-UINT32 materialSignature(const UINT32 numQueens, const UINT32 numRooks,
-                         const UINT32 numLightSquareBishops,
-                         const UINT32 numDarkSquareBishops,
-                         const UINT32 numKnights, const UINT32 numPawns);
-
 Square relativeSquare(const Square square, const Color color);
 INT32 evalBonus(INT32 openingBonus, INT32 endgameBonus);
 int getOpeningValue(INT32 value);
@@ -441,38 +420,6 @@ int getMinimalDistance(const Position * position,
                        const Square origin, const Piece piece);
 int getMinimalTaxiDistance(const Position * position,
                            const Square origin, const Piece piece);
-int getPieceWeight(const Position * position, const Color color);
-int phaseIndex(const Position * position);
-void getPieceCounters(UINT32 materialSignature,
-                      int *numWhiteQueens, int *numWhiteRooks,
-                      int *numWhiteLightSquareBishops,
-                      int *numWhiteDarkSquareBishops,
-                      int *numWhiteKnights, int *numWhitePawns,
-                      int *numBlackQueens, int *numBlackRooks,
-                      int *numBlackLightSquareBishops,
-                      int *numBlackDarkSquareBishops,
-                      int *numBlackKnights, int *numBlackPawns);
-UINT32 calculateMaterialSignature(const Position * position);
-UINT32 bilateralSignature(const UINT32 signatureWhite,
-                          const UINT32 signatureBlack);
-UINT32 getMaterialSignature(const int numWhiteQueens,
-                            const int numWhiteRooks,
-                            const int numWhiteLightSquareBishops,
-                            const int numWhiteDarkSquareBishops,
-                            const int numWhiteKnights,
-                            const int numWhitePawns,
-                            const int numBlackQueens,
-                            const int numBlackRooks,
-                            const int numBlackLightSquareBishops,
-                            const int numBlackDarkSquareBishops,
-                            const int numBlackKnights,
-                            const int numBlackPawns);
-UINT32 getSingleMaterialSignature(const int numQueens,
-                                  const int numRooks,
-                                  const int numLightSquareBishops,
-                                  const int numDarkSquareBishops,
-                                  const int numKnights, const int numPawns);
-UINT32 getMaterialSignatureFromPieceCount(const Position * position);
 
 /**
  * Initialize this module.

@@ -24,7 +24,7 @@ typedef struct
    int numberOfPawns[2];
    UINT64 pieceCount;
    INT32 balance;
-   UINT64 hashKey, pawnHashKey;
+   UINT64 hashKey;
 }
 Position;
 

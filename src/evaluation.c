@@ -29,81 +29,11 @@
 #include "tools.h"
 #include "tablebase.h"
 
-MaterialInfo materialInfo[MATERIALINFO_TABLE_SIZE];
-
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
 KingSafetyHashInfo
    kingSafetyHashtable[MAX_THREADS][KINGSAFETY_HASHTABLE_SIZE];
-
-INT32 materialBalance(const Position * position)
-{
-   const INT32 bishopPairBonus =
-      V(VALUE_BISHOP_PAIR_OPENING, VALUE_BISHOP_PAIR_ENDGAME);
-   static const INT32 knightBonus = V(0, 5);
-   static const INT32 rookMalus = V(5, 0);
-   static const INT32 rookPairMalus = V(17, 25);
-   static const INT32 rookQueenMalus = V(8, 12);
-   static const INT32 pieceUpBonus =
-      V(DEFAULTVALUE_PIECE_UP_OPENING, DEFAULTVALUE_PIECE_UP_ENDGAME);
-
-   INT32 balance = 0;
-   const int pawnCountWhite = position->numberOfPawns[WHITE] - 5;
-   const int pawnCountBlack = position->numberOfPawns[BLACK] - 5;
-   const int numWhiteKnights = getPieceCount(position, WHITE_KNIGHT);
-   const int numBlackKnights = getPieceCount(position, BLACK_KNIGHT);
-   const int knightSaldo = pawnCountWhite * numWhiteKnights -
-      pawnCountBlack * numBlackKnights;
-   const int numWhiteRooks = getPieceCount(position, WHITE_ROOK);
-   const int numBlackRooks = getPieceCount(position, BLACK_ROOK);
-   const int rookSaldo = (numWhiteRooks - numBlackRooks) * 3;
-
-   if (getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) > 0 &&
-       getPieceCount(position, (Piece) WHITE_BISHOP_DARK) > 0)
-   {
-      balance += bishopPairBonus;
-   }
-
-   if (getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) > 0 &&
-       getPieceCount(position, (Piece) BLACK_BISHOP_DARK) > 0)
-   {
-      balance -= bishopPairBonus;
-   }
-
-   balance += knightSaldo * knightBonus - rookSaldo * rookMalus;
-
-   if (numWhiteRooks == 2)
-   {
-      balance -= rookPairMalus + rookQueenMalus;
-   }
-   else if (numWhiteRooks == 1 && getPieceCount(position, WHITE_QUEEN) > 0)
-   {
-      balance -= rookQueenMalus;
-   }
-
-   if (numBlackRooks == 2)
-   {
-      balance += rookPairMalus + rookQueenMalus;
-   }
-   else if (numBlackRooks == 1 && getPieceCount(position, BLACK_QUEEN) > 0)
-   {
-      balance += rookQueenMalus;
-   }
-
-   if (numberOfNonPawnPieces(position, WHITE) >
-       numberOfNonPawnPieces(position, BLACK))
-   {
-      balance += pieceUpBonus;
-   }
-   else if (numberOfNonPawnPieces(position, BLACK) >
-            numberOfNonPawnPieces(position, WHITE))
-   {
-      balance -= pieceUpBonus;
-   }
-
-   return balance;
-}
 
 int getValue(const Position * position, Accumulator * acc)
 {
@@ -149,52 +79,6 @@ bool hasWinningPotential(Position * position, Color color)
    }
 
    return FALSE;
-}
-
-static void initializeMaterialInfoTable(void)
-{
-   UINT32 signatureWhite, signatureBlack;
-
-   for (signatureWhite = 0; signatureWhite < 648; signatureWhite++)
-   {
-      for (signatureBlack = 0; signatureBlack < 648; signatureBlack++)
-      {
-         int numWhiteQueens, numWhiteRooks, numWhiteLightSquareBishops;
-         int numWhiteDarkSquareBishops, numWhiteKnights, numWhitePawns;
-         int numBlackQueens, numBlackRooks, numBlackLightSquareBishops;
-         int numBlackDarkSquareBishops, numBlackKnights, numBlackPawns;
-         const UINT32 signature =
-            bilateralSignature(signatureWhite, signatureBlack);
-         MaterialInfo *mi = &materialInfo[signature];
-
-         getPieceCounters(signature, &numWhiteQueens, &numWhiteRooks,
-                          &numWhiteLightSquareBishops,
-                          &numWhiteDarkSquareBishops, &numWhiteKnights,
-                          &numWhitePawns, &numBlackQueens, &numBlackRooks,
-                          &numBlackLightSquareBishops,
-                          &numBlackDarkSquareBishops, &numBlackKnights,
-                          &numBlackPawns);
-
-         mi->materialBalance =
-            V(VALUE_PAWN_OPENING, VALUE_PAWN_ENDGAME) *
-            (numWhitePawns - numBlackPawns) +
-            V(VALUE_KNIGHT_OPENING, VALUE_KNIGHT_ENDGAME) *
-            (numWhiteKnights - numBlackKnights) +
-            V(VALUE_BISHOP_OPENING, VALUE_BISHOP_ENDGAME) *
-            (numWhiteLightSquareBishops + numWhiteDarkSquareBishops -
-             numBlackLightSquareBishops - numBlackDarkSquareBishops) +
-            V(VALUE_ROOK_OPENING, VALUE_ROOK_ENDGAME) *
-            (numWhiteRooks - numBlackRooks) +
-            V(VALUE_QUEEN_OPENING, VALUE_QUEEN_ENDGAME) *
-            (numWhiteQueens - numBlackQueens);
-
-         mi->phaseIndex = 4 * (numWhiteQueens + numBlackQueens) +
-            2 * (numWhiteRooks + numBlackRooks) +
-            numWhiteLightSquareBishops + numWhiteDarkSquareBishops +
-            numBlackLightSquareBishops + numBlackDarkSquareBishops +
-            numWhiteKnights + numBlackKnights;
-      }
-   }
 }
 
 int initializeModuleEvaluation(void)
@@ -253,8 +137,6 @@ int initializeModuleEvaluation(void)
          }
       }
    }
-
-   initializeMaterialInfoTable();
 
    return 0;
 }

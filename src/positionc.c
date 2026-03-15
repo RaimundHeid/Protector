@@ -92,7 +92,6 @@ int makeBlackMove(Variation * variation, const Move move)
       if (pieceType(capturedPiece) == PAWN)
       {
          position->numberOfPawns[OPPCOLOR]--;
-         position->pawnHashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
       }
       else
       {
@@ -108,9 +107,6 @@ int makeBlackMove(Variation * variation, const Move move)
    if (pieceType(movingPiece) == PAWN)
    {
       position->halfMoveClock = 0;
-      position->pawnHashKey ^=
-         GENERATED_KEYTABLE[movingPiece][from] ^
-         GENERATED_KEYTABLE[movingPiece][to];
 
       if (distance(from, to) == 2)
       {
@@ -127,8 +123,6 @@ int makeBlackMove(Variation * variation, const Move move)
          clearSquare(position->piecesOfColor[OPPCOLOR], captureSquare);
          clearSquare(position->piecesOfType[capturedPawn], captureSquare);
          position->hashKey ^= GENERATED_KEYTABLE[capturedPawn][captureSquare];
-         position->pawnHashKey ^=
-            GENERATED_KEYTABLE[capturedPawn][captureSquare];
          addBonus(position, pieceSquareBonus[capturedPawn][captureSquare]);
 
          plyInfo->restoreSquare1 = captureSquare;
@@ -152,7 +146,6 @@ int makeBlackMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
-         position->pawnHashKey ^= GENERATED_KEYTABLE[movingPiece][to];
          addBonus(position, pieceSquareBonus[effectiveNewPiece][to] -
                   pieceSquareBonus[movingPiece][to]);
          setSquare(position->piecesOfType[position->piece[to]], to);

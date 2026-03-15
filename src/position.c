@@ -56,8 +56,6 @@ Square rookOrigin[_64_];
 int pieceCountShift[16];
 UINT64 pieceCountWeight[16];
 UINT64 bishopPieceCountWeight[2][_64_];
-int krqIndexWhite[4096], bbpIndexWhite[4096];
-int krqIndexBlack[4096], bbpIndexBlack[4096];
 
 Square relativeSquare(const Square square, const Color color)
 {
@@ -230,7 +228,6 @@ void initializePlyInfo(Variation * variation)
    PlyInfo *plyInfo = &variation->plyInfo[variation->ply];
    const Color activeColor = position->activeColor;
 
-   plyInfo->pawnHashKey = position->pawnHashKey;
    plyInfo->enPassantSquare = position->enPassantSquare;
    plyInfo->kingSquare = position->king[activeColor];
    plyInfo->castlingRights = position->castlingRights;
@@ -567,179 +564,8 @@ int getMinimalTaxiDistance(const Position * position,
 }
 
 /**
- * Calculate the weight of the non-pawn-pieces of the specified color.
- *
- * @return a value in the range [0-103]
- */
-int getPieceWeight(const Position * position, const Color color)
-{
-   const int numNonPawnPieces = numberOfNonPawnPieces(position, color) - 1;
-   const int numRooks = getPieceCount(position, (Piece) (ROOK | color));
-   const int numQueens = getPieceCount(position, (Piece) (QUEEN | color));
-
-   return 6 * numQueens + 2 * numRooks + 3 * numNonPawnPieces;  /* q=9, r=5, b,n=3 */
-}
-
-/**
- * Calculate the phase index of the specified position.
- *
- * @return a value in the range [0(initial position)-256(endgame)]
- */
-int phaseIndex(const Position * position)
-{
-   const int weightWhite = getPieceWeight(position, WHITE);
-   const int weightBlack = getPieceWeight(position, BLACK);
-   const int basicPhase = (weightWhite + weightBlack <= PIECE_WEIGHT_ENDGAME ?
-                           PHASE_MAX :
-                           max(0, PHASE_MAX - weightWhite - weightBlack));
-
-   assert(getPieceWeight(position, WHITE) >= 0);
-   assert(getPieceWeight(position, WHITE) <= 103);
-   assert(getPieceWeight(position, BLACK) >= 0);
-   assert(getPieceWeight(position, BLACK) <= 103);
-   assert(basicPhase >= 0);
-   assert(basicPhase <= PHASE_MAX);
-
-   return (basicPhase * 256 + (PHASE_MAX / 2)) / PHASE_MAX;
-}
-
-/**
  * Get the piece counters from a material signature.
  */
-void getPieceCounters(UINT32 materialSignature,
-                      int *numWhiteQueens, int *numWhiteRooks,
-                      int *numWhiteLightSquareBishops,
-                      int *numWhiteDarkSquareBishops,
-                      int *numWhiteKnights, int *numWhitePawns,
-                      int *numBlackQueens, int *numBlackRooks,
-                      int *numBlackLightSquareBishops,
-                      int *numBlackDarkSquareBishops,
-                      int *numBlackKnights, int *numBlackPawns)
-{
-   *numWhitePawns = materialSignature % 9;
-   materialSignature /= 9;
-   *numWhiteLightSquareBishops = materialSignature % 2;
-   materialSignature /= 2;
-   *numWhiteDarkSquareBishops = materialSignature % 2;
-   materialSignature /= 2;
-   *numWhiteQueens = materialSignature % 2;
-   materialSignature /= 2;
-   *numWhiteRooks = materialSignature % 3;
-   materialSignature /= 3;
-   *numWhiteKnights = materialSignature % 3;
-   materialSignature /= 3;
-
-   *numBlackPawns = materialSignature % 9;
-   materialSignature /= 9;
-   *numBlackLightSquareBishops = materialSignature % 2;
-   materialSignature /= 2;
-   *numBlackDarkSquareBishops = materialSignature % 2;
-   materialSignature /= 2;
-   *numBlackQueens = materialSignature % 2;
-   materialSignature /= 2;
-   *numBlackRooks = materialSignature % 3;
-   materialSignature /= 3;
-   *numBlackKnights = materialSignature % 3;
-}
-
-/**
- * Calculate a material signature from a white and a black signature.
- */
-UINT32 bilateralSignature(const UINT32 signatureWhite,
-                          const UINT32 signatureBlack)
-{
-   return signatureWhite + 648 * signatureBlack;
-}
-
-/**
- * Get the piece counters from a material signature.
- */
-UINT32 getMaterialSignature(const int numWhiteQueens,
-                            const int numWhiteRooks,
-                            const int numWhiteLightSquareBishops,
-                            const int numWhiteDarkSquareBishops,
-                            const int numWhiteKnights,
-                            const int numWhitePawns,
-                            const int numBlackQueens,
-                            const int numBlackRooks,
-                            const int numBlackLightSquareBishops,
-                            const int numBlackDarkSquareBishops,
-                            const int numBlackKnights,
-                            const int numBlackPawns)
-{
-   const int blackFactor = (3 * 3 * 2 * 2 * 2 * 9);
-
-   return numWhitePawns +
-      min(1, numWhiteLightSquareBishops) * 9 +
-      min(1, numWhiteDarkSquareBishops) * (2 * 9) +
-      min(1, numWhiteQueens) * (2 * 2 * 9) +
-      min(2, numWhiteRooks) * (2 * 2 * 2 * 9) +
-      min(2, numWhiteKnights) * (3 * 2 * 2 * 2 * 9) +
-      numBlackPawns * blackFactor +
-      min(1, numBlackLightSquareBishops) * 9 * blackFactor +
-      min(1, numBlackDarkSquareBishops) * (2 * 9) * blackFactor +
-      min(1, numBlackQueens) * (2 * 2 * 9) * blackFactor +
-      min(2, numBlackRooks) * (2 * 2 * 2 * 9) * blackFactor +
-      min(2, numBlackKnights) * (3 * 2 * 2 * 2 * 9) * blackFactor;
-}
-
-/**
- * Get the piece counters from a material signature.
- */
-UINT32 getSingleMaterialSignature(const int numQueens,
-                                  const int numRooks,
-                                  const int numLightSquareBishops,
-                                  const int numDarkSquareBishops,
-                                  const int numKnights, const int numPawns)
-{
-   return getMaterialSignature(numQueens, numRooks,
-                               numLightSquareBishops, numDarkSquareBishops,
-                               numKnights, numPawns, 0, 0, 0, 0, 0, 0);
-}
-
-/**
- * Get the material signature for the specific position.
- */
-UINT32 getMaterialSignatureFromPieceCount(const Position * position)
-{
-   return getMaterialSignature(getPieceCount(position, WHITE_QUEEN),
-                               getPieceCount(position, WHITE_ROOK),
-                               getPieceCount(position,
-                                             (Piece) (WHITE_BISHOP_LIGHT)),
-                               getPieceCount(position,
-                                             (Piece) (WHITE_BISHOP_DARK)),
-                               getPieceCount(position, WHITE_KNIGHT),
-                               position->numberOfPawns[WHITE],
-                               getPieceCount(position, BLACK_QUEEN),
-                               getPieceCount(position, BLACK_ROOK),
-                               getPieceCount(position,
-                                             (Piece) (BLACK_BISHOP_LIGHT)),
-                               getPieceCount(position,
-                                             (Piece) (BLACK_BISHOP_DARK)),
-                               getPieceCount(position, BLACK_KNIGHT),
-                               position->numberOfPawns[BLACK]);
-}
-
-UINT32 calculateMaterialSignature(const Position * position)
-{
-   const UINT64 bbpWhite = ((position->pieceCount >> 8) & 0x0ff0) +
-      position->numberOfPawns[WHITE];
-   const UINT64 indexWhite = krqIndexWhite[position->pieceCount & 0x0Fff] +
-      bbpIndexWhite[bbpWhite];
-   const UINT64 bbpBlack = ((position->pieceCount >> 28) & 0x0ff0) +
-      position->numberOfPawns[BLACK];
-   const UINT64 indexBlack =
-      krqIndexBlack[(position->pieceCount >> 20) & 0x0Fff] +
-      bbpIndexBlack[bbpBlack];
-
-   assert(bbpWhite < 4096);
-   assert(bbpBlack < 4096);
-   assert(indexWhite < 648);
-   assert(indexBlack < 648 * 648);
-
-   return (UINT32) (indexWhite + indexBlack);
-}
-
 static UINT64 calculateHashKey(const Position * position)
 {
    UINT64 hashKey = ULONG_ZERO;
@@ -766,25 +592,6 @@ static UINT64 calculateHashKey(const Position * position)
    if (position->enPassantSquare != NO_SQUARE)
    {
       hashKey ^= GENERATED_KEYTABLE[0][position->enPassantSquare];
-   }
-
-   return hashKey;
-}
-
-static UINT64 calculatePawnHashKey(const Position * position)
-{
-   UINT64 hashKey = ULONG_ZERO;
-   Square square;
-   Piece piece;
-
-   ITERATE(square)
-   {
-      piece = position->piece[square];
-
-      if (pieceType(piece) == PAWN)
-      {
-         hashKey ^= GENERATED_KEYTABLE[piece][square];
-      }
    }
 
    return hashKey;
@@ -909,7 +716,6 @@ void initializePosition(Position * position)
       getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]);
 
    position->hashKey = calculateHashKey(position);
-   position->pawnHashKey = calculatePawnHashKey(position);
 }
 
 void flipPosition(Position * position)
@@ -1095,7 +901,6 @@ int makeMove(Variation * variation, const Move move)
       position->hashKey ^= GENERATED_KEYTABLE[0][position->enPassantSquare];
    }
 
-   plyInfo->pawnHashKey = position->pawnHashKey;
    plyInfo->enPassantSquare = position->enPassantSquare;
    position->enPassantSquare = NO_SQUARE;
    position->activeColor = passiveColor;
@@ -1154,7 +959,6 @@ int makeMove(Variation * variation, const Move move)
       if (pieceType(capturedPiece) == PAWN)
       {
          position->numberOfPawns[passiveColor]--;
-         position->pawnHashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
       }
       else
       {
@@ -1171,9 +975,6 @@ int makeMove(Variation * variation, const Move move)
    if (pieceType(movingPiece) == PAWN)
    {
       position->halfMoveClock = 0;
-      position->pawnHashKey ^=
-         GENERATED_KEYTABLE[movingPiece][from] ^
-         GENERATED_KEYTABLE[movingPiece][to];
 
       if (distance(from, to) == 2)
       {
@@ -1190,8 +991,6 @@ int makeMove(Variation * variation, const Move move)
          clearSquare(position->piecesOfColor[passiveColor], captureSquare);
          clearSquare(position->piecesOfType[capturedPawn], captureSquare);
          position->hashKey ^= GENERATED_KEYTABLE[capturedPawn][captureSquare];
-         position->pawnHashKey ^=
-            GENERATED_KEYTABLE[capturedPawn][captureSquare];
          addBonusForColor(pieceSquareBonus[capturedPawn][captureSquare],
                           position, activeColor);
 
@@ -1216,7 +1015,6 @@ int makeMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
-         position->pawnHashKey ^= GENERATED_KEYTABLE[movingPiece][to];
          addBonusForColor(pieceSquareBonus[effectiveNewPiece][to] -
                           pieceSquareBonus[movingPiece][to],
                           position, activeColor);
@@ -1312,7 +1110,6 @@ void unmakeLastMove(Variation * variation)
       return;                   /* Nullmove */
    }
 
-   position->pawnHashKey = plyInfo->pawnHashKey;
    clearSquare(position->piecesOfType[position->piece[to]], to);
    position->king[activeColor] = plyInfo->kingSquare;
    position->piece[from] = position->piece[to];
@@ -1518,10 +1315,7 @@ int checkConsistency(const Position * position)
    int numPieces[2], numPawns[2], value[2], i;
    int openingValue[2], endgameValue[2];
    BYTE obstacles[NUM_LANES];
-   UINT32 materialSignature = calculateMaterialSignature(position);
-   INT32 balance = 0;
    Bitboard temp;
-   (void)balance;
    (void)temp;
 
    numPieces[WHITE] = numPieces[BLACK] = 0;
@@ -1532,88 +1326,6 @@ int checkConsistency(const Position * position)
    endgameValue[WHITE] = endgameValue[BLACK] = 0;
 
    assert(position->activeColor == WHITE || position->activeColor == BLACK);
-   assert(getMaterialSignatureFromPieceCount(position) == materialSignature);
-
-   {
-      int calculatedNumWhiteQueens;
-      int calculatedNumWhiteRooks;
-      int calculatedNumWhiteLightSquareBishops;
-      int calculatedNumWhiteDarkSquareBishops;
-      int calculatedNumWhiteKnights;
-      int calculatedNumWhitePawns;
-      int calculatedNumBlackQueens;
-      int calculatedNumBlackRooks;
-      int calculatedNumBlackLightSquareBishops;
-      int calculatedNumBlackDarkSquareBishops;
-      int calculatedNumBlackKnights;
-      int calculatedNumBlackPawns;
-
-      getPieceCounters(materialSignature,
-                       &calculatedNumWhiteQueens, &calculatedNumWhiteRooks,
-                       &calculatedNumWhiteLightSquareBishops,
-                       &calculatedNumWhiteDarkSquareBishops,
-                       &calculatedNumWhiteKnights,
-                       &calculatedNumWhitePawns, &calculatedNumBlackQueens,
-                       &calculatedNumBlackRooks,
-                       &calculatedNumBlackLightSquareBishops,
-                       &calculatedNumBlackDarkSquareBishops,
-                       &calculatedNumBlackKnights, &calculatedNumBlackPawns);
-
-      assert(getPieceCount(position, WHITE_QUEEN) > 1 ||
-             getPieceCount(position, WHITE_QUEEN) ==
-             calculatedNumWhiteQueens);
-      assert(getPieceCount(position, WHITE_ROOK) > 2 ||
-             getPieceCount(position, WHITE_ROOK) == calculatedNumWhiteRooks);
-      assert(getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) > 1 ||
-             getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) ==
-             calculatedNumWhiteLightSquareBishops);
-      assert(getPieceCount(position, (Piece) WHITE_BISHOP_DARK) > 1 ||
-             getPieceCount(position, (Piece) WHITE_BISHOP_DARK) ==
-             calculatedNumWhiteDarkSquareBishops);
-      assert(getPieceCount(position, WHITE_KNIGHT) > 2 ||
-             getPieceCount(position, WHITE_KNIGHT) ==
-             calculatedNumWhiteKnights);
-      assert(position->numberOfPawns[WHITE] == calculatedNumWhitePawns);
-      assert(getPieceCount(position, BLACK_QUEEN) > 1 ||
-             getPieceCount(position, BLACK_QUEEN) ==
-             calculatedNumBlackQueens);
-      assert(getPieceCount(position, BLACK_ROOK) > 2 ||
-             getPieceCount(position, BLACK_ROOK) == calculatedNumBlackRooks);
-      assert(getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) > 1 ||
-             getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) ==
-             calculatedNumBlackLightSquareBishops);
-      assert(getPieceCount(position, (Piece) BLACK_BISHOP_DARK) > 1 ||
-             getPieceCount(position, (Piece) BLACK_BISHOP_DARK) ==
-             calculatedNumBlackDarkSquareBishops);
-      assert(getPieceCount(position, BLACK_KNIGHT) > 2 ||
-             getPieceCount(position, BLACK_KNIGHT) ==
-             calculatedNumBlackKnights);
-      assert(position->numberOfPawns[BLACK] == calculatedNumBlackPawns);
-
-      if (getPieceCount(position, WHITE_QUEEN) <= 1 &&
-          getPieceCount(position, WHITE_ROOK) <= 2 &&
-          getPieceCount(position, (Piece) WHITE_BISHOP_LIGHT) <= 1 &&
-          getPieceCount(position, (Piece) WHITE_BISHOP_DARK) <= 1 &&
-          getPieceCount(position, WHITE_KNIGHT) <= 2 &&
-          getPieceCount(position, BLACK_QUEEN) <= 1 &&
-          getPieceCount(position, BLACK_ROOK) <= 2 &&
-          getPieceCount(position, (Piece) BLACK_BISHOP_LIGHT) <= 1 &&
-          getPieceCount(position, (Piece) BLACK_BISHOP_DARK) <= 1 &&
-          getPieceCount(position, BLACK_KNIGHT) <= 2)
-      {
-         const MaterialInfo *mi = &materialInfo[materialSignature];
-
-         if (mi->materialBalance != materialBalance(position))
-         {
-            logDebug("mimb=%d cmb=%d\n", mi->materialBalance,
-                     materialBalance(position));
-            dumpPosition(position);
-         }
-
-         assert(mi->materialBalance == materialBalance(position));
-         assert(mi->phaseIndex == phaseIndex(position));
-      }
-   }
 
    if (position->castlingRights & WHITE_00)
    {
@@ -1735,15 +1447,6 @@ int checkConsistency(const Position * position)
             getOpeningValue(pieceSquareBonus[piece][square]);
          endgameValue[color] +=
             getEndgameValue(pieceSquareBonus[piece][square]);
-
-         if (color == WHITE)
-         {
-            balance += pieceSquareBonus[piece][square];
-         }
-         else
-         {
-            balance -= pieceSquareBonus[piece][square];
-         }
       }
       else
       {
@@ -1777,7 +1480,6 @@ int checkConsistency(const Position * position)
    assert(balance == position->balance);
 
    assert(calculateHashKey(position) == position->hashKey);
-   assert(calculatePawnHashKey(position) == position->pawnHashKey);
 
    return 0;
 }
@@ -2101,56 +1803,6 @@ bool positionsAreIdentical(const Position * position1,
    return (bool) (checkConsistency(position1) == 0);
 }
 
-static void initializeKrqSignatureTable(void)
-{
-   UINT32 qc, rc, kc;
-
-   for (qc = 0; qc <= 9; qc++)
-   {
-      for (rc = 0; rc <= 10; rc++)
-      {
-         for (kc = 0; kc <= 10; kc++)
-         {
-            const int index = (qc << pieceCountShift[WHITE_QUEEN]) +
-               (rc << pieceCountShift[WHITE_ROOK]) +
-               (kc << pieceCountShift[WHITE_KNIGHT]);
-
-            assert(index >= 0 && index < 4096);
-
-            krqIndexWhite[index] =
-               getMaterialSignature(qc, rc, 0, 0, kc, 0, 0, 0, 0, 0, 0, 0);
-            krqIndexBlack[index] =
-               getMaterialSignature(0, 0, 0, 0, 0, 0, qc, rc, 0, 0, kc, 0);
-         }
-      }
-   }
-}
-
-static void initializeBbpSignatureTable(void)
-{
-   UINT32 pc, dc, lc;
-
-   for (pc = 0; pc <= 8; pc++)
-   {
-      for (dc = 0; dc <= 9; dc++)
-      {
-         for (lc = 0; lc <= 9; lc++)
-         {
-            const int index =
-               (lc << (pieceCountShift[WHITE_BISHOP_LIGHT] - 8)) +
-               (dc << (pieceCountShift[WHITE_BISHOP_DARK] - 8)) + pc;
-
-            assert(index >= 0 && index < 4096);
-
-            bbpIndexWhite[index] =
-               getMaterialSignature(0, 0, lc, dc, 0, pc, 0, 0, 0, 0, 0, 0);
-            bbpIndexBlack[index] =
-               getMaterialSignature(0, 0, 0, 0, 0, 0, 0, 0, lc, dc, 0, pc);
-         }
-      }
-   }
-}
-
 int initializeModulePosition(void)
 {
    Square square;
@@ -2255,8 +1907,6 @@ int initializeModulePosition(void)
       }
    }
 
-   initializeKrqSignatureTable();
-   initializeBbpSignatureTable();
 
    return 0;
 }
