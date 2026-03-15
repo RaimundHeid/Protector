@@ -76,7 +76,6 @@ extern int VALUE_BISHOP_PAIR_ENDGAME;
 #define ENDGAME 1
 
 extern int basicValue[16];
-extern INT32 pieceSquareBonus[16][_64_];
 extern int pieceCountShift[16];
 
 typedef UINT32 Move;
@@ -119,7 +118,6 @@ typedef struct
    BYTE castlingRights;
    int halfMoveClock;
    Bitboard allPieces, whitePieces, blackPieces, hashKey;
-   INT32 balance;
    int staticValue, refinedStaticValue;
    bool staticValueAvailable, gainsUpdated;
    bool quietMove, isHashMove;
@@ -180,31 +178,7 @@ SearchStatus;
 #define HISTORY_SIZE (16*64)
 #define HISTORY_MAX  16384
 #define HISTORY_LIMIT 60        /* (60%) */
-#define PAWN_HASHTABLE_MASK 0xffff
-#define PAWN_HASHTABLE_SIZE ((PAWN_HASHTABLE_MASK)+0x0001)
-#define KINGSAFETY_HASHTABLE_MASK 0x07ffff
-#define KINGSAFETY_HASHTABLE_SIZE ((KINGSAFETY_HASHTABLE_MASK)+0x0001)
 
-typedef struct
-{
-   Bitboard hashKey;
-   Bitboard pawnProtectedSquares[2];
-   Bitboard passedPawns[2];
-   Bitboard pawnAttackableSquares[2];
-   bool hasPassersOrCandidates[2];
-   INT32 balance;
-}
-PawnHashInfo;
-
-typedef struct
-{
-   Bitboard hashKey;
-   INT32 safetyMalus;
-}
-KingSafetyHashInfo;
-
-extern KingSafetyHashInfo
-   kingSafetyHashtable[MAX_THREADS][KINGSAFETY_HASHTABLE_SIZE];
 
 #define BONUS_HIDDEN_PASSER
 
@@ -218,8 +192,6 @@ typedef struct
    PrincipalVariation completePv;
    PrincipalVariation pv[MAX_NUM_PV];
    int pvId;
-   PawnHashInfo *pawnHashtable;
-   KingSafetyHashInfo *kingsafetyHashtable;
    UINT64 positionHistory[POSITION_HISTORY_OFFSET + MAX_DEPTH_ARRAY_SIZE];
    UINT64 nodes, nodesAtTimeCheck, nodesBetweenTimecheck;
    UINT16 historyValue[HISTORY_SIZE];
@@ -371,8 +343,6 @@ Square relativeSquare(const Square square, const Color color);
 INT32 evalBonus(INT32 openingBonus, INT32 endgameBonus);
 int getOpeningValue(INT32 value);
 int getEndgameValue(INT32 value);
-void addBonusForColor(const INT32 bonus, Position * position,
-                      const Color color);
 UINT16 packedMove(const Move move);
 Move getMove(const Square from, const Square to,
              const Piece newPiece, const INT16 value);

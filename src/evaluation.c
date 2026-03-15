@@ -32,9 +32,6 @@
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
-KingSafetyHashInfo
-   kingSafetyHashtable[MAX_THREADS][KINGSAFETY_HASHTABLE_SIZE];
-
 int getValue(const Position * position, Accumulator * acc)
 {
    return evaluateNnueWithAccumulator((Position *)position, acc);

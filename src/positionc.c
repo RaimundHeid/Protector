@@ -5,11 +5,9 @@
 #ifdef PERSPECTIVE_WHITE
 #define COLOR WHITE
 #define OPPCOLOR BLACK
-#define addBonus(position, bonus) (position->balance += bonus);
 #else
 #define COLOR BLACK
 #define OPPCOLOR WHITE
-#define addBonus(position, bonus) (position->balance -= bonus);
 #endif
 
 #ifdef PERSPECTIVE_WHITE
@@ -34,7 +32,6 @@ int makeBlackMove(Variation * variation, const Move move)
    variation->positionHistory[POSITION_HISTORY_OFFSET - 1 + variation->ply] =
       plyInfo->hashKey = position->hashKey;
    plyInfo->currentMove = move;
-   plyInfo->balance = position->balance;
    plyInfo->pieceCount = position->pieceCount;
    variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
@@ -79,8 +76,6 @@ int makeBlackMove(Variation * variation, const Move move)
    position->halfMoveClock++;
    position->piece[to] = movingPiece;
    position->piece[from] = NO_PIECE;
-   addBonus(position, pieceSquareBonus[movingPiece][to] -
-            pieceSquareBonus[movingPiece][from]);
 
    if (capturedPiece != NO_PIECE)
    {
@@ -101,7 +96,6 @@ int makeBlackMove(Variation * variation, const Move move)
       }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
-      addBonus(position, pieceSquareBonus[capturedPiece][to]);
    }
 
    if (pieceType(movingPiece) == PAWN)
@@ -123,7 +117,6 @@ int makeBlackMove(Variation * variation, const Move move)
          clearSquare(position->piecesOfColor[OPPCOLOR], captureSquare);
          clearSquare(position->piecesOfType[capturedPawn], captureSquare);
          position->hashKey ^= GENERATED_KEYTABLE[capturedPawn][captureSquare];
-         addBonus(position, pieceSquareBonus[capturedPawn][captureSquare]);
 
          plyInfo->restoreSquare1 = captureSquare;
          plyInfo->restorePiece1 = capturedPawn;
@@ -146,8 +139,6 @@ int makeBlackMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
-         addBonus(position, pieceSquareBonus[effectiveNewPiece][to] -
-                  pieceSquareBonus[movingPiece][to]);
          setSquare(position->piecesOfType[position->piece[to]], to);
       }
    }
@@ -177,8 +168,6 @@ int makeBlackMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingRook][rookFrom] ^
             GENERATED_KEYTABLE[movingRook][rookTo];
-         addBonus(position, pieceSquareBonus[movingRook][rookTo] -
-                  pieceSquareBonus[movingRook][rookFrom]);
 
          if (getDirectAttackers(position, from, OPPCOLOR,
                                 position->allPieces) != EMPTY_BITBOARD ||

@@ -340,14 +340,6 @@ void dumpBitboard(Bitboard bitboard, char *title)
    logDebug("\n%s\n\n", buffer);
 }
 
-void dumpBalance(const INT32 balance)
-{
-   int opValue = getOpeningValue(balance);
-   int egValue = getEndgameValue(balance);
-
-   logDebug("op=%d eg=%d\n", opValue, egValue);
-}
-
 static void boardValues2String(const int value[64], char *buffer, size_t bufferSize)
 {
    int file, rank;

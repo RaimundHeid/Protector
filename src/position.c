@@ -50,7 +50,6 @@ int VALUE_BISHOP_PAIR_OPENING = DEFAULTVALUE_BISHOP_PAIR_OPENING;
 int VALUE_BISHOP_PAIR_ENDGAME = DEFAULTVALUE_BISHOP_PAIR_ENDGAME;
 
 int basicValue[16];
-INT32 pieceSquareBonus[16][_64_];
 BYTE remainingCastlings[_64_];
 Square rookOrigin[_64_];
 int pieceCountShift[16];
@@ -75,19 +74,6 @@ int getOpeningValue(INT32 value)
 int getEndgameValue(INT32 value)
 {
    return (int) ((value + 0x8000) >> 16);
-}
-
-void addBonusForColor(const INT32 bonus, Position * position,
-                      const Color color)
-{
-   if (color == WHITE)
-   {
-      position->balance += bonus;
-   }
-   else
-   {
-      position->balance -= bonus;
-   }
 }
 
 /**
@@ -235,7 +221,6 @@ void initializePlyInfo(Variation * variation)
    plyInfo->allPieces = position->allPieces;
    plyInfo->whitePieces = position->piecesOfColor[WHITE];
    plyInfo->blackPieces = position->piecesOfColor[BLACK];
-   plyInfo->balance = 0;
 }
 
 /**
@@ -621,7 +606,6 @@ void initializePosition(Position * position)
    position->allPieces = EMPTY_BITBOARD;
    position->piecesOfColor[WHITE] = EMPTY_BITBOARD;
    position->piecesOfColor[BLACK] = EMPTY_BITBOARD;
-   position->balance = 0;
    position->pieceCount = 0;
 
    for (i = 0x00; i <= 0x0F; i++)
@@ -692,8 +676,6 @@ void initializePosition(Position * position)
          {
             position->king[color] = square;
          }
-
-         addBonusForColor(pieceSquareBonus[piece][square], position, color);
 
          if (pieceType(piece) == BISHOP)
          {
@@ -893,7 +875,6 @@ int makeMove(Variation * variation, const Move move)
    variation->positionHistory[POSITION_HISTORY_OFFSET - 1 + variation->ply] =
       plyInfo->hashKey = position->hashKey;
    plyInfo->currentMove = move;
-   plyInfo->balance = position->balance;
    position->hashKey = ~position->hashKey;
 
    if (position->enPassantSquare != NO_SQUARE)
@@ -945,9 +926,6 @@ int makeMove(Variation * variation, const Move move)
    position->halfMoveClock++;
    position->piece[to] = movingPiece;
    position->piece[from] = NO_PIECE;
-   addBonusForColor(pieceSquareBonus[movingPiece][to] -
-                    pieceSquareBonus[movingPiece][from], position,
-                    activeColor);
 
    if (capturedPiece != NO_PIECE)
    {
@@ -968,8 +946,6 @@ int makeMove(Variation * variation, const Move move)
       }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
-      addBonusForColor(pieceSquareBonus[capturedPiece][to], position,
-                       activeColor);
    }
 
    if (pieceType(movingPiece) == PAWN)
@@ -991,8 +967,6 @@ int makeMove(Variation * variation, const Move move)
          clearSquare(position->piecesOfColor[passiveColor], captureSquare);
          clearSquare(position->piecesOfType[capturedPawn], captureSquare);
          position->hashKey ^= GENERATED_KEYTABLE[capturedPawn][captureSquare];
-         addBonusForColor(pieceSquareBonus[capturedPawn][captureSquare],
-                          position, activeColor);
 
          plyInfo->restoreSquare1 = captureSquare;
          plyInfo->restorePiece1 = capturedPawn;
@@ -1015,9 +989,6 @@ int makeMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
-         addBonusForColor(pieceSquareBonus[effectiveNewPiece][to] -
-                          pieceSquareBonus[movingPiece][to],
-                          position, activeColor);
          setSquare(position->piecesOfType[position->piece[to]], to);
       }
    }
@@ -1047,9 +1018,6 @@ int makeMove(Variation * variation, const Move move)
          position->hashKey ^=
             GENERATED_KEYTABLE[movingRook][rookFrom] ^
             GENERATED_KEYTABLE[movingRook][rookTo];
-         addBonusForColor(pieceSquareBonus[movingRook][rookTo] -
-                          pieceSquareBonus[movingRook][rookFrom],
-                          position, activeColor);
 
          if (getDirectAttackers(position, from, passiveColor,
                                 position->allPieces) != EMPTY_BITBOARD ||
@@ -1128,7 +1096,6 @@ void unmakeLastMove(Variation * variation)
    position->piecesOfColor[WHITE] = plyInfo->whitePieces;
    position->piecesOfColor[BLACK] = plyInfo->blackPieces;
    position->allPieces = plyInfo->allPieces;
-   position->balance = plyInfo->balance;
 
    if (plyInfo->captured != NO_PIECE)
    {
@@ -1313,7 +1280,6 @@ int checkConsistency(const Position * position)
 {
    Square square;
    int numPieces[2], numPawns[2], value[2], i;
-   int openingValue[2], endgameValue[2];
    BYTE obstacles[NUM_LANES];
    Bitboard temp;
    (void)temp;
@@ -1322,8 +1288,6 @@ int checkConsistency(const Position * position)
    numPawns[WHITE] = numPawns[BLACK] = 0;
    memset(obstacles, 0x00, NUM_LANES);
    value[WHITE] = value[BLACK] = 0;
-   openingValue[WHITE] = openingValue[BLACK] = 0;
-   endgameValue[WHITE] = endgameValue[BLACK] = 0;
 
    assert(position->activeColor == WHITE || position->activeColor == BLACK);
 
@@ -1442,11 +1406,6 @@ int checkConsistency(const Position * position)
          {
             value[color] += basicValue[piece];
          }
-
-         openingValue[color] +=
-            getOpeningValue(pieceSquareBonus[piece][square]);
-         endgameValue[color] +=
-            getEndgameValue(pieceSquareBonus[piece][square]);
       }
       else
       {
@@ -1477,7 +1436,6 @@ int checkConsistency(const Position * position)
    assert(numPawns[BLACK] <= 8);
    assert(numPawns[BLACK] ==
           getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]));
-   assert(balance == position->balance);
 
    assert(calculateHashKey(position) == position->hashKey);
 

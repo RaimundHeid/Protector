@@ -399,9 +399,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       const bool staticValueAvailable =
          variation->plyInfo[ply].staticValueAvailable;
 
-      assert(flipTest(position,
-                      variation->pawnHashtable,
-                      variation->kingsafetyHashtable) != FALSE);
+      assert(flipTest(position) != FALSE);
 
       if (staticValueAvailable == FALSE)
       {
@@ -454,9 +452,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
 
    if (ply >= MAX_DEPTH)
    {
-      assert(flipTest(position,
-                      variation->pawnHashtable,
-                      variation->kingsafetyHashtable) != FALSE);
+      assert(flipTest(position) != FALSE);
 
       return getStaticValue(variation, ply);
    }
@@ -910,9 +906,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
          (numPieces >= 3 ? 12 : 6) * DEPTH_RESOLUTION;
       int nullValue;
 
-      assert(flipTest(position,
-                      variation->pawnHashtable,
-                      variation->kingsafetyHashtable) != FALSE);
+      assert(flipTest(position) != FALSE);
 
       makeMoveFast(variation, NULLMOVE);
       variation->plyInfo[ply].currentMoveIsCheck = FALSE;
@@ -1925,27 +1919,6 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    sendPvInfo(variation, SEARCHEVENT_PLY_FINISHED);
 }
 
-static void initializePawnHashtable(PawnHashInfo * pawnHashtable)
-{
-   int i;
-
-   for (i = 0; i < PAWN_HASHTABLE_SIZE; i++)
-   {
-      pawnHashtable[i].hashKey = 0;
-   }
-}
-
-static void initializeKingsafetyHashtable(KingSafetyHashInfo *
-                                          kingsafetyHashtable)
-{
-   int i;
-
-   for (i = 0; i < KINGSAFETY_HASHTABLE_SIZE; i++)
-   {
-      kingsafetyHashtable[i].hashKey = 0;
-   }
-}
-
 static void updatePieceValues(void)
 {
    maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] =
@@ -1979,8 +1952,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    if (resetSharedHashtable)
    {
       resetHashtable(getSharedHashtable());
-      initializePawnHashtable(variation->pawnHashtable);
-      initializeKingsafetyHashtable(variation->kingsafetyHashtable);
       resetSharedHashtable = FALSE;
    }
 
@@ -2004,8 +1975,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    getLegalMoves(variation, &movelist);
 
 #ifdef TRACE_EVAL
-   getValue(&variation->singlePosition, NULL,
-            variation->pawnHashtable, variation->kingsafetyHashtable,
+   getValue(&variation->singlePosition,
             &variation->plyInfo[0].accumulator);
 #endif
 

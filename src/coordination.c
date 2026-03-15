@@ -47,7 +47,6 @@ static SearchTask dummyTask;
 static SearchTask *currentTask = &dummyTask;
 static Variation *variations[MAX_THREADS];
 static Hashtable sharedHashtable;
-static PawnHashInfo pawnHashtable[MAX_THREADS][PAWN_HASHTABLE_SIZE];
 
 Hashtable *getSharedHashtable(void)
 {
@@ -261,9 +260,6 @@ int scheduleTask(SearchTask * task)
       currentVariation->searchStatus = SEARCH_STATUS_TERMINATE;
       currentVariation->bestBaseMove = NO_MOVE;
       currentVariation->terminate = FALSE;
-      currentVariation->pawnHashtable = &(pawnHashtable[threadCount][0]);
-      currentVariation->kingsafetyHashtable =
-         &(kingSafetyHashtable[threadCount][0]);
       currentVariation->threadNumber = threadCount;
       currentVariation->startTime = startTime;
 

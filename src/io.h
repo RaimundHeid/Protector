@@ -53,11 +53,6 @@ int getKeyStroke(void);
 void dumpBitboard(Bitboard bitboard, char *title);
 
 /**
- * Send a string representation of the specified balance value to stdout.
- */
-void dumpBalance(const INT32 balance);
-
-/**
  * Send a string representation of the specified value array to stdout.
  */
 void dumpBoardValues(const int value[64]);
