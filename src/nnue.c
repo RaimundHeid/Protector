@@ -50,22 +50,38 @@ static const uint32_t NNUE_VERSION = 0x7AF32F20u;
     static const uint8_t name ## _end[1] = {0};
 #endif
 
-INCBIN(nnue_model, "nn-47fc8b7fff06.nnue")
+INCBIN(small_nnue_model, "nn-47fc8b7fff06.nnue")
+INCBIN(big_nnue_model, "nn-9a0cc2a62c52.nnue")
 
-// Feature transformer data
-static int16_t ft_biases[L1] __attribute__((aligned(64)));
-static int16_t ft_weights[L1 * FT_INPUT_DIMENSIONS] __attribute__((aligned(64))); 
-static int32_t ft_psqt_weights[FT_INPUT_DIMENSIONS * 8] __attribute__((aligned(64)));
+// Small Feature transformer data
+static int16_t small_ft_biases[L1_SMALL] __attribute__((aligned(64)));
+static int16_t small_ft_weights[L1_SMALL * FT_INPUT_DIMENSIONS] __attribute__((aligned(64))); 
+static int32_t small_ft_psqt_weights[FT_INPUT_DIMENSIONS * 8] __attribute__((aligned(64)));
 
-// Network layers (8 stacks)
-static int32_t fc0_biases[LAYER_STACKS][L2 + 1] __attribute__((aligned(64)));
-static int8_t  fc0_weights[LAYER_STACKS][(L2 + 1) * L1] __attribute__((aligned(64))); 
+// Small Network layers (8 stacks)
+static int32_t small_fc0_biases[LAYER_STACKS][L2_SMALL + 1] __attribute__((aligned(64)));
+static int8_t  small_fc0_weights[LAYER_STACKS][(L2_SMALL + 1) * L1_SMALL] __attribute__((aligned(64))); 
 
-static int32_t fc1_biases[LAYER_STACKS][L3] __attribute__((aligned(64)));
-static int8_t  fc1_weights[LAYER_STACKS][L3 * 32] __attribute__((aligned(64))); 
+static int32_t small_fc1_biases[LAYER_STACKS][L3_SMALL] __attribute__((aligned(64)));
+static int8_t  small_fc1_weights[LAYER_STACKS][L3_SMALL * 32] __attribute__((aligned(64))); 
 
-static int32_t fc2_biases[LAYER_STACKS][1] __attribute__((aligned(64)));
-static int8_t  fc2_weights[LAYER_STACKS][1 * L3] __attribute__((aligned(64)));
+static int32_t small_fc2_biases[LAYER_STACKS][1] __attribute__((aligned(64)));
+static int8_t  small_fc2_weights[LAYER_STACKS][1 * L3_SMALL] __attribute__((aligned(64)));
+
+// Big Feature transformer data
+static int16_t big_ft_biases[L1_BIG] __attribute__((aligned(64)));
+static int16_t big_ft_weights[L1_BIG * FT_INPUT_DIMENSIONS] __attribute__((aligned(64))); 
+static int32_t big_ft_psqt_weights[FT_INPUT_DIMENSIONS * 8] __attribute__((aligned(64)));
+
+// Big Network layers (8 stacks)
+static int32_t big_fc0_biases[LAYER_STACKS][L2_BIG + 1] __attribute__((aligned(64)));
+static int8_t  big_fc0_weights[LAYER_STACKS][(L2_BIG + 1) * L1_BIG] __attribute__((aligned(64))); 
+
+static int32_t big_fc1_biases[LAYER_STACKS][L3_BIG] __attribute__((aligned(64)));
+static int8_t  big_fc1_weights[LAYER_STACKS][L3_BIG * 64] __attribute__((aligned(64))); 
+
+static int32_t big_fc2_biases[LAYER_STACKS][1] __attribute__((aligned(64)));
+static int8_t  big_fc2_weights[LAYER_STACKS][1 * L3_BIG] __attribute__((aligned(64)));
 
 static int nnue_loaded = 0;
 
@@ -142,28 +158,50 @@ static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) 
 
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
-        memcpy(acc->v[p], ft_biases, sizeof(int16_t) * L1);
-        memset(acc->psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+        memcpy(acc->small_v[p], small_ft_biases, sizeof(int16_t) * L1_SMALL);
+        memcpy(acc->big_v[p], big_ft_biases, sizeof(int16_t) * L1_BIG);
+        memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+        memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         Square ksq = pos->king[p];
         for (Square s = 0; s < 64; s++) {
             Piece pc = pos->piece[s];
             if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
-                const int16_t* weights = &ft_weights[idx * L1];
-                const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
+                
+                // Small net
+                const int16_t* s_weights = &small_ft_weights[idx * L1_SMALL];
+                const int32_t* s_psqt_weights = &small_ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
-                for (int i = 0; i < L1; i += 16) {
-                    __m256i v = _mm256_load_si256((__m256i*)&acc->v[p][i]);
-                    __m256i w = _mm256_load_si256((__m256i*)&weights[i]);
-                    _mm256_store_si256((__m256i*)&acc->v[p][i], _mm256_add_epi16(v, w));
+                for (int i = 0; i < L1_SMALL; i += 16) {
+                    __m256i v = _mm256_load_si256((__m256i*)&acc->small_v[p][i]);
+                    __m256i w = _mm256_load_si256((__m256i*)&s_weights[i]);
+                    _mm256_store_si256((__m256i*)&acc->small_v[p][i], _mm256_add_epi16(v, w));
                 }
 #else
-                for (int i = 0; i < L1; i++) {
-                    acc->v[p][i] += weights[i];
+                for (int i = 0; i < L1_SMALL; i++) {
+                    acc->small_v[p][i] += s_weights[i];
                 }
 #endif
                 for (int i = 0; i < 8; i++) {
-                    acc->psqtAccumulation[p][i] += psqt_weights[i];
+                    acc->small_psqtAccumulation[p][i] += s_psqt_weights[i];
+                }
+
+                // Big net
+                const int16_t* b_weights = &big_ft_weights[idx * L1_BIG];
+                const int32_t* b_psqt_weights = &big_ft_psqt_weights[idx * 8];
+#if defined(__x86_64__)
+                for (int i = 0; i < L1_BIG; i += 16) {
+                    __m256i v = _mm256_load_si256((__m256i*)&acc->big_v[p][i]);
+                    __m256i w = _mm256_load_si256((__m256i*)&b_weights[i]);
+                    _mm256_store_si256((__m256i*)&acc->big_v[p][i], _mm256_add_epi16(v, w));
+                }
+#else
+                for (int i = 0; i < L1_BIG; i++) {
+                    acc->big_v[p][i] += b_weights[i];
+                }
+#endif
+                for (int i = 0; i < 8; i++) {
+                    acc->big_psqtAccumulation[p][i] += b_psqt_weights[i];
                 }
             }
         }
@@ -172,44 +210,87 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
 
 void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq) {
     for (int p = 0; p < 2; p++) {
-        memcpy(next->v[p], prev->v[p], sizeof(int16_t) * L1);
-        memcpy(next->psqtAccumulation[p], prev->psqtAccumulation[p], sizeof(int32_t) * 8);
+        memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
+        memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
+        memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
+        memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
+
         for (int j = 0; j < removed_count; j++) {
             int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
-            const int16_t* weights = &ft_weights[idx * L1];
-            const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
+            
+            // Small net
+            const int16_t* s_weights = &small_ft_weights[idx * L1_SMALL];
+            const int32_t* s_psqt_weights = &small_ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
-            for (int i = 0; i < L1; i += 16) {
-                __m256i v = _mm256_load_si256((__m256i*)&next->v[p][i]);
-                __m256i w = _mm256_load_si256((__m256i*)&weights[i]);
-                _mm256_store_si256((__m256i*)&next->v[p][i], _mm256_sub_epi16(v, w));
+            for (int i = 0; i < L1_SMALL; i += 16) {
+                __m256i v = _mm256_load_si256((__m256i*)&next->small_v[p][i]);
+                __m256i w = _mm256_load_si256((__m256i*)&s_weights[i]);
+                _mm256_store_si256((__m256i*)&next->small_v[p][i], _mm256_sub_epi16(v, w));
             }
 #else
-            for (int i = 0; i < L1; i++) {
-                next->v[p][i] -= weights[i];
+            for (int i = 0; i < L1_SMALL; i++) {
+                next->small_v[p][i] -= s_weights[i];
             }
 #endif
             for (int i = 0; i < 8; i++) {
-                next->psqtAccumulation[p][i] -= psqt_weights[i];
+                next->small_psqtAccumulation[p][i] -= s_psqt_weights[i];
+            }
+
+            // Big net
+            const int16_t* b_weights = &big_ft_weights[idx * L1_BIG];
+            const int32_t* b_psqt_weights = &big_ft_psqt_weights[idx * 8];
+#if defined(__x86_64__)
+            for (int i = 0; i < L1_BIG; i += 16) {
+                __m256i v = _mm256_load_si256((__m256i*)&next->big_v[p][i]);
+                __m256i w = _mm256_load_si256((__m256i*)&b_weights[i]);
+                _mm256_store_si256((__m256i*)&next->big_v[p][i], _mm256_sub_epi16(v, w));
+            }
+#else
+            for (int i = 0; i < L1_BIG; i++) {
+                next->big_v[p][i] -= b_weights[i];
+            }
+#endif
+            for (int i = 0; i < 8; i++) {
+                next->big_psqtAccumulation[p][i] -= b_psqt_weights[i];
             }
         }
         for (int j = 0; j < added_count; j++) {
             int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
-            const int16_t* weights = &ft_weights[idx * L1];
-            const int32_t* psqt_weights = &ft_psqt_weights[idx * 8];
+            
+            // Small net
+            const int16_t* s_weights = &small_ft_weights[idx * L1_SMALL];
+            const int32_t* s_psqt_weights = &small_ft_psqt_weights[idx * 8];
 #if defined(__x86_64__)
-            for (int i = 0; i < L1; i += 16) {
-                __m256i v = _mm256_load_si256((__m256i*)&next->v[p][i]);
-                __m256i w = _mm256_load_si256((__m256i*)&weights[i]);
-                _mm256_store_si256((__m256i*)&next->v[p][i], _mm256_add_epi16(v, w));
+            for (int i = 0; i < L1_SMALL; i += 16) {
+                __m256i v = _mm256_load_si256((__m256i*)&next->small_v[p][i]);
+                __m256i w = _mm256_load_si256((__m256i*)&s_weights[i]);
+                _mm256_store_si256((__m256i*)&next->small_v[p][i], _mm256_add_epi16(v, w));
             }
 #else
-            for (int i = 0; i < L1; i++) {
-                next->v[p][i] += weights[i];
+            for (int i = 0; i < L1_SMALL; i++) {
+                next->small_v[p][i] += s_weights[i];
             }
 #endif
             for (int i = 0; i < 8; i++) {
-                next->psqtAccumulation[p][i] += psqt_weights[i];
+                next->small_psqtAccumulation[p][i] += s_psqt_weights[i];
+            }
+
+            // Big net
+            const int16_t* b_weights = &big_ft_weights[idx * L1_BIG];
+            const int32_t* b_psqt_weights = &big_ft_psqt_weights[idx * 8];
+#if defined(__x86_64__)
+            for (int i = 0; i < L1_BIG; i += 16) {
+                __m256i v = _mm256_load_si256((__m256i*)&next->big_v[p][i]);
+                __m256i w = _mm256_load_si256((__m256i*)&b_weights[i]);
+                _mm256_store_si256((__m256i*)&next->big_v[p][i], _mm256_add_epi16(v, w));
+            }
+#else
+            for (int i = 0; i < L1_BIG; i++) {
+                next->big_v[p][i] += b_weights[i];
+            }
+#endif
+            for (int i = 0; i < 8; i++) {
+                next->big_psqtAccumulation[p][i] += b_psqt_weights[i];
             }
         }
     }
@@ -252,10 +333,11 @@ static void read_leb128_mem(void* out, size_t count, size_t element_size) {
 }
 
 int initializeModuleNnue(void) {
-    read_data = nnue_model_data;
+    // Load small net
+    read_data = small_nnue_model_data;
     read_pos = 0;
     
-    if (read_data[0] == 0 && (size_t)(nnue_model_end - nnue_model_data) <= 1) return -1;
+    if (read_data[0] == 0 && (size_t)(small_nnue_model_end - small_nnue_model_data) <= 1) return -1;
 
     uint32_t version, hash, desc_size;
     mem_read(&version, 4);
@@ -266,25 +348,59 @@ int initializeModuleNnue(void) {
     
     uint32_t ft_hash;
     mem_read(&ft_hash, 4);
-    read_leb128_mem(ft_biases, L1, 2);
-    read_leb128_mem(ft_weights, L1 * FT_INPUT_DIMENSIONS, 2);
-    read_leb128_mem(ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
+    read_leb128_mem(small_ft_biases, L1_SMALL, 2);
+    read_leb128_mem(small_ft_weights, L1_SMALL * FT_INPUT_DIMENSIONS, 2);
+    read_leb128_mem(small_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
     
     for (int s = 0; s < LAYER_STACKS; s++) {
         uint32_t arch_hash;
         mem_read(&arch_hash, 4);
         
         // FC0
-        mem_read(fc0_biases[s], 4 * (L2 + 1));
-        mem_read(fc0_weights[s], (L2 + 1) * L1);
+        mem_read(small_fc0_biases[s], 4 * (L2_SMALL + 1));
+        mem_read(small_fc0_weights[s], (L2_SMALL + 1) * L1_SMALL);
         
         // FC1
-        mem_read(fc1_biases[s], 4 * L3);
-        mem_read(fc1_weights[s], L3 * 32);
+        mem_read(small_fc1_biases[s], 4 * L3_SMALL);
+        mem_read(small_fc1_weights[s], L3_SMALL * 32);
         
         // FC2
-        mem_read(fc2_biases[s], 4 * 1);
-        mem_read(fc2_weights[s], 1 * L3);
+        mem_read(small_fc2_biases[s], 4 * 1);
+        mem_read(small_fc2_weights[s], 1 * L3_SMALL);
+    }
+
+    // Load big net
+    read_data = big_nnue_model_data;
+    read_pos = 0;
+    
+    if (read_data[0] == 0 && (size_t)(big_nnue_model_end - big_nnue_model_data) <= 1) return -1;
+
+    mem_read(&version, 4);
+    if (version != NNUE_VERSION) return -2;
+    mem_read(&hash, 4);
+    mem_read(&desc_size, 4);
+    mem_skip(desc_size);
+    
+    mem_read(&ft_hash, 4);
+    read_leb128_mem(big_ft_biases, L1_BIG, 2);
+    read_leb128_mem(big_ft_weights, L1_BIG * FT_INPUT_DIMENSIONS, 2);
+    read_leb128_mem(big_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
+    
+    for (int s = 0; s < LAYER_STACKS; s++) {
+        uint32_t arch_hash;
+        mem_read(&arch_hash, 4);
+        
+        // FC0
+        mem_read(big_fc0_biases[s], 4 * (L2_BIG + 1));
+        mem_read(big_fc0_weights[s], (L2_BIG + 1) * L1_BIG);
+        
+        // FC1
+        mem_read(big_fc1_biases[s], 4 * L3_BIG);
+        mem_read(big_fc1_weights[s], L3_BIG * 64);
+        
+        // FC2
+        mem_read(big_fc2_biases[s], 4 * 1);
+        mem_read(big_fc2_weights[s], 1 * L3_BIG);
     }
     
     nnue_loaded = 1;
@@ -323,15 +439,15 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     Color side = pos->activeColor;
     
     // PSQT part
-    int32_t psqt = (acc->psqtAccumulation[side][bucket] - acc->psqtAccumulation[!side][bucket]) / 2;
+    int32_t psqt = (acc->small_psqtAccumulation[side][bucket] - acc->small_psqtAccumulation[!side][bucket]) / 2;
 
-    uint8_t transformed[L1] __attribute__((aligned(64))); 
+    uint8_t transformed[L1_SMALL] __attribute__((aligned(64))); 
     for (int p = 0; p < 2; p++) {
         Color perspective = (p == 0 ? side : !side);
 #if defined(__x86_64__)
-        for (int i = 0; i < L1 / 2; i += 16) {
-            __m256i v0 = _mm256_load_si256((__m256i*)&acc->v[perspective][i]);
-            __m256i v1 = _mm256_load_si256((__m256i*)&acc->v[perspective][L1 / 2 + i]);
+        for (int i = 0; i < L1_SMALL / 2; i += 16) {
+            __m256i v0 = _mm256_load_si256((__m256i*)&acc->small_v[perspective][i]);
+            __m256i v1 = _mm256_load_si256((__m256i*)&acc->small_v[perspective][L1_SMALL / 2 + i]);
             
             __m256i zero = _mm256_setzero_si256();
             __m256i high = _mm256_set1_epi16(255);
@@ -348,9 +464,9 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
             _mm_store_si128((__m128i*)&transformed[p * 64 + i], _mm256_extracti128_si256(packed, 0));
         }
 #else
-        for (int i = 0; i < L1 / 2; i++) {
-            int16_t v0 = acc->v[perspective][i];
-            int16_t v1 = acc->v[perspective][L1 / 2 + i];
+        for (int i = 0; i < L1_SMALL / 2; i++) {
+            int16_t v0 = acc->small_v[perspective][i];
+            int16_t v1 = acc->small_v[perspective][L1_SMALL / 2 + i];
             int32_t c0 = max(0, min(255, v0));
             int32_t c1 = max(0, min(255, v1));
             transformed[p * 64 + i] = (uint8_t)((c0 * c1) / 512);
@@ -358,12 +474,12 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
 #endif
     }
 
-    int32_t fc0_out[L2 + 1];
-    for (int i = 0; i <= L2; i++) {
+    int32_t fc0_out[L2_SMALL + 1];
+    for (int i = 0; i <= L2_SMALL; i++) {
 #if defined(__x86_64__)
         __m256i sum = _mm256_setzero_si256();
-        const int8_t* weights = &fc0_weights[bucket][i * L1];
-        for (int j = 0; j < L1; j += 32) {
+        const int8_t* weights = &small_fc0_weights[bucket][i * L1_SMALL];
+        for (int j = 0; j < L1_SMALL; j += 32) {
             __m256i t = _mm256_load_si256((__m256i*)&transformed[j]);
             __m256i w = _mm256_load_si256((__m256i*)&weights[j]);
             
@@ -377,41 +493,41 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(1, 0, 3, 2)));
         sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(0, 0, 0, 1)));
         
-        fc0_out[i] = fc0_biases[bucket][i] + _mm_cvtsi128_si32(sum128);
+        fc0_out[i] = small_fc0_biases[bucket][i] + _mm_cvtsi128_si32(sum128);
 #else
-        fc0_out[i] = fc0_biases[bucket][i];
-        for (int j = 0; j < L1; j++) {
-            fc0_out[i] += (int32_t)transformed[j] * fc0_weights[bucket][i * L1 + j];
+        fc0_out[i] = small_fc0_biases[bucket][i];
+        for (int j = 0; j < L1_SMALL; j++) {
+            fc0_out[i] += (int32_t)transformed[j] * small_fc0_weights[bucket][i * L1_SMALL + j];
         }
 #endif
     }
 
     int32_t ac0_out[32] = {0}; 
-    for (int i = 0; i < L2; i++) {
+    for (int i = 0; i < L2_SMALL; i++) {
         int32_t in = fc0_out[i] >> 6;
         ac0_out[i] = sqr_clipped_relu(in);
-        ac0_out[L2 + i] = clipped_relu(in);
+        ac0_out[L2_SMALL + i] = clipped_relu(in);
     }
 
-    int32_t fc1_out[L3];
-    for (int i = 0; i < L3; i++) {
-        fc1_out[i] = fc1_biases[bucket][i];
+    int32_t fc1_out[L3_SMALL];
+    for (int i = 0; i < L3_SMALL; i++) {
+        fc1_out[i] = small_fc1_biases[bucket][i];
         for (int j = 0; j < 30; j++) {
-            fc1_out[i] += ac0_out[j] * fc1_weights[bucket][i * 32 + j];
+            fc1_out[i] += ac0_out[j] * small_fc1_weights[bucket][i * 32 + j];
         }
     }
 
-    int32_t ac1_out[L3];
-    for (int i = 0; i < L3; i++) {
+    int32_t ac1_out[L3_SMALL];
+    for (int i = 0; i < L3_SMALL; i++) {
         ac1_out[i] = clipped_relu(fc1_out[i] >> 6);
     }
 
-    int32_t fc2_out = fc2_biases[bucket][0];
-    for (int i = 0; i < L3; i++) {
-        fc2_out += ac1_out[i] * fc2_weights[bucket][i];
+    int32_t fc2_out = small_fc2_biases[bucket][0];
+    for (int i = 0; i < L3_SMALL; i++) {
+        fc2_out += ac1_out[i] * small_fc2_weights[bucket][i];
     }
 
-    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2] * (600 * 16) / (127 * 64));
+    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_SMALL] * (600 * 16) / (127 * 64));
     int32_t positional = fc2_out + fwdOut;
 
     // Scale components to Stockfish's internal score units (OutputScale = 16)

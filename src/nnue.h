@@ -5,9 +5,14 @@
 #include "protector.h"
 
 // Small network architecture constants
-#define L1 128
-#define L2 15
-#define L3 32
+#define L1_SMALL 128
+#define L2_SMALL 15
+#define L3_SMALL 32
+
+// Big network architecture constants
+#define L1_BIG 1024
+#define L2_BIG 31
+#define L3_BIG 32
 
 #define LAYER_STACKS 8
 
@@ -16,13 +21,14 @@
 #define MAX_ACTIVE_FEATURES 32
 
 typedef struct {
-    int16_t v[2][L1];
-    int32_t psqtAccumulation[2][8];
+    int16_t small_v[2][L1_SMALL];
+    int16_t big_v[2][L1_BIG];
+    int32_t small_psqtAccumulation[2][8];
+    int32_t big_psqtAccumulation[2][8];
 } Accumulator;
 
 typedef struct {
     int dummy;
-    // Accumulator and layers
 } NNUE;
 
 int initializeModuleNnue(void);

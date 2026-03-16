@@ -300,18 +300,29 @@ int testModuleNnue(void)
 
        Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
        for (int p = 0; p < 2; p++) {
-           for (int j = 0; j < L1; j++) {
-               if (current->v[p][j] != refreshed.v[p][j]) {
-                   logDebug("Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
-                   logDebug("Piece at from: %d, piece at to: %d\n", variation.singlePosition.piece[moves[i-1] & 0x3f], variation.singlePosition.piece[(moves[i-1] >> 6) & 0x3f]);
+           for (int j = 0; j < L1_SMALL; j++) {
+               if (current->small_v[p][j] != refreshed.small_v[p][j]) {
+                   logDebug("Small Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->small_v[p][j], refreshed.small_v[p][j]);
+                   return -1;
+               }
+           }
+           for (int j = 0; j < L1_BIG; j++) {
+               if (current->big_v[p][j] != refreshed.big_v[p][j]) {
+                   logDebug("Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->big_v[p][j], refreshed.big_v[p][j]);
                    return -1;
                }
            }
            for (int j = 0; j < 8; j++) {
-               if (current->psqtAccumulation[p][j] != refreshed.psqtAccumulation[p][j]) {
-                   logDebug("PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->psqtAccumulation[p][j], refreshed.psqtAccumulation[p][j]);
+               if (current->small_psqtAccumulation[p][j] != refreshed.small_psqtAccumulation[p][j]) {
+                   logDebug("Small PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->small_psqtAccumulation[p][j], refreshed.small_psqtAccumulation[p][j]);
+                   return -1;
+               }
+               if (current->big_psqtAccumulation[p][j] != refreshed.big_psqtAccumulation[p][j]) {
+                   logDebug("Big PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->big_psqtAccumulation[p][j], refreshed.big_psqtAccumulation[p][j]);
                    return -1;
                }
            }
@@ -325,17 +336,29 @@ int testModuleNnue(void)
        refreshAccumulator(&variation.singlePosition, &refreshed);
        Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
        for (int p = 0; p < 2; p++) {
-           for (int j = 0; j < L1; j++) {
-               if (current->v[p][j] != refreshed.v[p][j]) {
-                   logDebug("Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->v[p][j], refreshed.v[p][j]);
+           for (int j = 0; j < L1_SMALL; j++) {
+               if (current->small_v[p][j] != refreshed.small_v[p][j]) {
+                   logDebug("Small Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->small_v[p][j], refreshed.small_v[p][j]);
+                   return -1;
+               }
+           }
+           for (int j = 0; j < L1_BIG; j++) {
+               if (current->big_v[p][j] != refreshed.big_v[p][j]) {
+                   logDebug("Big Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
+                            variation.ply, p, j, current->big_v[p][j], refreshed.big_v[p][j]);
                    return -1;
                }
            }
            for (int j = 0; j < 8; j++) {
-               if (current->psqtAccumulation[p][j] != refreshed.psqtAccumulation[p][j]) {
-                   logDebug("PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->psqtAccumulation[p][j], refreshed.psqtAccumulation[p][j]);
+               if (current->small_psqtAccumulation[p][j] != refreshed.small_psqtAccumulation[p][j]) {
+                   logDebug("Small PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->small_psqtAccumulation[p][j], refreshed.small_psqtAccumulation[p][j]);
+                   return -1;
+               }
+               if (current->big_psqtAccumulation[p][j] != refreshed.big_psqtAccumulation[p][j]) {
+                   logDebug("Big PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
+                            variation.ply, p, j, current->big_psqtAccumulation[p][j], refreshed.big_psqtAccumulation[p][j]);
                    return -1;
                }
            }
