@@ -420,10 +420,12 @@ int testModuleNnue(void)
        // Symmetry check: score(pos) should be equal to score(flipped_pos)
        // since getValue returns score relative to side to move.
        Position flipped;
+       Accumulator flippedAcc;
        memcpy(&flipped, &v.singlePosition, sizeof(Position));
        flipPosition(&flipped);
        initializePosition(&flipped); // Update redundant data after flip
-       int evalFlipped = getValue(&flipped, NULL);
+       refreshAccumulator(&flipped, &flippedAcc);
+       int evalFlipped = getValue(&flipped, &flippedAcc);
        if (eval != evalFlipped) {
            logReport("Value Symmetry failed for case %d (%s): %d != %d\n", i, cases[i].description, eval, evalFlipped);
            return -1;

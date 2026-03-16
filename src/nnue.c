@@ -455,19 +455,16 @@ int win_rate_scaling(Position* pos) {
     return (int)a;
 }
 
-int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
+int evaluateNnueWithAccumulator(Position * pos, Accumulator * acc) {
+    assert(acc != NULL);
     int p, v;
-    Accumulator local_acc;
-    if (acc == NULL) {
-        refreshAccumulator(pos, &local_acc);
-        acc = &local_acc;
-    }
     evaluateNnueWithAccumulatorFull(pos, acc, &p, &v);
     int a = win_rate_scaling(pos);
     return (p / 16 + v / 16) * 100 / a;
 }
 
-void evaluateNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt_out, int* positional_out) {
+void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * psqt_out, int * positional_out) {
+    assert(acc != NULL);
     if (!nnue_loaded) {
         *psqt_out = 0;
         *positional_out = 0;
@@ -574,19 +571,16 @@ void evaluateNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt_
     *positional_out = fc2_out + fwdOut;
 }
 
-int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc) {
+int evaluateBigNnueWithAccumulator(Position * pos, Accumulator * acc) {
+    assert(acc != NULL);
     int p, v;
-    Accumulator local_acc;
-    if (acc == NULL) {
-        refreshAccumulator(pos, &local_acc);
-        acc = &local_acc;
-    }
     evaluateBigNnueWithAccumulatorFull(pos, acc, &p, &v);
     int a = win_rate_scaling(pos);
     return (p / 16 + v / 16) * 100 / a;
 }
 
-void evaluateBigNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt_out, int* positional_out) {
+void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * psqt_out, int * positional_out) {
+    assert(acc != NULL);
     if (!nnue_loaded) {
         *psqt_out = 0;
         *positional_out = 0;

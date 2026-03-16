@@ -36,12 +36,12 @@ Bitboard candidateDefenders[2][_64_];
 static int simple_eval(const Position * pos) {
     Color c = pos->activeColor;
     Color opp = opponent(c);
-    int material = VALUE_PAWN_OPENING * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
+    int material = 85 * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
     
-    material += VALUE_KNIGHT_OPENING * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
-    material += VALUE_BISHOP_OPENING * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
-    material += VALUE_ROOK_OPENING * (getNumberOfSetSquares(pos->piecesOfType[ROOK | c]) - getNumberOfSetSquares(pos->piecesOfType[ROOK | opp]));
-    material += VALUE_QUEEN_OPENING * (getNumberOfSetSquares(pos->piecesOfType[QUEEN | c]) - getNumberOfSetSquares(pos->piecesOfType[QUEEN | opp]));
+    material += 781 * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
+    material += 825 * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
+    material += 1276 * (getNumberOfSetSquares(pos->piecesOfType[ROOK | c]) - getNumberOfSetSquares(pos->piecesOfType[ROOK | opp]));
+    material += 2538 * (getNumberOfSetSquares(pos->piecesOfType[QUEEN | c]) - getNumberOfSetSquares(pos->piecesOfType[QUEEN | opp]));
     
     return material;
 }
@@ -52,14 +52,10 @@ static bool use_smallnet(const Position * pos) {
 
 int getValue(const Position * position, Accumulator * acc)
 {
+    assert(acc != NULL);
+
     bool smallNet = use_smallnet(position);
     int psqt, positional;
-
-    Accumulator local_acc;
-    if (acc == NULL) {
-        refreshAccumulator((Position *)position, &local_acc);
-        acc = &local_acc;
-    }
 
     if (smallNet) {
         evaluateNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
@@ -77,12 +73,20 @@ int getValue(const Position * position, Accumulator * acc)
         smallNet = FALSE;
     }
 
+    // Blend with complexity
+    int nnueComplexity = abs(psqt - positional);
+    // optimism += optimism * nnueComplexity / 476; // optimism is 0 for now
+    nnue -= nnue * nnueComplexity / 18236;
+
     int pawn_count = getNumberOfSetSquares(position->piecesOfType[WHITE_PAWN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]);
+    
+    // Use Stockfish piece values for material calculation in the formula
+    // This is the sum of both sides, identical to pos.non_pawn_material() in evaluate.cpp
     int non_pawn_material = 
-        VALUE_KNIGHT_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
-        VALUE_BISHOP_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
-        VALUE_ROOK_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) + getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
-        VALUE_QUEEN_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+        781 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+        825 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+        1276 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) + getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+        2538 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
 
     int material = 534 * pawn_count + non_pawn_material;
     
@@ -97,8 +101,8 @@ int getValue(const Position * position, Accumulator * acc)
     v = (v / 16) * 100 / a;
 
     // Guarantee evaluation does not hit the tablebase range
+    // Stockfish uses VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1
     // Protector's tablebase range starts at VALUE_ALMOST_MATED?
-    // Stockfish uses VALUE_TB_LOSS_IN_MAX_PLY = 20000 - 1
     int min_v = -20000 + 100; // conservative
     int max_v = 20000 - 100;
     if (v < min_v) v = min_v;
@@ -219,11 +223,15 @@ bool flipTest(Position * position)
 {
    int v1, v2;
    Position flippedPosition;
+   Accumulator acc1, acc2;
 
-   v1 = getValue(position, NULL);
+   refreshAccumulator(position, &acc1);
+   v1 = getValue(position, &acc1);
+   
    memcpy(&flippedPosition, position, sizeof(Position));
    flipPosition(&flippedPosition);
-   v2 = getValue(&flippedPosition, NULL);
+   refreshAccumulator(&flippedPosition, &acc2);
+   v2 = getValue(&flippedPosition, &acc2);
 
    return (bool) (v1 == v2);
 }
