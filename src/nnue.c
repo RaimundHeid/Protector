@@ -14,6 +14,7 @@
 
 // Constants from Stockfish
 static const uint32_t NNUE_VERSION = 0x7AF32F20u;
+#define LEB128_MAGIC_STRING_SIZE (sizeof("COMPRESSED_LEB128") - 1)
 
 #define FT_INPUT_DIMENSIONS (64 * 11 * 64 / 2) // 22528
 
@@ -127,14 +128,10 @@ static int get_sf_piece(Piece pc) {
 
 static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) {
     const int flip = 56 * perspective;
-    int sf_pc = get_sf_piece(pc);
-    
-    // PieceSquareIndex[perspective][sf_pc]
-    // perspective 0 (White): {0, 0, 128, 256, 384, 512, 640, 0, 0, 64, 192, 320, 448, 576, 640, 0}
-    // perspective 1 (Black): {0, 64, 192, 320, 448, 576, 640, 0, 0, 0, 128, 256, 384, 512, 640, 0}
     
     int sf_type;
     int color = pieceColor(pc);
+    int sf_pc = get_sf_piece(pc);
     if (sf_pc == 6 || sf_pc == 14) sf_type = 10;
     else {
         int pt = pieceType(pc);
@@ -383,9 +380,38 @@ int initializeModuleNnue(void) {
     
     mem_read(&ft_hash, 4);
     read_leb128_mem(big_ft_biases, L1_BIG, 2);
-    read_leb128_mem(big_ft_weights, L1_BIG * FT_INPUT_DIMENSIONS, 2);
-    read_leb128_mem(big_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
     
+    // Big net has threats. Skip them for now.
+    mem_skip(60144 * 1024); // skip threatWeights
+    read_leb128_mem(big_ft_weights, L1_BIG * FT_INPUT_DIMENSIONS, 2);
+    
+    // Read threatPsqtWeights (skip) and psqtWeights
+    mem_skip(LEB128_MAGIC_STRING_SIZE);
+    uint32_t bytes_left;
+    mem_read(&bytes_left, 4);
+    size_t end_pos = read_pos + bytes_left;
+    
+    // Skip threatPsqtWeights (60144 * 8)
+    for (int i = 0; i < 60144 * 8; i++) {
+        while (read_data[read_pos++] & 0x80);
+    }
+    // Read psqtWeights (FT_INPUT_DIMENSIONS * 8)
+    for (int i = 0; i < FT_INPUT_DIMENSIONS * 8; i++) {
+        int32_t result = 0;
+        int shift = 0;
+        while (1) {
+            uint8_t byte = read_data[read_pos++];
+            result |= (int32_t)(byte & 0x7f) << shift;
+            shift += 7;
+            if (!(byte & 0x80)) {
+                if (shift < 32 && (byte & 0x40)) result |= ~((unsigned int)((1 << shift) - 1));
+                big_ft_psqt_weights[i] = result;
+                break;
+            }
+        }
+    }
+    read_pos = end_pos;
+
     for (int s = 0; s < LAYER_STACKS; s++) {
         uint32_t arch_hash;
         mem_read(&arch_hash, 4);
@@ -534,6 +560,112 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     int v = (psqt / 16) + (positional / 16);
 
     // Scale to centipawns using win rate model
+    int a = win_rate_scaling(pos);
+    return v * 100 / a;
+}
+
+int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc) {
+    if (!nnue_loaded) return 0;
+
+    int num_pieces = 0;
+    for (int i = 0; i < 16; i++) num_pieces += getNumberOfSetSquares(pos->piecesOfType[i]);
+    int bucket = min(7, (num_pieces - 1) / 4);
+
+    Color side = pos->activeColor;
+    
+    // PSQT part
+    int32_t psqt = (acc->big_psqtAccumulation[side][bucket] - acc->big_psqtAccumulation[!side][bucket]) / 2;
+
+    uint8_t transformed[L1_BIG] __attribute__((aligned(64))); 
+    for (int p = 0; p < 2; p++) {
+        Color perspective = (p == 0 ? side : !side);
+#if defined(__x86_64__)
+        for (int i = 0; i < L1_BIG / 2; i += 16) {
+            __m256i v0 = _mm256_load_si256((__m256i*)&acc->big_v[perspective][i]);
+            __m256i v1 = _mm256_load_si256((__m256i*)&acc->big_v[perspective][L1_BIG / 2 + i]);
+            
+            __m256i zero = _mm256_setzero_si256();
+            __m256i high = _mm256_set1_epi16(255);
+            
+            __m256i c0 = _mm256_min_epi16(_mm256_max_epi16(v0, zero), high);
+            __m256i c1 = _mm256_min_epi16(_mm256_max_epi16(v1, zero), high);
+            
+            __m256i prod = _mm256_mullo_epi16(c0, c1);
+            __m256i shifted = _mm256_srli_epi16(prod, 9);
+            
+            __m256i packed = _mm256_packus_epi16(shifted, shifted);
+            packed = _mm256_permute4x64_epi64(packed, _MM_SHUFFLE(3, 1, 2, 0));
+            
+            _mm_store_si128((__m128i*)&transformed[p * 512 + i], _mm256_extracti128_si256(packed, 0));
+        }
+#else
+        for (int i = 0; i < L1_BIG / 2; i++) {
+            int16_t v0 = acc->big_v[perspective][i];
+            int16_t v1 = acc->big_v[perspective][L1_BIG / 2 + i];
+            int32_t c0 = max(0, min(255, v0));
+            int32_t c1 = max(0, min(255, v1));
+            transformed[p * 512 + i] = (uint8_t)((c0 * c1) / 512);
+        }
+#endif
+    }
+
+    int32_t fc0_out[L2_BIG + 1];
+    for (int i = 0; i <= L2_BIG; i++) {
+#if defined(__x86_64__)
+        __m256i sum = _mm256_setzero_si256();
+        const int8_t* weights = &big_fc0_weights[bucket][i * L1_BIG];
+        for (int j = 0; j < L1_BIG; j += 32) {
+            __m256i t = _mm256_load_si256((__m256i*)&transformed[j]);
+            __m256i w = _mm256_load_si256((__m256i*)&weights[j]);
+            
+            __m256i mad = _mm256_maddubs_epi16(t, w);
+            __m256i ones = _mm256_set1_epi16(1);
+            __m256i res32 = _mm256_madd_epi16(mad, ones);
+            sum = _mm256_add_epi32(sum, res32);
+        }
+        
+        __m128i sum128 = _mm_add_epi32(_mm256_extracti128_si256(sum, 0), _mm256_extracti128_si256(sum, 1));
+        sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(1, 0, 3, 2)));
+        sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_SHUFFLE(0, 0, 0, 1)));
+        
+        fc0_out[i] = big_fc0_biases[bucket][i] + _mm_cvtsi128_si32(sum128);
+#else
+        fc0_out[i] = big_fc0_biases[bucket][i];
+        for (int j = 0; j < L1_BIG; j++) {
+            fc0_out[i] += (int32_t)transformed[j] * big_fc0_weights[bucket][i * L1_BIG + j];
+        }
+#endif
+    }
+
+    int32_t ac0_out[64] = {0}; 
+    for (int i = 0; i < L2_BIG; i++) {
+        int32_t in = fc0_out[i] >> 6;
+        ac0_out[i] = sqr_clipped_relu(in);
+        ac0_out[L2_BIG + i] = clipped_relu(in);
+    }
+
+    int32_t fc1_out[L3_BIG];
+    for (int i = 0; i < L3_BIG; i++) {
+        fc1_out[i] = big_fc1_biases[bucket][i];
+        for (int j = 0; j < 62; j++) {
+            fc1_out[i] += ac0_out[j] * big_fc1_weights[bucket][i * 64 + j];
+        }
+    }
+
+    int32_t ac1_out[L3_BIG];
+    for (int i = 0; i < L3_BIG; i++) {
+        ac1_out[i] = clipped_relu(fc1_out[i] >> 6);
+    }
+
+    int32_t fc2_out = big_fc2_biases[bucket][0];
+    for (int i = 0; i < L3_BIG; i++) {
+        fc2_out += ac1_out[i] * big_fc2_weights[bucket][i];
+    }
+
+    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_BIG] * (600 * 16) / (127 * 64));
+    int32_t positional = fc2_out + fwdOut;
+
+    int v = (psqt / 16) + (positional / 16);
     int a = win_rate_scaling(pos);
     return v * 100 / a;
 }

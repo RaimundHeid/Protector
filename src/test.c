@@ -1,22 +1,3 @@
-/*
-    Protector -- a UCI chess engine
-
-    Copyright (C) 2009-2010 Raimund Heid (Raimund_Heid@yahoo.com)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
 
 #include <assert.h>
 #include <stdio.h>
@@ -268,6 +249,42 @@ static int testNnuePlausibility(void) {
     return result;
 }
 
+static int testBigNnuePlausibility(void) {
+    typedef struct {
+        const char* fen;
+        const char* description;
+        int min_eval;
+        int max_eval;
+    } NnueTestCase;
+
+    NnueTestCase cases[] = {
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", -100, 100},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -200, 200},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -200, 200},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -200, 300},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -600, 400},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", -200, 1000},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -200, 200},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", -100, 100},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -800, -50},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 20, 2000}
+    };
+
+    int result = 0;
+    for (int i = 0; i < 10; i++) {
+        Variation variation;
+        initializeVariation(&variation, cases[i].fen);
+        refreshAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        int eval = evaluateBigNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        logDebug("Big Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
+        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
+            logDebug("Big Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
+            result = -1;
+        }
+    }
+    return result;
+}
+
 int testModuleNnue(void)
 {
    Variation variation;
@@ -292,11 +309,6 @@ int testModuleNnue(void)
        
        int eval = evaluateNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
        logDebug("Ply %d eval: %d\n", variation.ply, eval);
-
-       if (eval == 0 && i > 0) {
-           logDebug("Plausibility check failed: Eval is 0 at ply %d\n", variation.ply);
-           // return -1; // Let's not fail yet, just observe
-       }
 
        Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
        for (int p = 0; p < 2; p++) {
@@ -329,7 +341,7 @@ int testModuleNnue(void)
        }
    }
    
-   // Unmake moves and check consistency (by comparing with stored accumulators in plyInfo)
+   // Unmake moves and check consistency
    while (variation.ply > 0) {
        unmakeLastMove(&variation);
        Accumulator refreshed;
@@ -365,7 +377,10 @@ int testModuleNnue(void)
        }
    }
 
-   return testNnuePlausibility();
+   int res = testNnuePlausibility();
+   if (res != 0) return res;
+
+   return testBigNnuePlausibility();
 }
 
 int testModuleTest(void)
