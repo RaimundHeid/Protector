@@ -33,6 +33,7 @@
 #include "coordination.h"
 #include "uci.h"
 #include "tablebase.h"
+#include "nnue.h"
 
 /* #define DEBUG_THREAD_COORDINATION */
 
@@ -1949,6 +1950,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    resetGainValues(variation);
 
    variation->ply = 0;
+   refreshAccumulator(&variation->singlePosition, &variation->plyInfo[0].accumulator);
    variation->ownColor = variation->singlePosition.activeColor;
    variation->nodes = variation->nodesAtTimeCheck = 0;
    variation->startTimeProcess = getProcessTimestamp();

@@ -19,6 +19,7 @@
 */
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -32,9 +33,78 @@
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
+static int simple_eval(const Position * pos) {
+    Color c = pos->activeColor;
+    Color opp = opponent(c);
+    int material = VALUE_PAWN_OPENING * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
+    
+    material += VALUE_KNIGHT_OPENING * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
+    material += VALUE_BISHOP_OPENING * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
+    material += VALUE_ROOK_OPENING * (getNumberOfSetSquares(pos->piecesOfType[ROOK | c]) - getNumberOfSetSquares(pos->piecesOfType[ROOK | opp]));
+    material += VALUE_QUEEN_OPENING * (getNumberOfSetSquares(pos->piecesOfType[QUEEN | c]) - getNumberOfSetSquares(pos->piecesOfType[QUEEN | opp]));
+    
+    return material;
+}
+
+static bool use_smallnet(const Position * pos) {
+    return abs(simple_eval(pos)) > 962;
+}
+
 int getValue(const Position * position, Accumulator * acc)
 {
-   return evaluateNnueWithAccumulator((Position *)position, acc);
+    bool smallNet = use_smallnet(position);
+    int psqt, positional;
+
+    Accumulator local_acc;
+    if (acc == NULL) {
+        refreshAccumulator((Position *)position, &local_acc);
+        acc = &local_acc;
+    }
+
+    if (smallNet) {
+        evaluateNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
+    } else {
+        evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
+    }
+
+    int nnue = (125 * psqt + 131 * positional) / 128;
+
+    // Re-evaluate the position when higher eval accuracy is worth the time spent
+    if (smallNet && (abs(nnue) < 277))
+    {
+        evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
+        nnue = (125 * psqt + 131 * positional) / 128;
+        smallNet = FALSE;
+    }
+
+    int pawn_count = getNumberOfSetSquares(position->piecesOfType[WHITE_PAWN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]);
+    int non_pawn_material = 
+        VALUE_KNIGHT_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+        VALUE_BISHOP_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+        VALUE_ROOK_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) + getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+        VALUE_QUEEN_OPENING * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+
+    int material = 534 * pawn_count + non_pawn_material;
+    
+    // Using 0 for optimism
+    int v = (nnue * (77871 + material)) / 77871;
+
+    // Damp down the evaluation linearly when shuffling
+    v -= v * position->halfMoveClock / 199;
+
+    // Scale to centipawns
+    int a = win_rate_scaling((Position *)position);
+    v = (v / 16) * 100 / a;
+
+    // Guarantee evaluation does not hit the tablebase range
+    // Protector's tablebase range starts at VALUE_ALMOST_MATED?
+    // Stockfish uses VALUE_TB_LOSS_IN_MAX_PLY = 20000 - 1
+    int min_v = -20000 + 100; // conservative
+    int max_v = 20000 - 100;
+    if (v < min_v) v = min_v;
+    if (v > max_v) v = max_v;
+
+    return v;
 }
 
 bool pawnIsPassed(const Position * position, const Square pawnSquare,

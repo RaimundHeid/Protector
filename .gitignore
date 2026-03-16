@@ -58,3 +58,4 @@ dkms.conf
 
 # Logs
 protector.log
+.DS_Store

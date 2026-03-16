@@ -442,7 +442,7 @@ static inline int32_t sqr_clipped_relu(int32_t x) {
     return (c * c) >> 7; 
 }
 
-static int win_rate_scaling(Position* pos) {
+int win_rate_scaling(Position* pos) {
     int material = getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN])
                  + 3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT]))
                  + 3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP]))
@@ -456,7 +456,23 @@ static int win_rate_scaling(Position* pos) {
 }
 
 int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
-    if (!nnue_loaded) return 0;
+    int p, v;
+    Accumulator local_acc;
+    if (acc == NULL) {
+        refreshAccumulator(pos, &local_acc);
+        acc = &local_acc;
+    }
+    evaluateNnueWithAccumulatorFull(pos, acc, &p, &v);
+    int a = win_rate_scaling(pos);
+    return (p / 16 + v / 16) * 100 / a;
+}
+
+void evaluateNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt_out, int* positional_out) {
+    if (!nnue_loaded) {
+        *psqt_out = 0;
+        *positional_out = 0;
+        return;
+    }
 
     int num_pieces = 0;
     for (int i = 0; i < 16; i++) num_pieces += getNumberOfSetSquares(pos->piecesOfType[i]);
@@ -466,6 +482,7 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     
     // PSQT part
     int32_t psqt = (acc->small_psqtAccumulation[side][bucket] - acc->small_psqtAccumulation[!side][bucket]) / 2;
+    *psqt_out = psqt;
 
     uint8_t transformed[L1_SMALL] __attribute__((aligned(64))); 
     for (int p = 0; p < 2; p++) {
@@ -554,18 +571,27 @@ int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc) {
     }
 
     int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_SMALL] * (600 * 16) / (127 * 64));
-    int32_t positional = fc2_out + fwdOut;
-
-    // Scale components to Stockfish's internal score units (OutputScale = 16)
-    int v = (psqt / 16) + (positional / 16);
-
-    // Scale to centipawns using win rate model
-    int a = win_rate_scaling(pos);
-    return v * 100 / a;
+    *positional_out = fc2_out + fwdOut;
 }
 
 int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc) {
-    if (!nnue_loaded) return 0;
+    int p, v;
+    Accumulator local_acc;
+    if (acc == NULL) {
+        refreshAccumulator(pos, &local_acc);
+        acc = &local_acc;
+    }
+    evaluateBigNnueWithAccumulatorFull(pos, acc, &p, &v);
+    int a = win_rate_scaling(pos);
+    return (p / 16 + v / 16) * 100 / a;
+}
+
+void evaluateBigNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt_out, int* positional_out) {
+    if (!nnue_loaded) {
+        *psqt_out = 0;
+        *positional_out = 0;
+        return;
+    }
 
     int num_pieces = 0;
     for (int i = 0; i < 16; i++) num_pieces += getNumberOfSetSquares(pos->piecesOfType[i]);
@@ -575,6 +601,7 @@ int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc) {
     
     // PSQT part
     int32_t psqt = (acc->big_psqtAccumulation[side][bucket] - acc->big_psqtAccumulation[!side][bucket]) / 2;
+    *psqt_out = psqt;
 
     uint8_t transformed[L1_BIG] __attribute__((aligned(64))); 
     for (int p = 0; p < 2; p++) {
@@ -663,9 +690,5 @@ int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc) {
     }
 
     int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_BIG] * (600 * 16) / (127 * 64));
-    int32_t positional = fc2_out + fwdOut;
-
-    int v = (psqt / 16) + (positional / 16);
-    int a = win_rate_scaling(pos);
-    return v * 100 / a;
+    *positional_out = fc2_out + fwdOut;
 }

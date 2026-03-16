@@ -35,6 +35,10 @@ int initializeModuleNnue(void);
 int loadNnue(const char* filename);
 int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc);
 int evaluateBigNnueWithAccumulator(Position* pos, Accumulator* acc);
+void evaluateNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt, int* positional);
+void evaluateBigNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* psqt, int* positional);
+
+int win_rate_scaling(Position* pos);
 
 void refreshAccumulator(Position* pos, Accumulator* acc);
 void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq);
