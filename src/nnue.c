@@ -460,7 +460,7 @@ int evaluateNnueWithAccumulator(Position * pos, Accumulator * acc) {
     int p, v;
     evaluateNnueWithAccumulatorFull(pos, acc, &p, &v);
     int a = win_rate_scaling(pos);
-    return (p / 16 + v / 16) * 100 / a;
+    return (p + v) * 100 / a;
 }
 
 void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * psqt_out, int * positional_out) {
@@ -576,7 +576,7 @@ int evaluateBigNnueWithAccumulator(Position * pos, Accumulator * acc) {
     int p, v;
     evaluateBigNnueWithAccumulatorFull(pos, acc, &p, &v);
     int a = win_rate_scaling(pos);
-    return (p / 16 + v / 16) * 100 / a;
+    return (p + v) * 100 / a;
 }
 
 void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * psqt_out, int * positional_out) {

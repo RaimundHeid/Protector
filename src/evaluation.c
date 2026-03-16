@@ -36,7 +36,7 @@ Bitboard candidateDefenders[2][_64_];
 static int simple_eval(const Position * pos) {
     Color c = pos->activeColor;
     Color opp = opponent(c);
-    int material = 85 * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
+    int material = 208 * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
     
     material += 781 * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
     material += 825 * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
@@ -63,12 +63,17 @@ int getValue(const Position * position, Accumulator * acc)
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
     }
 
+    psqt /= 16;
+    positional /= 16;
+
     int nnue = (125 * psqt + 131 * positional) / 128;
 
     // Re-evaluate the position when higher eval accuracy is worth the time spent
     if (smallNet && (abs(nnue) < 277))
     {
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
+        psqt /= 16;
+        positional /= 16;
         nnue = (125 * psqt + 131 * positional) / 128;
         smallNet = FALSE;
     }
@@ -78,15 +83,15 @@ int getValue(const Position * position, Accumulator * acc)
     // optimism += optimism * nnueComplexity / 476; // optimism is 0 for now
     nnue -= nnue * nnueComplexity / 18236;
 
-    int pawn_count = getNumberOfSetSquares(position->piecesOfType[WHITE_PAWN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]);
+    int pawn_count = getNumberOfSetSquares(position->piecesOfType[PAWN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[PAWN | BLACK]);
     
     // Use Stockfish piece values for material calculation in the formula
     // This is the sum of both sides, identical to pos.non_pawn_material() in evaluate.cpp
     int non_pawn_material = 
-        781 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) + getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
-        825 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) + getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
-        1276 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) + getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
-        2538 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) + getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+        781 * (getNumberOfSetSquares(position->piecesOfType[KNIGHT | WHITE]) + getNumberOfSetSquares(position->piecesOfType[KNIGHT | BLACK])) +
+        825 * (getNumberOfSetSquares(position->piecesOfType[BISHOP | WHITE]) + getNumberOfSetSquares(position->piecesOfType[BISHOP | BLACK])) +
+        1276 * (getNumberOfSetSquares(position->piecesOfType[ROOK | WHITE]) + getNumberOfSetSquares(position->piecesOfType[ROOK | BLACK])) +
+        2538 * (getNumberOfSetSquares(position->piecesOfType[QUEEN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[QUEEN | BLACK]));
 
     int material = 534 * pawn_count + non_pawn_material;
     
@@ -95,10 +100,6 @@ int getValue(const Position * position, Accumulator * acc)
 
     // Damp down the evaluation linearly when shuffling
     v -= v * position->halfMoveClock / 199;
-
-    // Scale to centipawns
-    int a = win_rate_scaling((Position *)position);
-    v = (v / 16) * 100 / a;
 
     // Guarantee evaluation does not hit the tablebase range
     // Stockfish uses VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1
