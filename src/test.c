@@ -81,8 +81,7 @@ static bool solveBestMoveProblem(SearchTask * entry)
 static bool dumpEvaluation(SearchTask * entry)
 {
    prepareSearch(entry->variation);
-   getValue(&entry->variation->startPosition,
-            &entry->variation->plyInfo[0].accumulator);
+   getValue(&entry->variation->startPosition, &entry->variation->plyInfo[0].accumulator, 0);
 
    return TRUE;
 }
@@ -436,7 +435,7 @@ int testModuleNnue(void)
    for (int i = 0; i < 14; i++) {
        Variation *v = calloc(1, sizeof(Variation));
        initializeVariation(v, cases[i].fen);
-       int eval = getValue(&v->singlePosition, &v->plyInfo[v->ply].accumulator);
+       int eval = getValue(&v->singlePosition, &v->plyInfo[v->ply].accumulator, 0);
        logDebug("Value Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
            logReport("Value Plausibility failed for case %d (%s): %d not in [%d, %d]\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
@@ -453,7 +452,7 @@ int testModuleNnue(void)
        flipPosition(flipped);
        initializePosition(flipped); // Update redundant data after flip
        refreshAccumulator(flipped, flippedAcc);
-       int evalFlipped = getValue(flipped, flippedAcc);
+       int evalFlipped = getValue(flipped, flippedAcc, 0);
        if (eval != evalFlipped) {
            logReport("Value Symmetry failed for case %d (%s): %d != %d\n", i, cases[i].description, eval, evalFlipped);
            free(flipped);

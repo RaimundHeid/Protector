@@ -39,7 +39,7 @@ bool hasBishopPair(const Position * position, const Color color);
  *
  * @return the value of the specified position
  */
-int getValue(const Position * position, Accumulator * acc);
+int getValue(const Position * position, Accumulator * acc, int optimism);
 
 /**
  * Check if the pawn at the specified square is a passed pawn.

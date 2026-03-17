@@ -101,7 +101,7 @@ static bool hasDangerousPawns(const Position * position, const Color color)
 int getEvalValue(Variation * variation)
 {
    return
-      getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+      getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, 0);
 }
 
 static int getStaticValue(Variation * variation, const int ply)
@@ -111,7 +111,7 @@ static int getStaticValue(Variation * variation, const int ply)
    if (pi->staticValueAvailable == FALSE)
    {
       pi->staticValue = pi->refinedStaticValue =
-         getValue(&variation->singlePosition, &pi->accumulator);
+         getValue(&variation->singlePosition, &pi->accumulator, 0);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -129,7 +129,7 @@ static int getRefinedStaticValue(Variation * variation, const int ply)
    if (pi->staticValueAvailable == FALSE)
    {
       pi->staticValue = pi->refinedStaticValue =
-         getValue(&variation->singlePosition, &pi->accumulator);
+         getValue(&variation->singlePosition, &pi->accumulator, 0);
       pi->staticValueAvailable = TRUE;
    }
    else
@@ -405,7 +405,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       if (staticValueAvailable == FALSE)
       {
          best = getValue(position,
-                         &variation->plyInfo[ply].accumulator);
+                         &variation->plyInfo[ply].accumulator, 0);
          variation->plyInfo[ply].staticValue =
             variation->plyInfo[ply].refinedStaticValue = best;
          variation->plyInfo[ply].staticValueAvailable = TRUE;
@@ -1968,7 +1968,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
 
 #ifdef TRACE_EVAL
    getValue(&variation->singlePosition,
-            &variation->plyInfo[0].accumulator);
+            &variation->plyInfo[0].accumulator, 0);
 #endif
 
    variation->numberOfBaseMoves = movelist.numberOfMoves;

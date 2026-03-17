@@ -50,7 +50,7 @@ static bool use_smallnet(const Position * pos) {
     return abs(simple_eval(pos)) > 962;
 }
 
-int getValue(const Position * position, Accumulator * acc)
+int getValue(const Position * position, Accumulator * acc, int optimism)
 {
     assert(acc != NULL);
 
@@ -78,9 +78,9 @@ int getValue(const Position * position, Accumulator * acc)
         smallNet = FALSE;
     }
 
-    // Blend with complexity
+    // Blend optimism and eval with nnue complexity
     int nnueComplexity = abs(psqt - positional);
-    // optimism += optimism * nnueComplexity / 476; // optimism is 0 for now
+    optimism += optimism * nnueComplexity / 476;
     nnue -= nnue * nnueComplexity / 18236;
 
     int pawn_count = getNumberOfSetSquares(position->piecesOfType[PAWN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[PAWN | BLACK]);
@@ -95,17 +95,17 @@ int getValue(const Position * position, Accumulator * acc)
 
     int material = 534 * pawn_count + non_pawn_material;
     
-    // Using 0 for optimism
-    int v = (nnue * (77871 + material)) / 77871;
+    int v = (nnue * (77871 + material) + optimism * (7191 + material)) / 77871;
 
     // Damp down the evaluation linearly when shuffling
     v -= v * position->halfMoveClock / 199;
 
     // Guarantee evaluation does not hit the tablebase range
     // Stockfish uses VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1
-    // Protector's tablebase range starts at VALUE_ALMOST_MATED?
-    int min_v = -20000 + 100; // conservative
-    int max_v = 20000 - 100;
+    // i.e. [-31506, 31506] with its mate value 32000.
+    // Protector's mate value is 30000, so we use a similar range relative to mate.
+    int min_v = -30000 + 2 * 246 + 1 + 1; // approx -29506
+    int max_v = 30000 - 2 * 246 - 1 - 1; // approx 29506
     if (v < min_v) v = min_v;
     if (v > max_v) v = max_v;
 
@@ -227,12 +227,12 @@ bool flipTest(Position * position)
    Accumulator acc1, acc2;
 
    refreshAccumulator(position, &acc1);
-   v1 = getValue(position, &acc1);
+   v1 = getValue(position, &acc1, 0);
    
    memcpy(&flippedPosition, position, sizeof(Position));
    flipPosition(&flippedPosition);
    refreshAccumulator(&flippedPosition, &acc2);
-   v2 = getValue(&flippedPosition, &acc2);
+   v2 = getValue(&flippedPosition, &acc2, 0);
 
    return (bool) (v1 == v2);
 }
