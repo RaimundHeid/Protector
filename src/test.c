@@ -99,10 +99,11 @@ int processTestsuite(const char *filename)
    char ons[32];
    int solved = 0;
    String notSolved = getEmptyString();
-   Variation variation;
+   Variation *variation = calloc(1, sizeof(Variation));
 
    if (openPGNFile(&pgnfile, filename) != 0)
    {
+      free(variation);
       return -1;
    }
 
@@ -110,10 +111,10 @@ int processTestsuite(const char *filename)
              pgnfile.numGames);
 
    statCount1 = statCount2 = 0;
-   variation.timeTarget = 60 * 1000;
-   variation.timeLimit = 60 * 1000;
-   variation.ponderMode = FALSE;
-   entry.variation = &variation;
+   variation->timeTarget = 60 * 1000;
+   variation->timeLimit = 60 * 1000;
+   variation->ponderMode = FALSE;
+   entry.variation = variation;
 
    for (i = 1; i <= pgnfile.numGames; i++)
    {
@@ -141,9 +142,9 @@ int processTestsuite(const char *filename)
          gamemove = gamemove->alternativeMove;
       }
 
-      initializeVariation(&variation, game->fen);
+      initializeVariation(variation, game->fen);
       resetSharedHashtable = TRUE;
-      variation.handleSearchEvent = &handleSearchEvent;
+      variation->handleSearchEvent = &handleSearchEvent;
 
       char *mateMarker = strstr(game->white, "[#");
       if (mateMarker != NULL)
@@ -236,15 +237,16 @@ static int testNnuePlausibility(void) {
 
     int result = 0;
     for (int i = 0; i < 10; i++) {
-        Variation variation;
-        initializeVariation(&variation, cases[i].fen);
-        refreshAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
-        int eval = evaluateNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        Variation *variation = calloc(1, sizeof(Variation));
+        initializeVariation(variation, cases[i].fen);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+        int eval = evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
         logDebug("Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
         if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
             logDebug("Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
             result = -1;
         }
+        free(variation);
     }
     return result;
 }
@@ -272,23 +274,24 @@ static int testBigNnuePlausibility(void) {
 
     int result = 0;
     for (int i = 0; i < 10; i++) {
-        Variation variation;
-        initializeVariation(&variation, cases[i].fen);
-        refreshAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
-        int eval = evaluateBigNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
+        Variation *variation = calloc(1, sizeof(Variation));
+        initializeVariation(variation, cases[i].fen);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+        int eval = evaluateBigNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
         logDebug("Big Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
         if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
             logDebug("Big Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
             result = -1;
         }
+        free(variation);
     }
     return result;
 }
 
 int testModuleNnue(void)
 {
-   Variation variation;
-   initializeVariation(&variation, FEN_GAMESTART);
+   Variation *variation = calloc(1, sizeof(Variation));
+   initializeVariation(variation, FEN_GAMESTART);
    
    // Make some moves and check accumulator consistency
    Move moves[] = {
@@ -302,86 +305,109 @@ int testModuleNnue(void)
    };
    
    for (int i = 0; i < 7; i++) {
-       makeMove(&variation, moves[i]);
+       makeMove(variation, moves[i]);
        
-       Accumulator refreshed;
-       refreshAccumulator(&variation.singlePosition, &refreshed);
-       
-       int eval = evaluateNnueWithAccumulator(&variation.singlePosition, &variation.plyInfo[variation.ply].accumulator);
-       logDebug("Ply %d eval: %d\n", variation.ply, eval);
+       Accumulator *refreshed = calloc(1, sizeof(Accumulator));
+       refreshAccumulator(&variation->singlePosition, refreshed);
+       int eval = evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+       logDebug("Ply %d eval: %d\n", variation->ply, eval);
 
-       Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
+       Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
        for (int p = 0; p < 2; p++) {
            for (int j = 0; j < L1_SMALL; j++) {
-               if (current->small_v[p][j] != refreshed.small_v[p][j]) {
+               if (current->small_v[p][j] != refreshed->small_v[p][j]) {
                    logDebug("Small Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->small_v[p][j], refreshed.small_v[p][j]);
+                            variation->ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
            for (int j = 0; j < L1_BIG; j++) {
-               if (current->big_v[p][j] != refreshed.big_v[p][j]) {
+               if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                    logDebug("Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->big_v[p][j], refreshed.big_v[p][j]);
+                            variation->ply, p, j, current->big_v[p][j], refreshed->big_v[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
            for (int j = 0; j < 8; j++) {
-               if (current->small_psqtAccumulation[p][j] != refreshed.small_psqtAccumulation[p][j]) {
+               if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
                    logDebug("Small PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->small_psqtAccumulation[p][j], refreshed.small_psqtAccumulation[p][j]);
+                            variation->ply, p, j, current->small_psqtAccumulation[p][j], refreshed->small_psqtAccumulation[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
-               if (current->big_psqtAccumulation[p][j] != refreshed.big_psqtAccumulation[p][j]) {
+               if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
                    logDebug("Big PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->big_psqtAccumulation[p][j], refreshed.big_psqtAccumulation[p][j]);
+                            variation->ply, p, j, current->big_psqtAccumulation[p][j], refreshed->big_psqtAccumulation[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
        }
+       free(refreshed);
    }
    
    // Unmake moves and check consistency
-   while (variation.ply > 0) {
-       unmakeLastMove(&variation);
-       Accumulator refreshed;
-       refreshAccumulator(&variation.singlePosition, &refreshed);
-       Accumulator *current = &variation.plyInfo[variation.ply].accumulator;
+   while (variation->ply > 0) {
+       unmakeLastMove(variation);
+       Accumulator *refreshed = calloc(1, sizeof(Accumulator));
+       refreshAccumulator(&variation->singlePosition, refreshed);
+       Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
        for (int p = 0; p < 2; p++) {
            for (int j = 0; j < L1_SMALL; j++) {
-               if (current->small_v[p][j] != refreshed.small_v[p][j]) {
+               if (current->small_v[p][j] != refreshed->small_v[p][j]) {
                    logDebug("Small Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->small_v[p][j], refreshed.small_v[p][j]);
+                            variation->ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
            for (int j = 0; j < L1_BIG; j++) {
-               if (current->big_v[p][j] != refreshed.big_v[p][j]) {
+               if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                    logDebug("Big Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n", 
-                            variation.ply, p, j, current->big_v[p][j], refreshed.big_v[p][j]);
+                            variation->ply, p, j, current->big_v[p][j], refreshed->big_v[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
            for (int j = 0; j < 8; j++) {
-               if (current->small_psqtAccumulation[p][j] != refreshed.small_psqtAccumulation[p][j]) {
+               if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
                    logDebug("Small PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->small_psqtAccumulation[p][j], refreshed.small_psqtAccumulation[p][j]);
+                            variation->ply, p, j, current->small_psqtAccumulation[p][j], refreshed->small_psqtAccumulation[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
-               if (current->big_psqtAccumulation[p][j] != refreshed.big_psqtAccumulation[p][j]) {
+               if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
                    logDebug("Big PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d != %d\n", 
-                            variation.ply, p, j, current->big_psqtAccumulation[p][j], refreshed.big_psqtAccumulation[p][j]);
+                            variation->ply, p, j, current->big_psqtAccumulation[p][j], refreshed->big_psqtAccumulation[p][j]);
+                   free(refreshed);
+                   free(variation);
                    return -1;
                }
            }
        }
+       free(refreshed);
    }
 
    int res = testNnuePlausibility();
-   if (res != 0) return res;
+   if (res != 0) {
+       free(variation);
+       return res;
+   }
 
    res = testBigNnuePlausibility();
-   if (res != 0) return res;
+   if (res != 0) {
+       free(variation);
+       return res;
+   }
 
    typedef struct {
        const char* fen;
@@ -408,30 +434,40 @@ int testModuleNnue(void)
    };
 
    for (int i = 0; i < 14; i++) {
-       Variation v;
-       initializeVariation(&v, cases[i].fen);
-       int eval = getValue(&v.singlePosition, &v.plyInfo[v.ply].accumulator);
+       Variation *v = calloc(1, sizeof(Variation));
+       initializeVariation(v, cases[i].fen);
+       int eval = getValue(&v->singlePosition, &v->plyInfo[v->ply].accumulator);
        logDebug("Value Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
            logReport("Value Plausibility failed for case %d (%s): %d not in [%d, %d]\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
+           free(v);
+           free(variation);
            return -1;
        }
 
        // Symmetry check: score(pos) should be equal to score(flipped_pos)
        // since getValue returns score relative to side to move.
-       Position flipped;
-       Accumulator flippedAcc;
-       memcpy(&flipped, &v.singlePosition, sizeof(Position));
-       flipPosition(&flipped);
-       initializePosition(&flipped); // Update redundant data after flip
-       refreshAccumulator(&flipped, &flippedAcc);
-       int evalFlipped = getValue(&flipped, &flippedAcc);
+       Position *flipped = calloc(1, sizeof(Position));
+       Accumulator *flippedAcc = calloc(1, sizeof(Accumulator));
+       memcpy(flipped, &v->singlePosition, sizeof(Position));
+       flipPosition(flipped);
+       initializePosition(flipped); // Update redundant data after flip
+       refreshAccumulator(flipped, flippedAcc);
+       int evalFlipped = getValue(flipped, flippedAcc);
        if (eval != evalFlipped) {
            logReport("Value Symmetry failed for case %d (%s): %d != %d\n", i, cases[i].description, eval, evalFlipped);
+           free(flipped);
+           free(flippedAcc);
+           free(v);
+           free(variation);
            return -1;
        }
+       free(flipped);
+       free(flippedAcc);
+       free(v);
    }
 
+   free(variation);
    return 0;
 }
 
