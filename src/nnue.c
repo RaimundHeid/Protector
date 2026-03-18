@@ -215,22 +215,6 @@ void initializeThreatLuts(void) {
     }
 }
 
-uint32_t make_threat_index(Color perspective, Piece attacker, Square from, Square to, Piece attacked, Square ksq) {
-    int orient_ksq = (file(ksq) < 4) ? 0 : 7;
-    int orientation = orient_ksq ^ (56 * perspective);
-
-    Square from_oriented = (Square)(from ^ orientation);
-    Square to_oriented = (Square)(to ^ orientation);
-
-    int swap = 8 * perspective;
-    int sf_attacker = get_sf_piece(attacker) ^ swap;
-    int sf_attacked = get_sf_piece(attacked) ^ swap;
-
-    return index_lut1[sf_attacker][sf_attacked][from_oriented < to_oriented]
-         + threat_offsets[sf_attacker][from_oriented]
-         + index_lut2[sf_attacker][from_oriented][to_oriented];
-}
-
 // Big Network layers (8 stacks)
 static int32_t big_fc0_biases[LAYER_STACKS][L2_BIG + 1] __attribute__((aligned(64)));
 static int8_t  big_fc0_weights[LAYER_STACKS][(L2_BIG + 1) * L1_BIG] __attribute__((aligned(64))); 
@@ -254,6 +238,17 @@ static const Square OrientTBL[64] = {
   H1, H1, H1, H1, A1, A1, A1, A1
 };
 
+static const Square OrientTBLThreats[64] = {
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1,
+  A1, A1, A1, A1, H1, H1, H1, H1
+};
+
 #define B(v) (v * 704)
 static const int KingBuckets[64] = {
     B(28), B(29), B(30), B(31), B(31), B(30), B(29), B(28),
@@ -266,6 +261,22 @@ static const int KingBuckets[64] = {
     B( 0), B( 1), B( 2), B( 3), B( 3), B( 2), B( 1), B( 0),
 };
 #undef B
+
+uint32_t make_threat_index(Color perspective, Piece attacker, Square from, Square to, Piece attacked, Square ksq) {
+    int flip = 56 * perspective;
+    int orientation = OrientTBLThreats[ksq] ^ flip;
+
+    Square from_oriented = (Square)(from ^ orientation);
+    Square to_oriented = (Square)(to ^ orientation);
+
+    int swap = 8 * perspective;
+    int sf_attacker = get_sf_piece(attacker) ^ swap;
+    int sf_attacked = get_sf_piece(attacked) ^ swap;
+
+    return index_lut1[sf_attacker][sf_attacked][from_oriented < to_oriented]
+         + threat_offsets[sf_attacker][from_oriented]
+         + index_lut2[sf_attacker][from_oriented][to_oriented];
+}
 
 #define PS_NONE 0
 #define PS_W_PAWN (0 * 64)
@@ -290,18 +301,16 @@ static const int PieceSquareIndex[2][16] = {
 static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) {
     const int flip = 56 * perspective;
     int sf_pc = get_sf_piece(pc);
-    // our kinganchor: if type is KING and color matches perspective
-    if ((sf_pc & 7) == 6 && (sf_pc > 8) == perspective) return -1;
     
-    // sf_pc is 1..6 or 9..14. We need to index into PieceSquareIndex which expects SF piece codes.
-    return (int)(s ^ OrientTBL[ksq] ^ flip) + PieceSquareIndex[perspective][sf_pc] + KingBuckets[ksq ^ flip];
+    int orientation = OrientTBL[ksq] ^ flip;
+    return (int)(s ^ orientation) + PieceSquareIndex[perspective][sf_pc] + KingBuckets[ksq ^ flip];
 }
 
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
         for (int i = 0; i < L1_SMALL; i++) acc->small_v[p][i] = small_ft_biases[i];
         for (int i = 0; i < L1_BIG; i++) acc->big_v[p][i] = big_ft_biases[i];
-        for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] = big_ft_biases[i];
+        for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] = 0;
         memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
@@ -333,7 +342,7 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
                     Square from = getLastSquare(&bb);
                     Bitboard attacks;
                     if (pt == PAWN) {
-                        attacks = (c == WHITE) ? generalMoves[WHITE_PAWN][from] : generalMoves[BLACK_PAWN][from];
+                        attacks = (c == WHITE) ? ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) << 8) : ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) >> 8);
                     } else {
                         attacks = getMoves(from, attacker, occupied);
                     }
@@ -418,7 +427,7 @@ static void read_leb128_mem(void* out, size_t count, size_t element_size) {
             shift += 7;
             if (!(byte & 0x80)) {
                 if (shift < 32 && (byte & 0x40)) result |= ~((unsigned int)((1 << shift) - 1));
-                if (element_size == 2) ((int16_t*)out)[i] = (int16_t)(result * 2);
+                if (element_size == 2) ((int16_t*)out)[i] = (int16_t)result;
                 else if (element_size == 4) ((int32_t*)out)[i] = (int32_t)result;
                 else if (element_size == 1) ((int8_t*)out)[i] = (int8_t)result;
                 break;
@@ -428,22 +437,7 @@ static void read_leb128_mem(void* out, size_t count, size_t element_size) {
     read_pos = end_pos;
 }
 
-static uint32_t get_weight_index(uint32_t i, uint32_t padded_dims, uint32_t outputs) {
-    const uint32_t chunk_size = 4;
-    if (outputs == 1) return i;
-    return (i / chunk_size) % (padded_dims / chunk_size) * outputs * chunk_size
-         + i / padded_dims * chunk_size + i % chunk_size;
-}
-
-static void mem_read_scrambled(int8_t* dest, uint32_t padded_dims, uint32_t outputs) {
-    uint32_t count = padded_dims * outputs;
-    int8_t* temp = malloc(count);
-    mem_read(temp, count);
-    for (uint32_t i = 0; i < count; i++) {
-        dest[get_weight_index(i, padded_dims, outputs)] = temp[i];
-    }
-    free(temp);
-}
+/* Unused functions removed */
 
 int initializeModuleNnue(void) {
     // Load small net
@@ -598,7 +592,7 @@ void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * ps
         int32_t val = transformed[j];
         if (val == 0) continue;
         for (int i = 0; i <= L2_SMALL; i++) {
-            fc0_out[i] += val * small_fc0_weights[bucket][j * (L2_SMALL + 1) + i];
+            fc0_out[i] += val * small_fc0_weights[bucket][i * L1_SMALL + j];
         }
     }
 
