@@ -605,7 +605,7 @@ void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * ps
     int32_t fc1_out[L3_SMALL];
     for (int i = 0; i < L3_SMALL; i++) {
         fc1_out[i] = small_fc1_biases[bucket][i];
-        for (int j = 0; j < 30; j++) {
+        for (int j = 0; j < 2 * L2_SMALL; j++) {
             fc1_out[i] += ac0_out[j] * small_fc1_weights[bucket][i * 32 + j];
         }
     }
@@ -684,7 +684,7 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
     int32_t fc1_out[L3_BIG];
     for (int i = 0; i < L3_BIG; i++) {
         fc1_out[i] = big_fc1_biases[bucket][i];
-        for (int j = 0; j < 62; j++) {
+        for (int j = 0; j < 2 * L2_BIG; j++) {
             fc1_out[i] += (int32_t)ac0_out[j] * big_fc1_weights[bucket][i * 64 + j];
         }
     }

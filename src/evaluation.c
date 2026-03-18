@@ -63,17 +63,12 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
     }
 
-    psqt /= 16;
-    positional /= 16;
-
     int nnue = (125 * psqt + 131 * positional) / 128;
 
     // Re-evaluate the position when higher eval accuracy is worth the time spent
     if (smallNet && (abs(nnue) < 277))
     {
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
-        psqt /= 16;
-        positional /= 16;
         nnue = (125 * psqt + 131 * positional) / 128;
         smallNet = FALSE;
     }
@@ -96,6 +91,10 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
     int material = 534 * pawn_count + non_pawn_material;
     
     int v = (nnue * (77871 + material) + optimism * (7191 + material)) / 77871;
+
+    // Final scaling to centipawns
+    int a = win_rate_scaling((Position*)position);
+    v = v * 100 / a;
 
     // Damp down the evaluation linearly when shuffling
     v -= v * position->halfMoveClock / 199;
