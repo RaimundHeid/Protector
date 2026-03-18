@@ -655,19 +655,11 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
     for (int p = 0; p < 2; p++) {
         Color perspective = (p == 0 ? side : !side);
         for (int i = 0; i < L1_BIG / 2; i++) {
-            int16_t v0 = acc->big_v[perspective][i];
-            int16_t v1 = acc->big_v[perspective][L1_BIG / 2 + i];
+            int32_t v0 = acc->big_v[perspective][i] + acc->big_threat_v[perspective][i];
+            int32_t v1 = acc->big_v[perspective][L1_BIG / 2 + i] + acc->big_threat_v[perspective][L1_BIG / 2 + i];
             int32_t c0 = max(0, min(255, v0));
             int32_t c1 = max(0, min(255, v1));
             transformed[p * (L1_BIG / 2) + i] = (uint8_t)((c0 * c1) / 512);
-        }
-    }
-
-    for (int p = 0; p < 2; p++) {
-        Color perspective = (p == 0 ? side : !side);
-        for (int i = 0; i < L1_BIG; i++) {
-            int32_t v = acc->big_threat_v[perspective][i];
-            transformed[i] = (uint8_t)max(0, min(127, (int32_t)transformed[i] + (v >> 6)));
         }
     }
 
@@ -679,7 +671,7 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
         int32_t val = transformed[j];
         if (val == 0) continue;
         for (int i = 0; i <= L2_BIG; i++) {
-            fc0_out[i] += val * big_fc0_weights[bucket][j * (L2_BIG + 1) + i];
+            fc0_out[i] += val * big_fc0_weights[bucket][i * L1_BIG + j];
         }
     }
 
