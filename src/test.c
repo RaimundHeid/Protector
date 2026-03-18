@@ -217,21 +217,21 @@ static int testNnuePlausibility(void) {
     typedef struct {
         const char* fen;
         const char* description;
-        int min_eval;
-        int max_eval;
+        int expected_psqt;
+        int expected_positional;
     } NnueTestCase;
 
     NnueTestCase cases[] = {
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 65, 67},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", 45, 47},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", 24, 26},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -4, -2},
-        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -546, -544},
-        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 692, 694},
-        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", 47, 49},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 26, 28},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -212, -210},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 277, 279}
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 0, 252},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", 59, 116},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -107, 204},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", 23, -36},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -2295, 191},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 2439, 235},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -11, 194},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 0, 103},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -164, -655},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 1425, -345}
     };
 
     int result = 0;
@@ -239,10 +239,11 @@ static int testNnuePlausibility(void) {
         Variation *variation = calloc(1, sizeof(Variation));
         initializeVariation(variation, cases[i].fen);
         refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
-        int eval = evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
-        logDebug("Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
-        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
-            logDebug("Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
+        int psqt, positional;
+        evaluateNnueWithAccumulatorFull(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &psqt, &positional);
+        logDebug("Nnue Test Case %d (%s): psqt %d (expected %d), positional %d (expected %d)\n", i, cases[i].description, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
+        if (psqt != cases[i].expected_psqt || positional != cases[i].expected_positional) {
+            logDebug("Nnue Plausibility failed for case %d: psqt %d != %d or positional %d != %d\n", i, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
             result = -1;
         }
         free(variation);
@@ -254,21 +255,21 @@ static int testBigNnuePlausibility(void) {
     typedef struct {
         const char* fen;
         const char* description;
-        int min_eval;
-        int max_eval;
+        int expected_psqt;
+        int expected_positional;
     } NnueTestCase;
 
     NnueTestCase cases[] = {
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 14, 16},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", 18, 20},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", 7, 9},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", 39, 41},
-        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -467, -465},
-        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 733, 735},
-        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -7, -5},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 4, 6},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -189, -187},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 293, 295}
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 0, 59},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -18, 91},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -48, 80},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -24, 178},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -2372, 574},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 2488, 344},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -7, -15},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 0, 18},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -171, -559},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 1447, -306}
     };
 
     int result = 0;
@@ -276,10 +277,11 @@ static int testBigNnuePlausibility(void) {
         Variation *variation = calloc(1, sizeof(Variation));
         initializeVariation(variation, cases[i].fen);
         refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
-        int eval = evaluateBigNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
-        logDebug("Big Nnue Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval, cases[i].min_eval, cases[i].max_eval);
-        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
-            logDebug("Big Nnue Plausibility failed for case %d: %d not in [%d, %d]\n", i, eval, cases[i].min_eval, cases[i].max_eval);
+        int psqt, positional;
+        evaluateBigNnueWithAccumulatorFull(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &psqt, &positional);
+        logDebug("Big Nnue Test Case %d (%s): psqt %d (expected %d), positional %d (expected %d)\n", i, cases[i].description, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
+        if (psqt != cases[i].expected_psqt || positional != cases[i].expected_positional) {
+            logDebug("Big Nnue Plausibility failed for case %d: psqt %d != %d or positional %d != %d\n", i, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
             result = -1;
         }
         free(variation);
