@@ -2823,11 +2823,121 @@ static int testRefreshAccumulator(void) {
 
     return 0;
 }
+static int compareAccumulators(Accumulator * current, Accumulator * refreshed, int ply, const char * moveType) {
+    for (int p = 0; p < 2; p++) {
+        for (int j = 0; j < L1_SMALL; j++) {
+            if (current->small_v[p][j] != refreshed->small_v[p][j]) {
+                logReport("%s: Small Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
+                         moveType, ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
+                return -1;
+            }
+        }
+        for (int j = 0; j < L1_BIG; j++) {
+            if (current->big_v[p][j] != refreshed->big_v[p][j]) {
+                logReport("%s: Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
+                         moveType, ply, p, j, current->big_v[p][j], refreshed->big_v[p][j]);
+                return -1;
+            }
+        }
+        for (int j = 0; j < 8; j++) {
+            if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
+                logReport("%s: Small PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
+                         moveType, ply, p, j, current->small_psqtAccumulation[p][j], refreshed->small_psqtAccumulation[p][j]);
+                return -1;
+            }
+            if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
+                logReport("%s: Big PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
+                         moveType, ply, p, j, current->big_psqtAccumulation[p][j], refreshed->big_psqtAccumulation[p][j]);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+typedef int (*MoveFunc)(Variation *, Move);
+
+static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char * moveTypeName) {
+    struct TestCase {
+        const char * fen;
+        Move move;
+        const char * desc;
+    } cases[] = {
+        // Normal moves
+        {FEN_GAMESTART, getOrdinaryMove(E2, E4), "Normal move (E2E4)"},
+        {FEN_GAMESTART, getOrdinaryMove(G1, F3), "Knight move (G1F3)"},
+        // Captures
+        {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1", getOrdinaryMove(B5, C6), "Capture (B5C6)"},
+        // King moves
+        {"rnbqkbnr/pppppppp/8/8/8/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 1", getOrdinaryMove(E1, E2), "King move (E1E2)"},
+        // Castling
+        {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1", getOrdinaryMove(E1, G1), "White O-O"},
+        {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1", getOrdinaryMove(E1, C1), "White O-O-O"},
+        {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R b KQkq - 0 1", getOrdinaryMove(E8, G8), "Black O-O"},
+        {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R b KQkq - 0 1", getOrdinaryMove(E8, C8), "Black O-O-O"},
+        // En-passant
+        {"rnbqkbnr/pppp1ppp/8/4pP2/8/8/PPPPP1PP/RNBQKBNR w KQkq e6 0 1", getOrdinaryMove(F5, E6), "En-passant (F5E6)"},
+        // Promotions
+        {"8/4P3/8/8/8/8/8/k6K w - - 0 1", getPackedMove(E7, E8, WHITE_QUEEN), "Promotion to Queen"},
+        {"8/4P3/8/8/8/8/8/k6K w - - 0 1", getPackedMove(E7, E8, WHITE_ROOK), "Promotion to Rook"},
+        {"8/4P3/8/8/8/8/8/k6K w - - 0 1", getPackedMove(E7, E8, WHITE_BISHOP), "Promotion to Bishop"},
+        {"8/4P3/8/8/8/8/8/k6K w - - 0 1", getPackedMove(E7, E8, WHITE_KNIGHT), "Promotion to Knight"},
+        // Black promotions
+        {"k6K/8/8/8/8/8/4p3/8 b - - 0 1", getPackedMove(E2, E1, BLACK_QUEEN), "Black Promotion to Queen"},
+    };
+
+    int numCases = sizeof(cases) / sizeof(cases[0]);
+    Variation * variation = calloc(1, sizeof(Variation));
+    Accumulator * refreshed = calloc(1, sizeof(Accumulator));
+    int failures = 0;
+
+    for (int i = 0; i < numCases; i++) {
+        initializeVariation(variation, cases[i].fen);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+
+        moveFunc(variation, cases[i].move);
+        refreshAccumulator(&variation->singlePosition, refreshed);
+        
+        if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, cases[i].desc) != 0) {
+            logReport("Failure in %s for case: %s\n", moveTypeName, cases[i].desc);
+            failures++;
+        }
+
+        unmakeLastMove(variation);
+        refreshAccumulator(&variation->singlePosition, refreshed);
+        if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, "Unmake") != 0) {
+            logReport("Failure in %s after unmake for case: %s\n", moveTypeName, cases[i].desc);
+            failures++;
+        }
+    }
+
+    free(refreshed);
+    free(variation);
+    return failures;
+}
+
+static int testUpdateAccumulatorMakeMove(void) {
+    return testUpdateAccumulatorGeneric(makeMove, "makeMove");
+}
+
+static int testUpdateAccumulatorMakeMoveFast(void) {
+    return testUpdateAccumulatorGeneric(makeMoveFast, "makeMoveFast");
+}
+
 int testModuleNnue(void)
 {
    int res = testRefreshAccumulator();
    if (res != 0) {
        return res;
+   }
+
+   int updateFailures = 0;
+   updateFailures += testUpdateAccumulatorMakeMove();
+   updateFailures += testUpdateAccumulatorMakeMoveFast();
+
+   if (updateFailures > 0) {
+       logReport("updateAccumulator tests failed with %d errors.\n", updateFailures);
+       return -1;
    }
 
    Variation *variation = calloc(1, sizeof(Variation));
