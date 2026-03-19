@@ -173,30 +173,45 @@ int makeBlackMove(Variation * variation, const Move move)
       position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
 
    {
-      Square added_sq[2], removed_sq[3];
-      Piece added_pc[2], removed_pc[3];
-      int added_cnt = 0, removed_cnt = 0;
+      bool needsRefresh = FALSE;
 
-      removed_sq[removed_cnt] = from;
-      removed_pc[removed_cnt++] = movingPiece;
-      if (capturedPiece != NO_PIECE)
+      if (pieceType(movingPiece) == KING)
       {
-         removed_sq[removed_cnt] = to;
-         removed_pc[removed_cnt++] = capturedPiece;
+         if (distance(from, to) == 2)
+         {
+            needsRefresh = TRUE;   /* castling */
+         }
+         else if (!kingStaysInSameBucket(from, to, COLOR))
+         {
+            needsRefresh = TRUE;   /* king moved to a different bucket/orientation */
+         }
       }
       else if (to == plyInfo->enPassantSquare && pieceType(movingPiece) == PAWN)
       {
-         const Square captureSquare = (Square)(to + (rank(from) - rank(to)) * 8);
-         removed_sq[removed_cnt] = captureSquare;
-         removed_pc[removed_cnt++] = (Piece)(PAWN | OPPCOLOR);
+         needsRefresh = TRUE;      /* en-passant capture */
+      }
+      else if (newPiece != NO_PIECE)
+      {
+         needsRefresh = TRUE;      /* promotion */
       }
 
-      if (pieceType(movingPiece) == KING)
+      if (needsRefresh)
       {
          refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
       }
       else
       {
+         Square added_sq[2], removed_sq[3];
+         Piece added_pc[2], removed_pc[3];
+         int added_cnt = 0, removed_cnt = 0;
+
+         removed_sq[removed_cnt] = from;
+         removed_pc[removed_cnt++] = movingPiece;
+         if (capturedPiece != NO_PIECE)
+         {
+            removed_sq[removed_cnt] = to;
+            removed_pc[removed_cnt++] = capturedPiece;
+         }
          added_sq[added_cnt] = to;
          added_pc[added_cnt++] = position->piece[to];
          updateAccumulator(&plyInfo->accumulator, &variation->plyInfo[variation->ply].accumulator,
