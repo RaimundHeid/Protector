@@ -785,6 +785,7 @@ void initializeVariation(Variation * variation, const char *fen)
    prepareSearch(variation);
    variation->startPosition = variation->singlePosition;
    refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator);
+   initializePlyInfo(variation);
 }
 
 void setBasePosition(Variation * variation, const Position * position)

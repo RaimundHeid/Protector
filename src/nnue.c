@@ -363,7 +363,7 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
     }
 }
 
-void updateAccumulator(Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq) {
+void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq) {
     for (int p = 0; p < 2; p++) {
         memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
         memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
