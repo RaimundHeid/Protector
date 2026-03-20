@@ -487,7 +487,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    {
       int value, newDepth =
          (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
-      int optValue = currentValue + 350 +
+      int optValue = currentValue + 189 +
          basicValue[position->piece[getToSquare(currentMove)]];
       const Square toSquare = getToSquare(currentMove);
 
@@ -860,7 +860,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
        inCheck == FALSE && hashmove == NO_MOVE && cutsAreAllowed &&
        hasDangerousPawns(position, position->activeColor) == FALSE)
    {
-      const int limit = alpha - (204 + 22 * restDepth);
+      const int limit = alpha - (110 + 12 * restDepth);
 
       if (getRefinedStaticValue(variation, ply) < limit)
       {
@@ -883,7 +883,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    {
       const int staticValue = getRefinedStaticValue(variation, ply);
       const bool improving = (ply >= 2 && staticValue > variation->plyInfo[ply - 2].staticValue);
-      const int margin = (40 + 41 * restDepth) - (improving ? 40 : 0);
+      const int margin = (22 + 22 * restDepth) - (improving ? 22 : 0);
 
       if (staticValue - margin >= beta)
       {
@@ -898,7 +898,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
        (cutNode != FALSE || restDepth >= 6 * DEPTH_RESOLUTION))
    {                            /* 16-32% */
       const int diff = getRefinedStaticValue(variation, ply) - beta;
-      const int additionalReduction = min(diff / 110, 3) * DEPTH_RESOLUTION;
+      const int additionalReduction = min(diff / 59, 3) * DEPTH_RESOLUTION;
       const int newDepth =
          restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 -
          additionalReduction;
@@ -955,7 +955,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
        restDepth >= 5 * DEPTH_RESOLUTION && excludeMove == NO_MOVE &&
        inCheck == FALSE)
    {
-      const int limit = beta + 192;
+      const int limit = beta + 104;
       const int staticValue = getRefinedStaticValue(variation, ply);
       const Move qrHashmove = (hashmove != NO_MOVE &&
                                position->piece[getToSquare(hashmove)] !=
@@ -971,7 +971,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
          const Piece capturedPiece = position->piece[toSquare];
          int moveValue;
 
-         if (staticValue + basicValue[capturedPiece] < beta + 75)
+         if (staticValue + basicValue[capturedPiece] < limit - 21)
          {
             continue;
          }
@@ -1016,7 +1016,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    if (hashmove == NO_MOVE &&
        restDepth >= (pvNode ? 3 : 7) * DEPTH_RESOLUTION &&
        (pvNode || (inCheck == FALSE &&
-                   getRefinedStaticValue(variation, ply) >= beta - 100)))
+                   getRefinedStaticValue(variation, ply) >= beta - 54)))
    {
       const Move excludeHere =
          (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
@@ -1267,7 +1267,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
           extension < DEPTH_RESOLUTION &&
           movesAreEqual(currentMove, hashmove))
       {
-         const int limitValue = hashEntryValue - (266 * restDepth) / 256;
+         const int limitValue = hashEntryValue - (144 * restDepth) / 256;
 
          assert(excludeMove == NO_MOVE);
 
@@ -1974,7 +1974,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       variation->ply = 0;
 
       aspirationWindow =
-         min(12, max(8, (abs(iv1 - iv2) + abs(iv2 - iv3)) / 2));
+         min(6, max(4, (abs(iv1 - iv2) + abs(iv2 - iv3)) / 2));
       exploreBaseMoves(variation, &movelist, aspirationWindow);
       calculationTime =
          (unsigned long) (getTimestamp() - variation->startTime);
@@ -2088,7 +2088,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       if (acceptableSolutions != 0 && stableIterationCount >= 1 &&
           (getMoveValue(variation->bestBaseMove) > 20000 ||
            (stableIterationCount >= 2 &&
-            (getMoveValue(variation->bestBaseMove) >= 25 ||
+            (getMoveValue(variation->bestBaseMove) >= 13 ||
              (getTimestamp() - variation->startTime) >= 3000))))
       {
 #ifdef DEBUG_THREAD_COORDINATION
@@ -2198,7 +2198,7 @@ static void initializeArrays(void)
 
    for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++)
    {
-      futilityMargin[i] = (3350 * i) / 64 - 12800 / 256;
+      futilityMargin[i] = (1809 * i) / 64 - 6912 / 256;
 
 #ifdef DEBUG_FUT_VALUES
       if (j <= 2)

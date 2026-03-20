@@ -42,11 +42,11 @@
 
 #define DELTA (-3)
 
-extern int VALUE_QUEEN;
-extern int VALUE_ROOK;
-extern int VALUE_BISHOP;
-extern int VALUE_KNIGHT;
-extern int VALUE_PAWN;
+extern const int VALUE_QUEEN;
+extern const int VALUE_ROOK;
+extern const int VALUE_BISHOP;
+extern const int VALUE_KNIGHT;
+extern const int VALUE_PAWN;
 
 extern int basicValue[16];
 

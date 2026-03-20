@@ -36,11 +36,12 @@ const int POSITION_TRACE_START = 4711;
 const int POSITION_TRACE_QUANTITY = 100;
 #endif
 
-int VALUE_QUEEN = 2538;
-int VALUE_ROOK = 1278;
-int VALUE_BISHOP = 826;
-int VALUE_KNIGHT = 780;
-int VALUE_PAWN = 208;
+const int VALUE_FACTOR = 26;
+const int VALUE_QUEEN = VALUE_FACTOR * 2538 / 100;
+const int VALUE_ROOK = VALUE_FACTOR * 1278 / 100;
+const int VALUE_BISHOP = VALUE_FACTOR * 826 / 100;
+const int VALUE_KNIGHT = VALUE_FACTOR * 780 / 100;
+const int VALUE_PAWN = VALUE_FACTOR * 208 / 100;
 
 int basicValue[16];
 BYTE remainingCastlings[_64_];
