@@ -438,7 +438,7 @@ bool setNodeUsage(UINT64 key, UINT8 depth)
    }
 }
 
-void resetNodeUsage(UINT64 key, UINT8 depth)
+void resetNodeUsage(UINT64 key)
 {
    UINT64 nodeIndex;
 

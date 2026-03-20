@@ -137,7 +137,7 @@ static int stringContainsChar(const char *string, char c)
 int readFen(const char *fen, Position * position)
 {
    int index;
-   size_t fenLength = strlen(fen);
+   int fenLength = (int) strlen(fen);
 
    /*
     * Initialize this module.

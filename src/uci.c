@@ -40,7 +40,6 @@ static PGNGame game;
 static UciStatus status;
 bool resetSharedHashtable = FALSE;
 static int numUciMoves = 1000;
-const int valueRangePct = 10;
 int drawScore = 0;
 int numPvs = 1;
 const int DRAW_SCORE_MAX = 10000;
@@ -57,18 +56,6 @@ int maxPvHashEntriesSendPerSecond = MAX_ENTRIES_PS_DEFAULT;
 int pvHashEntriesSendInterval = 1000 / MAX_ENTRIES_PS_DEFAULT;
 
 const char *USN_NT = "Threads";
-const char *USN_QO = "Value Queen Opening";
-const char *USN_QE = "Value Queen Endgame";
-const char *USN_RO = "Value Rook Opening";
-const char *USN_RE = "Value Rook Endgame";
-const char *USN_BO = "Value Bishop Opening";
-const char *USN_BE = "Value Bishop Endgame";
-const char *USN_NO = "Value Knight Opening";
-const char *USN_NE = "Value Knight Endgame";
-const char *USN_PO = "Value Pawn Opening";
-const char *USN_PE = "Value Pawn Endgame";
-const char *USN_BPO = "Value Bishop pair Opening";
-const char *USN_BPE = "Value Bishop pair Endgame";
 const char *USN_DS = "Draw Score";
 const char *USN_PV = "MultiPV";
 
@@ -775,19 +762,6 @@ static int getIntValue(const char *value, int minValue, int defaultValue,
    }
 }
 
-static int getValueLimit(int value, int diffPct)
-{
-   return (value * (100 + diffPct)) / 100;
-}
-
-static int getStdIntValue(const char *value, int defaultValue)
-{
-   const int minValue = getValueLimit(defaultValue, -valueRangePct);
-   const int maxValue = getValueLimit(defaultValue, valueRangePct);
-
-   return getIntValue(value, minValue, defaultValue, maxValue);
-}
-
 static void sendUciSpinOption(const char *name, const int defaultValue,
                               int minValue, int maxValue)
 {
@@ -831,66 +805,6 @@ static int processUciCommand(const char *command)
          ("option name SyzygyPath type string default <empty>");
       sendToUciNonDebug("option name Ponder type check default true");
       sendUciSpinOption(USN_NT, 1, 1, MAX_THREADS);
-      sendUciSpinOption(USN_PO, DEFAULTVALUE_PAWN_OPENING,
-                        getValueLimit(DEFAULTVALUE_PAWN_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_PAWN_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_PE, DEFAULTVALUE_PAWN_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_PAWN_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_PAWN_ENDGAME,
-                                      valueRangePct));
-      sendUciSpinOption(USN_NO, DEFAULTVALUE_KNIGHT_OPENING,
-                        getValueLimit(DEFAULTVALUE_KNIGHT_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_KNIGHT_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_NE, DEFAULTVALUE_KNIGHT_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_KNIGHT_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_KNIGHT_ENDGAME,
-                                      valueRangePct));
-      sendUciSpinOption(USN_BO, DEFAULTVALUE_BISHOP_OPENING,
-                        getValueLimit(DEFAULTVALUE_BISHOP_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_BISHOP_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_BE, DEFAULTVALUE_BISHOP_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_BISHOP_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_BISHOP_ENDGAME,
-                                      valueRangePct));
-      sendUciSpinOption(USN_RO, DEFAULTVALUE_ROOK_OPENING,
-                        getValueLimit(DEFAULTVALUE_ROOK_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_ROOK_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_RE, DEFAULTVALUE_ROOK_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_ROOK_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_ROOK_ENDGAME,
-                                      valueRangePct));
-      sendUciSpinOption(USN_QO, DEFAULTVALUE_QUEEN_OPENING,
-                        getValueLimit(DEFAULTVALUE_QUEEN_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_QUEEN_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_QE, DEFAULTVALUE_QUEEN_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_QUEEN_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_QUEEN_ENDGAME,
-                                      valueRangePct));
-      sendUciSpinOption(USN_BPO, DEFAULTVALUE_BISHOP_PAIR_OPENING,
-                        getValueLimit(DEFAULTVALUE_BISHOP_PAIR_OPENING,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_BISHOP_PAIR_OPENING,
-                                      valueRangePct));
-      sendUciSpinOption(USN_BPE, DEFAULTVALUE_BISHOP_PAIR_ENDGAME,
-                        getValueLimit(DEFAULTVALUE_BISHOP_PAIR_ENDGAME,
-                                      -valueRangePct),
-                        getValueLimit(DEFAULTVALUE_BISHOP_PAIR_ENDGAME,
-                                      valueRangePct));
       sendUciSpinOption(USN_DS, 0, -DRAW_SCORE_MAX, DRAW_SCORE_MAX);
       sendUciSpinOption(USN_PV, 1, 1, MAX_NUM_PV);
 
@@ -958,101 +872,6 @@ static int processUciCommand(const char *command)
          return TRUE;
       }
 
-      if (strcmp(name, USN_PO) == 0)
-      {
-         VALUE_PAWN_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_PAWN_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_PE) == 0)
-      {
-         VALUE_PAWN_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_PAWN_ENDGAME);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_NO) == 0)
-      {
-         VALUE_KNIGHT_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_KNIGHT_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_NE) == 0)
-      {
-         VALUE_KNIGHT_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_KNIGHT_ENDGAME);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_BO) == 0)
-      {
-         VALUE_BISHOP_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_BISHOP_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_BE) == 0)
-      {
-         VALUE_BISHOP_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_BISHOP_ENDGAME);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_RO) == 0)
-      {
-         VALUE_ROOK_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_ROOK_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_RE) == 0)
-      {
-         VALUE_ROOK_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_ROOK_ENDGAME);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_QO) == 0)
-      {
-         VALUE_QUEEN_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_QUEEN_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_QE) == 0)
-      {
-         VALUE_QUEEN_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_QUEEN_ENDGAME);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_BPO) == 0)
-      {
-         VALUE_BISHOP_PAIR_OPENING = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_BISHOP_PAIR_OPENING);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_BPE) == 0)
-      {
-         VALUE_BISHOP_PAIR_ENDGAME = (unsigned int)
-            getStdIntValue(value, DEFAULTVALUE_BISHOP_PAIR_ENDGAME);
-
-         return TRUE;
-      }
 
       if (strcmp(name, USN_DS) == 0)
       {

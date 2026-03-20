@@ -56,7 +56,7 @@ int probeTablebaseWDL(const Position * position)
 
    if (position->castlingRights != 0) return TABLEBASE_ERROR;
 
-   int numPieces = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
+   unsigned int numPieces = (unsigned int)(position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK]);
    if (numPieces <= 2 || numPieces > TB_LARGEST)
       return TABLEBASE_ERROR;
 
@@ -110,7 +110,7 @@ int probeTablebaseDTZ(const Position * position, Move * move)
 
    if (position->castlingRights != 0) return TABLEBASE_ERROR;
 
-   int numPieces = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
+   unsigned int numPieces = (unsigned int)(position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK]);
    if (numPieces <= 2 || numPieces > TB_LARGEST)
       return TABLEBASE_ERROR;
 

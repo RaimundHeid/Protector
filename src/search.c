@@ -49,7 +49,6 @@ int quietMoveCountLimit[2][32]; /* number of quiet moves to be examined @ specif
 int quietPvMoveReduction[64][64];       /* [restDepth][moveCount] */
 int quietMoveReduction[2][64][64];      /* [variationType][restDepth][moveCount] */
 int futilityMargin[NUM_FUTILITY_MARGIN_VALUES + 1];     /* [restDepth] */
-int maxPieceValue[16];          /* the maximal value of a piece type */
 
 /* Prototypes */
 static int searchBest(Variation * variation, int alpha, int beta,
@@ -489,7 +488,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       int value, newDepth =
          (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
       int optValue = currentValue + 350 +
-         maxPieceValue[position->piece[getToSquare(currentMove)]];
+         basicValue[position->piece[getToSquare(currentMove)]];
       const Square toSquare = getToSquare(currentMove);
 
       if (pvNode == FALSE && inCheck == FALSE && optValue < alpha &&
@@ -507,12 +506,12 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
          if (getNewPiece(currentMove) != NO_PIECE)
          {
             optValue +=
-               maxPieceValue[getNewPiece(currentMove)] - basicValue[PAWN];
+               basicValue[getNewPiece(currentMove)] - basicValue[PAWN];
          }
 
          if (enPassant)
          {
-            optValue += maxPieceValue[PAWN];
+            optValue += basicValue[PAWN];
          }
 
          if (optValue < alpha && moveIsCheck(currentMove, position) == FALSE)
@@ -972,7 +971,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
          const Piece capturedPiece = position->piece[toSquare];
          int moveValue;
 
-         if (staticValue + maxPieceValue[capturedPiece] < limit - 38)
+         if (staticValue + basicValue[capturedPiece] < beta + 75)
          {
             continue;
          }
@@ -1370,7 +1369,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
       if (nodeWasBlocked)
       {
-         resetNodeUsage(position->hashKey, restDepth);
+         resetNodeUsage(position->hashKey);
       }
 
       unmakeLastMove(variation);
@@ -1920,14 +1919,6 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    sendPvInfo(variation, SEARCHEVENT_PLY_FINISHED);
 }
 
-static void updatePieceValues(void)
-{
-   maxPieceValue[WHITE_QUEEN] = maxPieceValue[BLACK_QUEEN] = 2538;
-   maxPieceValue[WHITE_ROOK] = maxPieceValue[BLACK_ROOK] = 1276;
-   maxPieceValue[WHITE_BISHOP] = maxPieceValue[BLACK_BISHOP] = 825;
-   maxPieceValue[WHITE_KNIGHT] = maxPieceValue[BLACK_KNIGHT] = 781;
-   maxPieceValue[WHITE_PAWN] = maxPieceValue[BLACK_PAWN] = 208;
-}
 
 Move search(Variation * variation, Movelist * acceptableSolutions)
 {
@@ -2217,7 +2208,6 @@ static void initializeArrays(void)
 #endif
    }
 
-   updatePieceValues();
 
 #ifdef DEBUG_FUT_VALUES
    getKeyStroke();

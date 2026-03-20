@@ -1653,7 +1653,7 @@ Bitboard getFlippedBitboard(Bitboard original)
 int initializeModuleBitboard(void)
 {
    INT32 i;
-   UINT32 j;
+   INT32 j;
    INT8 k, indexLow, indexHigh;
    UINT64 min = 1;
    Square square;

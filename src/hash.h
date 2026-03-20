@@ -80,7 +80,7 @@ UINT64 getHashentryKey(const Hashentry * entry);
 INT16 getHashentryStaticValue(const Hashentry * entry);
 bool nodeIsInUse(UINT64 key, UINT8 depth);
 bool setNodeUsage(UINT64 key, UINT8 depth);
-void resetNodeUsage(UINT64 key, UINT8 depth);
+void resetNodeUsage(UINT64 key);
 
 /**
  * Initialize this module.
