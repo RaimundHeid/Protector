@@ -487,7 +487,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    {
       int value, newDepth =
          (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
-      int optValue = currentValue + 189 +
+      int optValue = currentValue + 199 +
          basicValue[position->piece[getToSquare(currentMove)]];
       const Square toSquare = getToSquare(currentMove);
 
@@ -955,7 +955,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
        restDepth >= 5 * DEPTH_RESOLUTION && excludeMove == NO_MOVE &&
        inCheck == FALSE)
    {
-      const int limit = beta + 104;
+      const int limit = beta + 96;
       const int staticValue = getRefinedStaticValue(variation, ply);
       const Move qrHashmove = (hashmove != NO_MOVE &&
                                position->piece[getToSquare(hashmove)] !=
@@ -971,7 +971,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
          const Piece capturedPiece = position->piece[toSquare];
          int moveValue;
 
-         if (staticValue + basicValue[capturedPiece] < limit - 21)
+         if (staticValue + basicValue[capturedPiece] < beta + 75)
          {
             continue;
          }
@@ -2198,7 +2198,7 @@ static void initializeArrays(void)
 
    for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++)
    {
-      futilityMargin[i] = (1809 * i) / 64 - 6912 / 256;
+      futilityMargin[i] = (1960 * i) / 64 - 27;
 
 #ifdef DEBUG_FUT_VALUES
       if (j <= 2)
