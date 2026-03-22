@@ -306,6 +306,40 @@ static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) 
     return (int)(s ^ orientation) + PieceSquareIndex[perspective][sf_pc] + KingBuckets[ksq ^ flip];
 }
 
+static void computeThreatAccumulator(Position* pos, Accumulator* acc, int p) {
+    Square ksq = pos->king[p];
+    Bitboard occupied = pos->allPieces;
+    static const PieceType attackerTypes[] = { PAWN, KNIGHT, BISHOP, ROOK, QUEEN };
+    for (int c_idx = 0; c_idx < 2; c_idx++) {
+        Color c = (Color)c_idx;
+        for (int pt_idx = 0; pt_idx < 5; pt_idx++) {
+            PieceType pt = attackerTypes[pt_idx];
+            Piece attacker = (Piece)(c | pt);
+            Bitboard bb = pos->piecesOfType[attacker];
+            while (bb) {
+                Square from = getLastSquare(&bb);
+                Bitboard attacks;
+                if (pt == PAWN) {
+                    attacks = (c == WHITE) ? ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) << 8)
+                                          : ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) >> 8);
+                } else {
+                    attacks = getMoves(from, attacker, occupied);
+                }
+                attacks &= occupied;
+                while (attacks) {
+                    Square to = getLastSquare(&attacks);
+                    Piece attacked = pos->piece[to];
+                    uint32_t idx = make_threat_index(p, attacker, from, to, attacked, ksq);
+                    if (idx < THREAT_INPUT_DIMENSIONS) {
+                        for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] += big_ft_threat_weights[idx * L1_BIG + i];
+                        for (int i = 0; i < 8; i++) acc->big_threat_psqtAccumulation[p][i] += big_ft_threat_psqt_weights[idx * 8 + i];
+                    }
+                }
+            }
+        }
+    }
+}
+
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
         for (int i = 0; i < L1_SMALL; i++) acc->small_v[p][i] = small_ft_biases[i];
@@ -328,38 +362,7 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
             }
         }
 
-        // Big net threats
-        Bitboard occupied = pos->allPieces;
-        static const PieceType attackerTypes[] = { PAWN, KNIGHT, BISHOP, ROOK, QUEEN };
-        for (int c_idx = 0; c_idx < 2; c_idx++) {
-            Color c = (Color)c_idx;
-            for (int pt_idx = 0; pt_idx < 5; pt_idx++) {
-                PieceType pt = attackerTypes[pt_idx];
-                Piece attacker = (Piece)(c | pt);
-                Bitboard bb = pos->piecesOfType[attacker];
-
-                while (bb) {
-                    Square from = getLastSquare(&bb);
-                    Bitboard attacks;
-                    if (pt == PAWN) {
-                        attacks = (c == WHITE) ? ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) << 8) : ((shiftLeft(minValue[from]) | shiftRight(minValue[from])) >> 8);
-                    } else {
-                        attacks = getMoves(from, attacker, occupied);
-                    }
-                    attacks &= occupied;
-
-                    while (attacks) {
-                        Square to = getLastSquare(&attacks);
-                        Piece attacked = pos->piece[to];
-                        uint32_t idx = make_threat_index(p, attacker, from, to, attacked, ksq);
-                        if (idx < THREAT_INPUT_DIMENSIONS) {
-                            for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] += big_ft_threat_weights[idx * L1_BIG + i];
-                            for (int i = 0; i < 8; i++) acc->big_threat_psqtAccumulation[p][i] += big_ft_threat_psqt_weights[idx * 8 + i];
-                        }
-                    }
-                }
-            }
-        }
+        computeThreatAccumulator(pos, acc, p);
     }
 }
 
@@ -369,14 +372,14 @@ bool kingStaysInSameBucket(Square from, Square to, Color color) {
         && OrientTBL[from] == OrientTBL[to];
 }
 
-void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq) {
+void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq, Position* pos) {
     for (int p = 0; p < 2; p++) {
         memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
         memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
-        memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
+        memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
         memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
         memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
-        memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+        memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
 
         for (int j = 0; j < removed_count; j++) {
             int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
@@ -394,6 +397,8 @@ void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_cou
             for (int i = 0; i < L1_BIG; i++) next->big_v[p][i] += big_ft_weights[idx * L1_BIG + i];
             for (int i = 0; i < 8; i++) next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
         }
+
+        computeThreatAccumulator(pos, next, p);
     }
 }
 

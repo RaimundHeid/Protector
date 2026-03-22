@@ -185,7 +185,7 @@ int makeBlackMove(Variation * variation, const Move move)
          added_sq[added_cnt] = to;
          added_pc[added_cnt++] = position->piece[to];
          updateAccumulator(&plyInfo->accumulator, &variation->plyInfo[variation->ply].accumulator,
-                           added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king);
+                           added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king, position);
       }
    }
 

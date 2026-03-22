@@ -25,13 +25,11 @@
 #include <time.h>
 #include <math.h>
 #include "search.h"
-#include "matesearch.h"
 #include "io.h"
 #include "movegeneration.h"
 #include "hash.h"
 #include "evaluation.h"
 #include "coordination.h"
-#include "uci.h"
 #include "tablebase.h"
 #include "nnue.h"
 
@@ -821,13 +819,9 @@ static int searchBest(Variation * variation, int alpha, int beta,
          }
       } else if (nullValue >= beta)
       {                         /* 70% */
-         if (numPieces >= 3) {
-            best = nullValue;
+         best = nullValue;
 
-            goto storeResult;
-         } else {
-            return nullValue;
-         }
+         goto storeResult;
       }
    }
 
@@ -1649,9 +1643,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
    Movelist movelist;
    long timeTarget;
    int stableIterationCount = 0;
-   int stableBestMoveCount = 0;
-   (void)stableBestMoveCount;
-   Move bestMove = NO_MOVE;
    UINT64 nodeCount = 0;
    int iv1 = 0, iv2 = 0, iv3 = 0;
 
@@ -1696,13 +1687,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
       calculationTime =
          (unsigned long) (getTimestamp() - variation->startTime);
 
-      if (movesAreEqual(variation->bestBaseMove, bestMove)) {
-         stableBestMoveCount++;
-      } else {
-         stableBestMoveCount = 0;
-      }
-
-      bestMove = variation->bestBaseMove;
       iv3 = iv2;
       iv2 = iv1;
       iv1 = iterationValue = getMoveValue(variation->bestBaseMove);
