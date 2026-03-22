@@ -37,12 +37,12 @@ static int simple_eval(const Position * pos) {
     Color c = pos->activeColor;
     Color opp = opponent(c);
     int material = 208 * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
-    
+
     material += 781 * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
     material += 825 * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
     material += 1276 * (getNumberOfSetSquares(pos->piecesOfType[ROOK | c]) - getNumberOfSetSquares(pos->piecesOfType[ROOK | opp]));
     material += 2538 * (getNumberOfSetSquares(pos->piecesOfType[QUEEN | c]) - getNumberOfSetSquares(pos->piecesOfType[QUEEN | opp]));
-    
+
     return material;
 }
 
@@ -50,8 +50,7 @@ static bool use_smallnet(const Position * pos) {
     return abs(simple_eval(pos)) > 962;
 }
 
-int getValue(const Position * position, Accumulator * acc, int optimism)
-{
+int getValue(const Position * position, Accumulator * acc, int optimism) {
     assert(acc != NULL);
 
     bool smallNet = use_smallnet(position);
@@ -66,8 +65,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
     int nnue = (125 * psqt + 131 * positional) / 128;
 
     // Re-evaluate the position when higher eval accuracy is worth the time spent
-    if (smallNet && (abs(nnue) < 277))
-    {
+    if (smallNet && (abs(nnue) < 277)) {
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
         nnue = (125 * psqt + 131 * positional) / 128;
         smallNet = FALSE;
@@ -79,7 +77,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
     nnue -= nnue * nnueComplexity / 18236;
 
     int pawn_count = getNumberOfSetSquares(position->piecesOfType[PAWN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[PAWN | BLACK]);
-    
+
     // Use Stockfish piece values for material calculation in the formula
     // This is the sum of both sides, identical to pos.non_pawn_material() in evaluate.cpp
     int non_pawn_material = 
@@ -89,7 +87,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
         2538 * (getNumberOfSetSquares(position->piecesOfType[QUEEN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[QUEEN | BLACK]));
 
     int material = 534 * pawn_count + non_pawn_material;
-    
+
     int v = (nnue * (77871 + material) + optimism * (7191 + material)) / 77871;
 
     // Final scaling to centipawns
@@ -112,15 +110,13 @@ int getValue(const Position * position, Accumulator * acc, int optimism)
 }
 
 bool pawnIsPassed(const Position * position, const Square pawnSquare,
-                  const Color pawnColor)
-{
+                  const Color pawnColor) {
    const Color defenderColor = opponent(pawnColor);
    const Bitboard corridor = passedPawnCorridor[pawnColor][pawnSquare];
    const Bitboard defenders = position->piecesOfType[PAWN | defenderColor] &
       (candidateDefenders[pawnColor][pawnSquare] | corridor);
 
-   if (defenders == EMPTY_BITBOARD)
-   {
+   if (defenders == EMPTY_BITBOARD) {
       const Bitboard blockers = position->piecesOfType[PAWN | pawnColor] &
          corridor;
 
@@ -130,19 +126,16 @@ bool pawnIsPassed(const Position * position, const Square pawnSquare,
    return FALSE;
 }
 
-bool hasBishopPair(const Position * position, const Color color)
-{
+bool hasBishopPair(const Position * position, const Color color) {
    const Bitboard bishops = position->piecesOfType[BISHOP | color];
 
    return (bool) ((bishops & lightSquares) != EMPTY_BITBOARD &&
                   (bishops & darkSquares) != EMPTY_BITBOARD);
 }
 
-bool hasWinningPotential(Position * position, Color color)
-{
+bool hasWinningPotential(Position * position, Color color) {
    if (position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD ||
-       position->piecesOfType[ROOK | color] != EMPTY_BITBOARD)
-   {
+       position->piecesOfType[ROOK | color] != EMPTY_BITBOARD) {
       return TRUE;
    }
 
@@ -151,65 +144,52 @@ bool hasWinningPotential(Position * position, Color color)
 
    if (numBishops >= 2 ||
        (numBishops > 0 &&
-        position->piecesOfType[KNIGHT | color] != EMPTY_BITBOARD))
-   {
+        position->piecesOfType[KNIGHT | color] != EMPTY_BITBOARD)) {
       return TRUE;
    }
 
    return FALSE;
 }
 
-int initializeModuleEvaluation(void)
-{
+int initializeModuleEvaluation(void) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       Color color;
 
-      for (color = WHITE; color <= BLACK; color++)
-      {
+      for (color = WHITE; color <= BLACK; color++) {
          passedPawnCorridor[color][square] =
             candidateDefenders[color][square] = EMPTY_BITBOARD;
       }
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       const File squarefile = file(square);
       const Rank squarerank = rank(square);
       Square kingsquare, catchersquare;
 
-      ITERATE(kingsquare)
-      {
+      ITERATE(kingsquare) {
          const File kingsquarefile = file(kingsquare);
          const Rank kingsquarerank = rank(kingsquare);
 
-         if (kingsquarefile == squarefile)
-         {
-            if (kingsquarerank > squarerank)
-            {
+         if (kingsquarefile == squarefile) {
+            if (kingsquarerank > squarerank) {
                setSquare(passedPawnCorridor[WHITE][square], kingsquare);
             }
 
-            if (kingsquarerank < squarerank)
-            {
+            if (kingsquarerank < squarerank) {
                setSquare(passedPawnCorridor[BLACK][square], kingsquare);
             }
          }
       }
 
-      ITERATE(catchersquare)
-      {
-         if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile) : (squarefile - file(catchersquare))) == 1)
-         {
-            if (rank(catchersquare) > squarerank)
-            {
+      ITERATE(catchersquare) {
+         if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile) : (squarefile - file(catchersquare))) == 1) {
+            if (rank(catchersquare) > squarerank) {
                setSquare(candidateDefenders[WHITE][square], catchersquare);
             }
 
-            if (rank(catchersquare) < squarerank)
-            {
+            if (rank(catchersquare) < squarerank) {
                setSquare(candidateDefenders[BLACK][square], catchersquare);
             }
          }
@@ -219,15 +199,14 @@ int initializeModuleEvaluation(void)
    return 0;
 }
 
-bool flipTest(Position * position)
-{
+bool flipTest(Position * position) {
    int v1, v2;
    Position flippedPosition;
    Accumulator acc1, acc2;
 
    refreshAccumulator(position, &acc1);
    v1 = getValue(position, &acc1, 0);
-   
+
    memcpy(&flippedPosition, position, sizeof(Position));
    flipPosition(&flippedPosition);
    refreshAccumulator(&flippedPosition, &acc2);
@@ -236,7 +215,6 @@ bool flipTest(Position * position)
    return (bool) (v1 == v2);
 }
 
-int testModuleEvaluation(void)
-{
+int testModuleEvaluation(void) {
    return 0;
 }

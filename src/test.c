@@ -11,21 +11,18 @@
 
 extern bool resetSharedHashtable;
 
-static void handleSearchEvent(int eventId, void *var)
-{
+static void handleSearchEvent(int eventId, void *var) {
    Variation *variation = (Variation *) var;
    long time;
    char *pvMoves;
 
-   switch (eventId)
-   {
+   switch (eventId) {
    case SEARCHEVENT_SEARCH_FINISHED:
       time = variation->finishTimeProcess - variation->startTimeProcess;
 
       logReport("%lld nodes in %ld msec\n", getNodeCount(), time);
 
-      if (time > 1000)
-      {
+      if (time > 1000) {
          logReport("%ld knps\n", getNodeCount() / max(1, time));
       }
 
@@ -46,24 +43,20 @@ static void handleSearchEvent(int eventId, void *var)
    }
 }
 
-static bool solveMateProblem(SearchTask * entry)
-{
+static bool solveMateProblem(SearchTask * entry) {
    bool result = TRUE;
    int i;
 
    completeTask(entry);
 
    if (entry->solutions.numberOfMoves !=
-       entry->calculatedSolutions.numberOfMoves)
-   {
+       entry->calculatedSolutions.numberOfMoves) {
       result = FALSE;
    }
 
-   for (i = 0; i < entry->solutions.numberOfMoves; i++)
-   {
+   for (i = 0; i < entry->solutions.numberOfMoves; i++) {
       if (listContainsMove
-          (&entry->calculatedSolutions, entry->solutions.moves[i]) == FALSE)
-      {
+          (&entry->calculatedSolutions, entry->solutions.moves[i]) == FALSE) {
          result = FALSE;
       }
    }
@@ -71,23 +64,20 @@ static bool solveMateProblem(SearchTask * entry)
    return result;
 }
 
-static bool solveBestMoveProblem(SearchTask * entry)
-{
+static bool solveBestMoveProblem(SearchTask * entry) {
    completeTask(entry);
 
    return listContainsMove(&entry->solutions, entry->bestMove);
 }
 
-static bool dumpEvaluation(SearchTask * entry)
-{
+static bool dumpEvaluation(SearchTask * entry) {
    prepareSearch(entry->variation);
    getValue(&entry->variation->startPosition, &entry->variation->plyInfo[0].accumulator, 0);
 
    return TRUE;
 }
 
-int processTestsuite(const char *filename)
-{
+int processTestsuite(const char *filename) {
    PGNFile pgnfile;
    PGNGame *game;
    SearchTask entry;
@@ -100,8 +90,7 @@ int processTestsuite(const char *filename)
    String notSolved = getEmptyString();
    Variation *variation = calloc(1, sizeof(Variation));
 
-   if (openPGNFile(&pgnfile, filename) != 0)
-   {
+   if (openPGNFile(&pgnfile, filename) != 0) {
       free(variation);
       return -1;
    }
@@ -115,12 +104,10 @@ int processTestsuite(const char *filename)
    variation->ponderMode = FALSE;
    entry.variation = variation;
 
-   for (i = 1; i <= pgnfile.numGames; i++)
-   {
+   for (i = 1; i <= pgnfile.numGames; i++) {
       game = getGame(&pgnfile, i);
 
-      if (game == 0)
-      {
+      if (game == 0) {
          continue;
       }
 
@@ -132,8 +119,7 @@ int processTestsuite(const char *filename)
       gamemove = game->firstMove;
 
       while (gamemove != 0 &&
-             entry.solutions.numberOfMoves < MAX_MOVES_PER_POSITION)
-      {
+             entry.solutions.numberOfMoves < MAX_MOVES_PER_POSITION) {
          entry.solutions.moves
             [entry.solutions.numberOfMoves++] =
             getPackedMove(gamemove->from, gamemove->to, gamemove->newPiece);
@@ -146,40 +132,28 @@ int processTestsuite(const char *filename)
       variation->handleSearchEvent = &handleSearchEvent;
 
       char *mateMarker = strstr(game->white, "[#");
-      if (mateMarker != NULL)
-      {
+      if (mateMarker != NULL) {
          entry.type = TASKTYPE_TEST_MATE_IN_N;
          entry.numberOfMoves = atoi(mateMarker + 2);
 
-         if (solveMateProblem(&entry) != FALSE)
-         {
+         if (solveMateProblem(&entry) != FALSE) {
             solved++;
-         }
-         else
-         {
+         } else {
             logReport("##### Mate problem %ld NOT solved! #####\n", i);
             appendToString(&notSolved, "%d ", i);
          }
 
          overallNodes += entry.nodes;
-      }
-      else
-      {
+      } else {
          entry.type = TASKTYPE_TEST_BEST_MOVE;
          entry.numberOfMoves = 0;
 
-         if (commandlineOptions.dumpEvaluation)
-         {
+         if (commandlineOptions.dumpEvaluation) {
             dumpEvaluation(&entry);
-         }
-         else
-         {
-            if (solveBestMoveProblem(&entry) != FALSE)
-            {
+         } else {
+            if (solveBestMoveProblem(&entry) != FALSE) {
                solved++;
-            }
-            else
-            {
+            } else {
                appendToString(&notSolved, "%d ", i);
             }
 
@@ -204,11 +178,9 @@ int processTestsuite(const char *filename)
  *
  * @return 0 if no errors occurred.
  */
-int initializeModuleTest(void)
-{
+int initializeModuleTest(void) {
    return 0;
 }
-
 
 #include "nnue.h"
 #include "fen.h"
@@ -2897,7 +2869,7 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char * moveType
 
         moveFunc(variation, cases[i].move);
         refreshAccumulator(&variation->singlePosition, refreshed);
-        
+
         if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, cases[i].desc) != 0) {
             logReport("Failure in %s for case: %s\n", moveTypeName, cases[i].desc);
             failures++;
@@ -2924,8 +2896,7 @@ static int testUpdateAccumulatorMakeMoveFast(void) {
     return testUpdateAccumulatorGeneric(makeMoveFast, "makeMoveFast");
 }
 
-int testModuleNnue(void)
-{
+int testModuleNnue(void) {
    int res = testRefreshAccumulator();
    if (res != 0) {
        return res;
@@ -2942,7 +2913,7 @@ int testModuleNnue(void)
 
    Variation *variation = calloc(1, sizeof(Variation));
    initializeVariation(variation, FEN_GAMESTART);
-   
+
    // Make some moves and check accumulator consistency
    Move moves[] = {
        getOrdinaryMove(E2, E4),
@@ -2953,10 +2924,10 @@ int testModuleNnue(void)
        getOrdinaryMove(A7, A6),
        getOrdinaryMove(B5, C6) // Capture
    };
-   
+
    for (int i = 0; i < 7; i++) {
        makeMove(variation, moves[i]);
-       
+
        Accumulator *refreshed = calloc(1, sizeof(Accumulator));
        refreshAccumulator(&variation->singlePosition, refreshed);
        int eval = evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
@@ -3001,7 +2972,7 @@ int testModuleNnue(void)
        }
        free(refreshed);
    }
-   
+
    // Unmake moves and check consistency
    while (variation->ply > 0) {
        unmakeLastMove(variation);
@@ -3121,14 +3092,11 @@ int testModuleNnue(void)
    return 0;
 }
 
-int testModuleTest(void)
-{
+int testModuleTest(void) {
    int result;
 
-   if ((result = processTestsuite("moduletest.pgn")) != 0)
-   {
-      if (commandlineOptions.engineDirectory[0] != '\0')
-      {
+   if ((result = processTestsuite("moduletest.pgn")) != 0) {
+      if (commandlineOptions.engineDirectory[0] != '\0') {
          char path[2048];
          snprintf(path, sizeof(path), "%s/%s", commandlineOptions.engineDirectory, "moduletest.pgn");
          result = processTestsuite(path);

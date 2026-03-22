@@ -203,7 +203,7 @@ void initializeThreatLuts(void) {
             bool enemy = (attackerColor != attackedColor);
             int m = tmap[attackerType - 1][attackedType - 1];
             bool semi_excluded = (attackerType == attackedType) && (enemy || attackerType != 1);
-            
+
             uint32_t feature = (uint32_t)helper_offsets[attacker].cumulativeOffset
                              + (attackedColor * (numValidTargets[attacker] / 2) + m)
                                * helper_offsets[attacker].cumulativePieceOffset;
@@ -301,7 +301,7 @@ static const int PieceSquareIndex[2][16] = {
 static int get_feature_index(Square s, Piece pc, Square ksq, Color perspective) {
     const int flip = 56 * perspective;
     int sf_pc = get_sf_piece(pc);
-    
+
     int orientation = OrientTBL[ksq] ^ flip;
     return (int)(s ^ orientation) + PieceSquareIndex[perspective][sf_pc] + KingBuckets[ksq ^ flip];
 }
@@ -314,7 +314,7 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
         memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
-        
+
         Square ksq = pos->king[p];
         for (Square s = A1; s <= H8; s++) {
             Piece pc = pos->piece[s];
@@ -450,7 +450,7 @@ int initializeModuleNnue(void) {
     read_data = small_nnue_model_data;
     read_data_end = small_nnue_model_end;
     read_pos = 0;
-    
+
     if (read_data[0] == 0 && (size_t)(read_data_end - read_data) <= 1) return -1;
 
     uint32_t version, hash, desc_size;
@@ -459,25 +459,25 @@ int initializeModuleNnue(void) {
     mem_read(&hash, 4);
     mem_read(&desc_size, 4);
     mem_skip(desc_size);
-    
+
     uint32_t ft_hash;
     mem_read(&ft_hash, 4);
     read_leb128_mem(small_ft_biases, L1_SMALL, 2);
     read_leb128_mem(small_ft_weights, L1_SMALL * FT_INPUT_DIMENSIONS, 2);
     read_leb128_mem(small_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
-    
+
     for (int s = 0; s < LAYER_STACKS; s++) {
         uint32_t arch_hash;
         mem_read(&arch_hash, 4);
-        
+
         // FC0
         mem_read(small_fc0_biases[s], 4 * (L2_SMALL + 1));
         mem_read(small_fc0_weights[s], (L2_SMALL + 1) * L1_SMALL);
-        
+
         // FC1
         mem_read(small_fc1_biases[s], 4 * L3_SMALL);
         mem_read(small_fc1_weights[s], L3_SMALL * 32);
-        
+
         // FC2
         mem_read(small_fc2_biases[s], 4 * 1);
         mem_read(small_fc2_weights[s], 1 * L3_SMALL);
@@ -487,7 +487,7 @@ int initializeModuleNnue(void) {
     read_data = big_nnue_model_data;
     read_data_end = big_nnue_model_end;
     read_pos = 0;
-    
+
     if (read_data[0] == 0 && (size_t)(read_data_end - read_data) <= 1) return -1;
 
     mem_read(&version, 4);
@@ -495,14 +495,14 @@ int initializeModuleNnue(void) {
     mem_read(&hash, 4);
     mem_read(&desc_size, 4);
     mem_skip(desc_size);
-    
+
     mem_read(&ft_hash, 4);
     read_leb128_mem(big_ft_biases, L1_BIG, 2);
-    
+
     // threatWeights are raw little-endian int8_t
     mem_read(big_ft_threat_weights, L1_BIG * THREAT_INPUT_DIMENSIONS);
     read_leb128_mem(big_ft_weights, L1_BIG * FT_INPUT_DIMENSIONS, 2);
-    
+
     // threatPsqtWeights and psqtWeights are combined in one LEB128 block
     static int32_t combined_psqt[THREAT_INPUT_DIMENSIONS * 8 + FT_INPUT_DIMENSIONS * 8];
     read_leb128_mem(combined_psqt, THREAT_INPUT_DIMENSIONS * 8 + FT_INPUT_DIMENSIONS * 8, 4);
@@ -512,20 +512,20 @@ int initializeModuleNnue(void) {
     for (int s = 0; s < LAYER_STACKS; s++) {
         uint32_t arch_hash;
         mem_read(&arch_hash, 4);
-        
+
         // FC0
         mem_read(big_fc0_biases[s], 4 * (L2_BIG + 1));
         mem_read(big_fc0_weights[s], (L2_BIG + 1) * L1_BIG);
-        
+
         // FC1
         mem_read(big_fc1_biases[s], 4 * L3_BIG);
         mem_read(big_fc1_weights[s], L3_BIG * 64);
-        
+
         // FC2
         mem_read(big_fc2_biases[s], 4 * 1);
         mem_read(big_fc2_weights[s], 1 * L3_BIG);
     }
-    
+
     nnue_loaded = 1;
     initializeThreatLuts();
     return 0;
@@ -574,7 +574,7 @@ void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * ps
     int bucket = min(7, (num_pieces - 1) / 4);
 
     Color side = pos->activeColor;
-    
+
     // PSQT part: (psqtAccumulation[side] - psqtAccumulation[!side]) / 2
     int32_t psqt = (acc->small_psqtAccumulation[side][bucket] - acc->small_psqtAccumulation[!side][bucket]) / 2;
 
@@ -651,7 +651,7 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
     int bucket = min(7, (num_pieces - 1) / 4);
 
     Color side = pos->activeColor;
-    
+
     // PSQT part
     int32_t psqt = (acc->big_psqtAccumulation[side][bucket] - acc->big_psqtAccumulation[!side][bucket]);
     psqt += (acc->big_threat_psqtAccumulation[side][bucket] - acc->big_threat_psqtAccumulation[!side][bucket]);

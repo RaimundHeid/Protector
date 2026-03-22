@@ -23,8 +23,6 @@
 
 #include <stddef.h>
 
-
-
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 #define avg(a,b) (((a)+(b))/2)
@@ -40,8 +38,7 @@ unsigned long getTimestamp(void);
  */
 long getProcessTimestamp(void);
 
-typedef struct
-{
+typedef struct {
    char *buffer;
    char *tail;
    unsigned int bufferSize;

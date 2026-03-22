@@ -24,9 +24,7 @@
 #include "protector.h"
 #include "position.h"
 
-
-typedef struct
-{
+typedef struct {
    int movesToGo;
    int incrementTime;           /* unit: milliseconds */
 
@@ -38,8 +36,7 @@ TimecontrolData;
 #define UCI_OPERATIONMODE_ANALYSIS 2
 #define UCI_OPERATIONMODE_USERGAME 4
 
-typedef struct
-{
+typedef struct {
    TimecontrolData timecontrolData[2];
    int operationMode;           /* see above */
    Color engineColor;
@@ -55,7 +52,6 @@ UciStatus;
  * Wait for the next UCI command and process it.
  */
 void acceptGuiCommands(void);
-
 
 /**
  * Initialize this module.

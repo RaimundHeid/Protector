@@ -44,21 +44,16 @@ int drawScore = 0;
 int numPvs = 1;
 const int DRAW_SCORE_MAX = 10000;
 
-
 const char *USN_NT = "Threads";
 const char *USN_DS = "Draw Score";
 const char *USN_PV = "MultiPV";
 
-
-
-static Move readUciMove(const char *buffer)
-{
+static Move readUciMove(const char *buffer) {
    const Square from = getSquare(buffer[0] - 'a', buffer[1] - '1');
    const Square to = getSquare(buffer[2] - 'a', buffer[3] - '1');
    Piece newPiece = NO_PIECE;
 
-   switch (buffer[4])
-   {
+   switch (buffer[4]) {
    case 'q':
    case 'Q':
       newPiece = (Piece) (QUEEN);
@@ -86,25 +81,21 @@ static Move readUciMove(const char *buffer)
    return getPackedMove(from, to, newPiece);
 }
 
-static const char *getUciToken(const char *uciString, const char *tokenName)
-{
+static const char *getUciToken(const char *uciString, const char *tokenName) {
    const size_t tokenNameLength = strlen(tokenName);
    const char *current = uciString;
 
-   while (current != NULL && *current != '\0')
-   {
+   while (current != NULL && *current != '\0') {
       const char *tokenHit = strstr(current, tokenName);
 
-      if (tokenHit == NULL)
-      {
+      if (tokenHit == NULL) {
          return NULL;
       }
 
       const char nextChar = *(tokenHit + tokenNameLength);
 
       if ((tokenHit == uciString || isspace((unsigned char)*(tokenHit - 1))) &&
-          (nextChar == '\0' || isspace((unsigned char)nextChar)))
-      {
+          (nextChar == '\0' || isspace((unsigned char)nextChar))) {
          return tokenHit;
       }
 
@@ -114,18 +105,15 @@ static const char *getUciToken(const char *uciString, const char *tokenName)
    return NULL;
 }
 
-static void getNextUciToken(const char *uciString, char *buffer, size_t bufferSize)
-{
+static void getNextUciToken(const char *uciString, char *buffer, size_t bufferSize) {
    const char *start = uciString, *end;
    unsigned int tokenLength;
 
-   while (*start != '\0' && isspace((unsigned char)*start))
-   {
+   while (*start != '\0' && isspace((unsigned char)*start)) {
       start++;
    }
 
-   if (*start == '\0')
-   {
+   if (*start == '\0') {
       strncpy(buffer, "", bufferSize);
       buffer[bufferSize - 1] = '\0';
 
@@ -136,8 +124,7 @@ static void getNextUciToken(const char *uciString, char *buffer, size_t bufferSi
 
    end = start + 1;
 
-   while (*end != '\0' && isspace((unsigned char)*end) == FALSE)
-   {
+   while (*end != '\0' && isspace((unsigned char)*end) == FALSE) {
       end++;
    }
 
@@ -151,18 +138,14 @@ static void getNextUciToken(const char *uciString, char *buffer, size_t bufferSi
 }
 
 static long getLongUciValue(const char *uciString, const char *name,
-                            int defaultValue)
-{
+                            int defaultValue) {
    long value;
    char valueBuffer[256];
    const char *nameStart = getUciToken(uciString, name);
 
-   if (nameStart == 0)
-   {
+   if (nameStart == 0) {
       value = defaultValue;
-   }
-   else
-   {
+   } else {
       getNextUciToken(nameStart + strlen(name), valueBuffer, sizeof(valueBuffer));
       value = atol(valueBuffer);
    }
@@ -171,31 +154,25 @@ static long getLongUciValue(const char *uciString, const char *name,
 }
 
 static void getStringUciValue(const char *uciString, const char *name,
-                              char *stringValue, size_t bufferSize)
-{
+                              char *stringValue, size_t bufferSize) {
    const char *nameStart = getUciToken(uciString, name);
 
-   if (nameStart == 0)
-   {
+   if (nameStart == 0) {
       stringValue[0] = 0;
-   }
-   else
-   {
+   } else {
       getNextUciToken(nameStart + strlen(name), stringValue, bufferSize);
    }
 
 }
 
-static void getUciNamedValue(const char *uciString, char *name, size_t nameSize, char *value, size_t valueSize)
-{
+static void getUciNamedValue(const char *uciString, char *name, size_t nameSize, char *value, size_t valueSize) {
    const char *nameTagStart = getUciToken(uciString, "name");
    const char *valueTagStart = getUciToken(uciString, "value");
 
    name[0] = value[0] = '\0';
 
    if (nameTagStart != 0 && valueTagStart != 0 &&
-       nameTagStart < valueTagStart)
-   {
+       nameTagStart < valueTagStart) {
       const int nameLength = (int) (valueTagStart - 1 - (nameTagStart + 5));
 
       unsigned int copyLength = (unsigned int) min(nameLength, (int)nameSize - 1);
@@ -214,19 +191,15 @@ static void getUciNamedValue(const char *uciString, char *name, size_t nameSize,
  * Get the specified move in uci format.
  *
  ******************************************************************************/
-static void getGuiMoveString(const Move move, char *buffer, size_t bufferSize)
-{
+static void getGuiMoveString(const Move move, char *buffer, size_t bufferSize) {
    char from[16], to[16];
 
    getSquareName(getFromSquare(move), from);
    getSquareName(getToSquare(move), to);
 
-   if (getNewPiece(move) == NO_PIECE)
-   {
+   if (getNewPiece(move) == NO_PIECE) {
       snprintf(buffer, bufferSize, "%s%s", from, to);
-   }
-   else
-   {
+   } else {
       const int pieceIndex = getLimitedValue(0, 15, getNewPiece(move));
 
       snprintf(buffer, bufferSize, "%s%s%c", from, to, pieceSymbol[pieceIndex]);
@@ -239,36 +212,28 @@ static void getGuiMoveString(const Move move, char *buffer, size_t bufferSize)
  *
  ******************************************************************************/
 static void getTokenByNumber(const char *command, int paramNumber,
-                             char *buffer)
-{
+                             char *buffer) {
    int paramCount = 0;
    char currentChar;
    bool escapeMode = FALSE;
    char *pbuffer = buffer;
 
-   while ((currentChar = *command++) != '\0' && paramCount <= paramNumber)
-   {
-      if (currentChar == '{')
-      {
+   while ((currentChar = *command++) != '\0' && paramCount <= paramNumber) {
+      if (currentChar == '{') {
          escapeMode = TRUE;
-      }
-      else if (currentChar == '}')
-      {
+      } else if (currentChar == '}') {
          escapeMode = FALSE;
       }
 
-      if (isspace((unsigned char)currentChar) && escapeMode == FALSE)
-      {
+      if (isspace((unsigned char)currentChar) && escapeMode == FALSE) {
          paramCount++;
 
-         while (isspace((unsigned char)*command))
-         {
+         while (isspace((unsigned char)*command)) {
             command++;
          }
       }
 
-      if (paramCount == paramNumber)
-      {
+      if (paramCount == paramNumber) {
          *pbuffer++ = currentChar;
       }
    }
@@ -277,14 +242,12 @@ static void getTokenByNumber(const char *command, int paramNumber,
    trim(buffer);
 }
 
-
 /******************************************************************************
  *
  * Send the specified command via stdout to uci.
  *
  ******************************************************************************/
-static void sendToUciNonDebug(const char *fmt, ...)
-{
+static void sendToUciNonDebug(const char *fmt, ...) {
    va_list args;
    char buffer[4096];
 
@@ -302,19 +265,14 @@ static void sendToUciNonDebug(const char *fmt, ...)
  * Determine the calculation time for the next task in milliseconds.
  *
  ******************************************************************************/
-static int getCalculationTime(TimecontrolData * data)
-{
-   if (data->restTime < 0)
-   {
+static int getCalculationTime(TimecontrolData * data) {
+   if (data->restTime < 0) {
       return 2 * data->incrementTime;
    }
 
-   if (data->movesToGo > 0)
-   {
+   if (data->movesToGo > 0) {
       return data->restTime / data->movesToGo + data->incrementTime;
-   }
-   else
-   {
+   } else {
       const int movesToGo = max(32, 58 - data->numberOfMovesPlayed);
 
       return (data->incrementTime > 0 ?
@@ -328,22 +286,17 @@ static int getCalculationTime(TimecontrolData * data)
  * Determine the calculation time for the next task in milliseconds.
  *
  ******************************************************************************/
-static int getMaximumCalculationTime(TimecontrolData * data)
-{
-   if (data->restTime < 0)
-   {
+static int getMaximumCalculationTime(TimecontrolData * data) {
+   if (data->restTime < 0) {
       return data->incrementTime;
    }
 
-   if (data->movesToGo > 0)
-   {
+   if (data->movesToGo > 0) {
       const int standardTime = data->restTime / data->movesToGo;
       const int maxTime = data->restTime / 2;
 
       return min(7 * standardTime, maxTime);
-   }
-   else
-   {
+   } else {
       const int maxTime1 = (100 * data->restTime) / 256;
       const int maxTime2 = 7 * getCalculationTime(data);
 
@@ -356,25 +309,18 @@ static int getMaximumCalculationTime(TimecontrolData * data)
  * Determine the calculation time for the next task in milliseconds.
  *
  ******************************************************************************/
-static int determineCalculationTime(bool targetTime)
-{
-   if (status.operationMode == UCI_OPERATIONMODE_ANALYSIS)
-   {
+static int determineCalculationTime(bool targetTime) {
+   if (status.operationMode == UCI_OPERATIONMODE_ANALYSIS) {
       return 0;
-   }
-   else
-   {
+   } else {
       TimecontrolData *tcd = &status.timecontrolData[status.engineColor];
 
       initializeVariationFromGame(variation_ptr, &game);
       tcd->numberOfMovesPlayed = variation_ptr->singlePosition.moveNumber - 1;
 
-      if (targetTime)
-      {
+      if (targetTime) {
          return max(1, 95 * getCalculationTime(tcd) / 100);
-      }
-      else
-      {
+      } else {
          return max(1, 95 * getMaximumCalculationTime(tcd) / 100);
       }
    }
@@ -385,8 +331,7 @@ static int determineCalculationTime(bool targetTime)
  * Start the calculation of the current position.
  *
  ******************************************************************************/
-static void startCalculation(void)
-{
+static void startCalculation(void) {
    variation_ptr->timeTarget = determineCalculationTime(TRUE);
    variation_ptr->timeLimit = determineCalculationTime(FALSE);
    setDrawScore(variation_ptr, drawScore, status.engineColor);
@@ -395,8 +340,7 @@ static void startCalculation(void)
    scheduleTask(&task);
 }
 
-static void startPostPonderCalculation(void)
-{
+static void startPostPonderCalculation(void) {
    const long elapsedTime = getElapsedTime();
    const long nominalRestTime = variation_ptr->timeLimit - elapsedTime;
    const long minimalRestTime = max(1, variation_ptr->timeLimit / 4);
@@ -412,8 +356,7 @@ static void startPostPonderCalculation(void)
  * Delete the current ponder result.
  *
  ******************************************************************************/
-static void deletePonderResult(void)
-{
+static void deletePonderResult(void) {
    status.ponderResultMove = NO_MOVE;
 }
 
@@ -422,30 +365,24 @@ static void deletePonderResult(void)
  * Get a UCI-compliant pv.
  *
  ******************************************************************************/
-static char *getUciPv(const PrincipalVariation * pv, char *buffer, size_t bufferSize)
-{
+static char *getUciPv(const PrincipalVariation * pv, char *buffer, size_t bufferSize) {
    int i;
 
    buffer[0] = '\0';
 
-   for (i = 0; i < min(32, pv->length); i++)
-   {
+   for (i = 0; i < min(32, pv->length); i++) {
       const Move move = (Move) pv->move[i];
 
-      if (move != NO_MOVE)
-      {
+      if (move != NO_MOVE) {
          char moveBuffer[16];
 
-         if (i > 0)
-         {
+         if (i > 0) {
             strncat(buffer, " ", bufferSize - strlen(buffer) - 1);
          }
 
          getGuiMoveString(move, moveBuffer, sizeof(moveBuffer));
          strncat(buffer, moveBuffer, bufferSize - strlen(buffer) - 1);
-      }
-      else
-      {
+      } else {
          break;
       }
    }
@@ -458,8 +395,7 @@ static char *getUciPv(const PrincipalVariation * pv, char *buffer, size_t buffer
  * Post a principal variation line.
  *
  ******************************************************************************/
-static void postPv(Variation * var, bool sendAnyway)
-{
+static void postPv(Variation * var, bool sendAnyway) {
    const char *format =
       "info depth %d seldepth %d time %.0f nodes %llu score %s %s tbhits %lu %s pv %s";
    double time = getTimestamp() - var->startTime;
@@ -469,25 +405,20 @@ static void postPv(Variation * var, bool sendAnyway)
    char scoreTypeBuffer[32] = "";
    char multiPvBuffer[32] = "";
 
-   if (time >= 250 || sendAnyway)
-   {
+   if (time >= 250 || sendAnyway) {
       const UINT64 nodeCount = getNodeCount();
       const PrincipalVariation *pv = &var->pv[var->pvId];
 
-      if (numPvs > 1)
-      {
+      if (numPvs > 1) {
          snprintf(multiPvBuffer, sizeof(multiPvBuffer), "multipv %d", var->pvId + 1);
       }
 
       getUciPv(pv, pvMovesBuffer, sizeof(pvMovesBuffer));
       formatUciValue(pv->score, scoreBuffer, sizeof(scoreBuffer));
 
-      if (pv->scoreType == HASHVALUE_LOWER_LIMIT)
-      {
+      if (pv->scoreType == HASHVALUE_LOWER_LIMIT) {
          snprintf(scoreTypeBuffer, sizeof(scoreTypeBuffer), "lowerbound");
-      }
-      else if (pv->scoreType == HASHVALUE_UPPER_LIMIT)
-      {
+      } else if (pv->scoreType == HASHVALUE_UPPER_LIMIT) {
          snprintf(scoreTypeBuffer, sizeof(scoreTypeBuffer), "upperbound");
       }
 
@@ -506,13 +437,11 @@ static void postPv(Variation * var, bool sendAnyway)
  * Post a statistics information about the current search.
  *
  ******************************************************************************/
-static void reportBaseMoveUpdate(const Variation * var)
-{
+static void reportBaseMoveUpdate(const Variation * var) {
    const double time = getTimestamp() - var->startTime;
    char movetext[16];
 
-   if (time >= 500)
-   {
+   if (time >= 500) {
       getGuiMoveString(var->currentBaseMove, movetext, sizeof(movetext));
 
       sendToUciNonDebug
@@ -528,8 +457,7 @@ static void reportBaseMoveUpdate(const Variation * var)
  *
  ******************************************************************************/
 
-static void reportStatisticsUpdate(Variation * var)
-{
+static void reportStatisticsUpdate(Variation * var) {
    UINT64 nodeCount = getNodeCount();
    const double time = getTimestamp() - var->startTime;
    const double nps = (nodeCount / max((double) 0.001, (time / 1000.0)));
@@ -542,8 +470,7 @@ static void reportStatisticsUpdate(Variation * var)
        time, nodeCount, nps, hashUsage, var->tbHits);
    reportBaseMoveUpdate(var);
 
-   if (var->numPvUpdates == 0)
-   {
+   if (var->numPvUpdates == 0) {
       postPv(var, FALSE);
    }
 }
@@ -553,14 +480,12 @@ static void reportStatisticsUpdate(Variation * var)
  * Send a bestmove info to the gui.
  *
  ******************************************************************************/
-static void sendBestmoveInfo(Variation * var)
-{
+static void sendBestmoveInfo(Variation * var) {
    char moveBuffer[8];
 
    postPv(var, TRUE);
 
-   if (moveIsLegal(&var->startPosition, var->bestBaseMove))
-   {
+   if (moveIsLegal(&var->startPosition, var->bestBaseMove)) {
       Variation tmp = *var;
 
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
@@ -569,24 +494,19 @@ static void sendBestmoveInfo(Variation * var)
       makeMove(&tmp, var->bestBaseMove);
 
       if (status.ponderingMove != NO_MOVE &&
-          moveIsLegal(&tmp.singlePosition, status.ponderingMove))
-      {
+          moveIsLegal(&tmp.singlePosition, status.ponderingMove)) {
          char ponderMoveBuffer[16];
 
          getGuiMoveString(status.ponderingMove, ponderMoveBuffer, sizeof(ponderMoveBuffer));
          sendToUciNonDebug("bestmove %s ponder %s", moveBuffer,
                               ponderMoveBuffer);
-      }
-      else
-      {
+      } else {
          status.ponderingMove = NO_MOVE;
          sendToUciNonDebug("bestmove %s", moveBuffer);
       }
 
       unmakeLastMove(&tmp);
-   }
-   else
-   {
+   } else {
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
 
       sendToUciNonDebug("bestmove 0000");
@@ -595,25 +515,19 @@ static void sendBestmoveInfo(Variation * var)
    status.bestMoveWasSent = TRUE;
 }
 
-
 /******************************************************************************
  *
  * Handle events generated by the search engine.
  *
  ******************************************************************************/
-static void handleSearchEvent(int eventId, void *var)
-{
+static void handleSearchEvent(int eventId, void *var) {
    Variation *variation = (Variation *) var;
 
-   switch (eventId)
-   {
+   switch (eventId) {
    case SEARCHEVENT_SEARCH_FINISHED:
-      if (status.engineIsPondering == FALSE)
-      {
+      if (status.engineIsPondering == FALSE) {
          sendBestmoveInfo(variation);
-      }
-      else
-      {
+      } else {
          postPv(variation, TRUE);
       }
 
@@ -644,29 +558,23 @@ static void handleSearchEvent(int eventId, void *var)
 }
 
 static int getIntValue(const char *value, int minValue, int defaultValue,
-                       int maxValue)
-{
+                       int maxValue) {
    int parsedValue = atoi(value);
 
-   if (parsedValue == 0 && parsedValue < minValue)
-   {
+   if (parsedValue == 0 && parsedValue < minValue) {
       return defaultValue;
-   }
-   else
-   {
+   } else {
       return min(max(parsedValue, minValue), maxValue);
    }
 }
 
 static void sendUciSpinOption(const char *name, const int defaultValue,
-                              int minValue, int maxValue)
-{
+                              int minValue, int maxValue) {
    sendToUciNonDebug("option name %s type spin default %d min %d max %d",
                         name, defaultValue, minValue, maxValue);
 }
 
-void addHashentry(Hashentry * entry)
-{
+void addHashentry(Hashentry * entry) {
    setHashentry(getSharedHashtable(), entry->key, getHashentryValue(entry),
                 getHashentryImportance(entry), getHashentryMove(entry),
                 getHashentryFlag(entry), getHashentryStaticValue(entry));
@@ -677,14 +585,12 @@ void addHashentry(Hashentry * entry)
  * Process the specified UCI command.
  *
  ******************************************************************************/
-static int processUciCommand(const char *command)
-{
+static int processUciCommand(const char *command) {
    char buffer[8192];
 
    getTokenByNumber(command, 0, buffer);
 
-   if (strcmp(buffer, "uci") == 0)
-   {
+   if (strcmp(buffer, "uci") == 0) {
       char nameString[256];
 
       getGuiSearchMutex();
@@ -706,8 +612,7 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "isready") == 0)
-   {
+   if (strcmp(buffer, "isready") == 0) {
       getGuiSearchMutex();
       sendToUciNonDebug("readyok");
       releaseGuiSearchMutex();
@@ -715,40 +620,34 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "ucinewgame") == 0)
-   {
+   if (strcmp(buffer, "ucinewgame") == 0) {
       resetSharedHashtable = TRUE;
 
       return TRUE;
    }
 
-   if (strcmp(buffer, "setoption") == 0)
-   {
+   if (strcmp(buffer, "setoption") == 0) {
       char name[256], value[256];
 
       getUciNamedValue(command, name, sizeof(name), value, sizeof(value));
 
-      if (strcmp(name, "SyzygyPath") == 0)
-      {
+      if (strcmp(name, "SyzygyPath") == 0) {
          initializeTablebase(value);
 
          return TRUE;
       }
 
-      if (strcmp(name, "Hash") == 0)
-      {
+      if (strcmp(name, "Hash") == 0) {
          const unsigned int hashsize = (unsigned int) max(8, atoi(value));
 
-         if (!setHashtableSizeInMb(hashsize))
-         {
+         if (!setHashtableSizeInMb(hashsize)) {
             sendToUciNonDebug("info string Failed to set hashtable size to %u MB", hashsize);
          }
 
          return TRUE;
       }
 
-      if (strcmp(name, USN_NT) == 0)
-      {
+      if (strcmp(name, USN_NT) == 0) {
          const unsigned int numThreads =
             (unsigned int) getIntValue(value, 1, 1, MAX_THREADS);
 
@@ -757,38 +656,30 @@ static int processUciCommand(const char *command)
          return TRUE;
       }
 
-
-      if (strcmp(name, USN_DS) == 0)
-      {
+      if (strcmp(name, USN_DS) == 0) {
          drawScore = getIntValue(value, -DRAW_SCORE_MAX, 0, DRAW_SCORE_MAX);
 
          return TRUE;
       }
 
-      if (strcmp(name, USN_PV) == 0)
-      {
+      if (strcmp(name, USN_PV) == 0) {
          numPvs = getIntValue(value, 1, 1, MAX_NUM_PV);
 
          return TRUE;
       }
    }
 
-   if (strcmp(buffer, "position") == 0)
-   {
+   if (strcmp(buffer, "position") == 0) {
       resetPGNGame(&game);
 
-      if (getUciToken(command, "fen") != 0)
-      {
+      if (getUciToken(command, "fen") != 0) {
          const char *fenStart = getUciToken(command, "fen") + 3;
          const char *fenEnd = getUciToken(command, "moves");
 
-         if (fenEnd == 0)
-         {
+         if (fenEnd == 0) {
             strncpy(game.fen, fenStart, sizeof(game.fen));
             game.fen[sizeof(game.fen) - 1] = '\0';
-         }
-         else
-         {
+         } else {
             const int length = (int) (fenEnd - fenStart - 1);
 
             unsigned int copyLength = (unsigned int) min(length, (int)sizeof(game.fen) - 1);
@@ -802,40 +693,31 @@ static int processUciCommand(const char *command)
 
       }
 
-      if (getUciToken(command, "moves") != 0)
-      {
+      if (getUciToken(command, "moves") != 0) {
          char moveBuffer[8];
          const char *currentMove = getUciToken(command, "moves") + 5;
          bool finished = FALSE;
          int moveCount = 0;
 
-         do
-         {
+         do {
             getNextUciToken(currentMove, moveBuffer, sizeof(moveBuffer));
 
-            if (strlen(moveBuffer) > 0)
-            {
+            if (strlen(moveBuffer) > 0) {
                Move move = readUciMove(moveBuffer);
 
-               if (appendMove(&game, move) == 0)
-               {
+               if (appendMove(&game, move) == 0) {
                   currentMove += strlen(moveBuffer) + 1;
                   moveCount++;
-               }
-               else
-               {
+               } else {
                   finished = TRUE;
                }
-            }
-            else
-            {
+            } else {
                finished = TRUE;
             }
          }
          while (finished == FALSE);
 
-         if (moveCount < numUciMoves - 1)
-         {
+         if (moveCount < numUciMoves - 1) {
             resetSharedHashtable = TRUE;
          }
 
@@ -845,31 +727,25 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "stop") == 0)
-   {
+   if (strcmp(buffer, "stop") == 0) {
       getGuiSearchMutex();
 
       status.engineIsPondering = FALSE;
 
-      if (status.engineIsActive)
-      {
+      if (status.engineIsActive) {
          prepareSearchAbort();
          releaseGuiSearchMutex();
          waitForSearchTermination();
 
-         if (status.bestMoveWasSent == FALSE)
-         {
+         if (status.bestMoveWasSent == FALSE) {
             logDebug("### best move was not sent on stop ...\n");
             reportVariation(getCurrentVariation());
             sendBestmoveInfo(getCurrentVariation());
          }
 
          return TRUE;
-      }
-      else
-      {
-         if (status.bestMoveWasSent == FALSE)
-         {
+      } else {
+         if (status.bestMoveWasSent == FALSE) {
             sendBestmoveInfo(getCurrentVariation());
          }
       }
@@ -879,27 +755,20 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "ponderhit") == 0)
-   {
+   if (strcmp(buffer, "ponderhit") == 0) {
       getGuiSearchMutex();
 
       status.engineIsPondering = FALSE;
 
-      if (status.engineIsActive)
-      {
+      if (status.engineIsActive) {
          if (getCurrentVariation()->terminateSearchOnPonderhit &&
-             getCurrentVariation()->failingLow == FALSE)
-         {
+             getCurrentVariation()->failingLow == FALSE) {
             prepareSearchAbort();
-         }
-         else
-         {
+         } else {
             unsetPonderMode();
             startPostPonderCalculation();
          }
-      }
-      else
-      {
+      } else {
          sendBestmoveInfo(getCurrentVariation());
       }
 
@@ -908,8 +777,7 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "go") == 0)
-   {
+   if (strcmp(buffer, "go") == 0) {
       getGuiSearchMutex();
       status.engineIsActive = TRUE;
       task.type = TASKTYPE_BEST_MOVE;
@@ -917,23 +785,16 @@ static int processUciCommand(const char *command)
       initializeVariationFromGame(variation_ptr, &game);
       status.engineColor = variation_ptr->singlePosition.activeColor;
 
-      if (getUciToken(command, "depth") != 0)
-      {
+      if (getUciToken(command, "depth") != 0) {
          status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
-      }
-      else if (getUciToken(command, "nodes") != 0)
-      {
+      } else if (getUciToken(command, "nodes") != 0) {
          status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
-      }
-      else if (getUciToken(command, "mate") != 0)
-      {
+      } else if (getUciToken(command, "mate") != 0) {
          task.type = TASKTYPE_MATE_IN_N;
          task.numberOfMoves = getLongUciValue(command, "mate", 1);
          status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
 
-      }
-      else if (getUciToken(command, "movetime") != 0)
-      {
+      } else if (getUciToken(command, "movetime") != 0) {
          status.operationMode = UCI_OPERATIONMODE_USERGAME;
 
          status.timecontrolData[WHITE].restTime =
@@ -941,13 +802,9 @@ static int processUciCommand(const char *command)
          status.timecontrolData[WHITE].incrementTime =
             status.timecontrolData[BLACK].incrementTime =
             getLongUciValue(command, "movetime", 5000);
-      }
-      else if (getUciToken(command, "infinite") != 0)
-      {
+      } else if (getUciToken(command, "infinite") != 0) {
          status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
-      }
-      else
-      {
+      } else {
          const int numMovesPlayed = variation_ptr->singlePosition.moveNumber - 1;
          const int movesToGo = (int) getLongUciValue(command, "movestogo", 0);
 
@@ -965,24 +822,18 @@ static int processUciCommand(const char *command)
             status.timecontrolData[BLACK].numberOfMovesPlayed =
             numMovesPlayed;
 
-         if (movesToGo > 0)
-         {
+         if (movesToGo > 0) {
             status.timecontrolData[WHITE].movesToGo =
                status.timecontrolData[BLACK].movesToGo = movesToGo;
-         }
-         else
-         {
+         } else {
             status.timecontrolData[WHITE].movesToGo =
                status.timecontrolData[BLACK].movesToGo = 0;
          }
       }
 
-      if (getUciToken(command, "ponder") == 0)
-      {
+      if (getUciToken(command, "ponder") == 0) {
          status.engineIsPondering = variation_ptr->ponderMode = FALSE;
-      }
-      else
-      {
+      } else {
          status.engineIsPondering = variation_ptr->ponderMode = TRUE;
          variation_ptr->terminateSearchOnPonderhit = FALSE;  /* avoid premature search aborts */
       }
@@ -993,42 +844,33 @@ static int processUciCommand(const char *command)
       return TRUE;
    }
 
-   if (strcmp(buffer, "settransentry") == 0)
-   {
+   if (strcmp(buffer, "settransentry") == 0) {
       char value[256];
       Hashentry entry;
       bool entryIsValid = TRUE;
 
       getStringUciValue(command, "key", value, sizeof(value));
 
-      if (strlen(value) > 0)
-      {
+      if (strlen(value) > 0) {
          entry.key = getUnsignedLongLongFromHexString(value);
-      }
-      else
-      {
+      } else {
          entryIsValid = FALSE;
       }
 
       getStringUciValue(command, "data", value, sizeof(value));
 
-      if (strlen(value) > 0)
-      {
+      if (strlen(value) > 0) {
          entry.data = getUnsignedLongLongFromHexString(value);
-      }
-      else
-      {
+      } else {
          entryIsValid = FALSE;
       }
 
-      if (entryIsValid)
-      {
+      if (entryIsValid) {
          addHashentry(&entry);
       }
    }
 
-   if (strcmp(buffer, "quit") == 0)
-   {
+   if (strcmp(buffer, "quit") == 0) {
       status.engineIsPondering = FALSE;
       prepareSearchAbort();
 
@@ -1043,19 +885,14 @@ static int processUciCommand(const char *command)
  * Read uci's commands from stdin and handle them.
  *
  ******************************************************************************/
-void acceptGuiCommands(void)
-{
+void acceptGuiCommands(void) {
    bool finished = FALSE;
    char command[8192];
 
-   while (finished == FALSE)
-   {
-      if (fgets(command, sizeof(command), stdin) == NULL)
-      {
+   while (finished == FALSE) {
+      if (fgets(command, sizeof(command), stdin) == NULL) {
          finished = TRUE;
-      }
-      else
-      {
+      } else {
          trim(command);
 
          finished = (bool) (processUciCommand(command) == FALSE);
@@ -1068,8 +905,7 @@ void acceptGuiCommands(void)
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int initializeModuleUci(void)
-{
+int initializeModuleUci(void) {
    status.operationMode = UCI_OPERATIONMODE_USERGAME;
    status.engineColor = WHITE;
    status.pondering = TRUE;
@@ -1091,7 +927,7 @@ int initializeModuleUci(void)
    deletePonderResult();
 
    initializePGNGame(&game);
-   
+
    if (variation_ptr == NULL) {
        variation_ptr = malloc(sizeof(Variation));
    }
@@ -1111,8 +947,7 @@ int initializeModuleUci(void)
  * Test parameter parsing.
  *
  ******************************************************************************/
-static int testParameterParsing(void)
-{
+static int testParameterParsing(void) {
    char buffer[1024];
 
    getTokenByNumber("protover 2", 1, buffer);
@@ -1129,8 +964,7 @@ static int testParameterParsing(void)
  * Test time calculation.
  *
  ******************************************************************************/
-static int testTimeCalculation(void)
-{
+static int testTimeCalculation(void) {
    return 0;
 }
 
@@ -1139,8 +973,7 @@ static int testTimeCalculation(void)
  * Test the uci tokenizer.
  *
  ******************************************************************************/
-static int testUciTokenizer(void)
-{
+static int testUciTokenizer(void) {
    char buffer[64], name[64], value[64];
    const char *uciString =
       "setoption name\tSyzygyPath    value  \t  C:\\chess\\tablebases   time  641273423";
@@ -1177,8 +1010,7 @@ static int testUciTokenizer(void)
    return 0;
 }
 
-static int testHashUpdate(void)
-{
+static int testHashUpdate(void) {
    Hashtable *hashtable = getSharedHashtable();
    Hashentry *tableHit;
 #if defined(_WIN32) || defined(_WIN64)
@@ -1220,28 +1052,23 @@ static int testHashUpdate(void)
  * (See the header file comment for this function.)
  *
  ******************************************************************************/
-int testModuleUci(void)
-{
+int testModuleUci(void) {
 #ifndef NDEBUG
    int result;
 
-   if ((result = testParameterParsing()) != 0)
-   {
+   if ((result = testParameterParsing()) != 0) {
       return result;
    }
 
-   if ((result = testTimeCalculation()) != 0)
-   {
+   if ((result = testTimeCalculation()) != 0) {
       return result;
    }
 
-   if ((result = testUciTokenizer()) != 0)
-   {
+   if ((result = testUciTokenizer()) != 0) {
       return result;
    }
 
-   if ((result = testHashUpdate()) != 0)
-   {
+   if ((result = testHashUpdate()) != 0) {
       return result;
    }
 #endif

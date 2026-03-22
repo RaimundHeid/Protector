@@ -35,7 +35,6 @@
 #include "tablebase.h"
 #include "nnue.h"
 
-
 extern bool resetSharedHashtable;
 const int HASH_DEPTH_OFFSET = 3;
 const UINT64 GUI_NODE_COUNT_MIN = 250000;
@@ -55,94 +54,74 @@ static int searchBest(Variation * variation, int alpha, int beta,
                       const bool cutNode, Move * bestMove, Move excludeMove,
                       bool tryEarlyPrunings);
 
-static bool moveIsQuiet(const Move move, const Position * position)
-{
+static bool moveIsQuiet(const Move move, const Position * position) {
    return (bool) (position->piece[getToSquare(move)] == NO_PIECE &&
                   getNewPiece(move) == NO_PIECE &&
                   (getToSquare(move) != position->enPassantSquare ||
                    pieceType(position->piece[getFromSquare(move)]) != PAWN));
 }
 
-static void checkTerminationConditions(Variation * variation)
-{
-   if (variation->searchStatus == SEARCH_STATUS_RUNNING)
-   {
+static void checkTerminationConditions(Variation * variation) {
+   if (variation->searchStatus == SEARCH_STATUS_RUNNING) {
       if (variation->terminate != FALSE &&
-          (variation->iteration > 1 || variation->threadNumber > 0))
-      {
+          (variation->iteration > 1 || variation->threadNumber > 0)) {
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
    }
 }
 
-bool checkNodeExclusion(int restDepth)
-{
+bool checkNodeExclusion(int restDepth) {
    return restDepth >= 6 * DEPTH_RESOLUTION && getNumberOfThreads() > 1;
 }
 
-static bool hasDangerousPawns(const Position * position, const Color color)
-{
-   if (color == WHITE)
-   {
+static bool hasDangerousPawns(const Position * position, const Color color) {
+   if (color == WHITE) {
       return (bool)
          ((position->piecesOfType[WHITE_PAWN] & squaresOfRank[RANK_7]) !=
           EMPTY_BITBOARD);
-   }
-   else
-   {
+   } else {
       return (bool)
          ((position->piecesOfType[BLACK_PAWN] & squaresOfRank[RANK_2]) !=
           EMPTY_BITBOARD);
    }
 }
 
-int getEvalValue(Variation * variation)
-{
+int getEvalValue(Variation * variation) {
    return
       getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, 0);
 }
 
-static int getStaticValue(Variation * variation, const int ply)
-{
+static int getStaticValue(Variation * variation, const int ply) {
    PlyInfo *pi = &variation->plyInfo[ply];
 
-   if (pi->staticValueAvailable == FALSE)
-   {
+   if (pi->staticValueAvailable == FALSE) {
       pi->staticValue = pi->refinedStaticValue =
          getValue(&variation->singlePosition, &pi->accumulator, 0);
       pi->staticValueAvailable = TRUE;
-   }
-   else
-   {
+   } else {
       assert(pi->staticValue == getEvalValue(variation));
    }
 
    return pi->staticValue;
 }
 
-static int getRefinedStaticValue(Variation * variation, const int ply)
-{
+static int getRefinedStaticValue(Variation * variation, const int ply) {
    PlyInfo *pi = &variation->plyInfo[ply];
 
-   if (pi->staticValueAvailable == FALSE)
-   {
+   if (pi->staticValueAvailable == FALSE) {
       pi->staticValue = pi->refinedStaticValue =
          getValue(&variation->singlePosition, &pi->accumulator, 0);
       pi->staticValueAvailable = TRUE;
-   }
-   else
-   {
+   } else {
       assert(pi->staticValue == getEvalValue(variation));
    }
 
    return pi->refinedStaticValue;
 }
 
-static void updateGains(Variation * variation, const int ply)
-{
+static void updateGains(Variation * variation, const int ply) {
    if (variation->plyInfo[ply].gainsUpdated == FALSE &&
-       variation->plyInfo[ply - 1].quietMove != FALSE)
-   {
+       variation->plyInfo[ply - 1].quietMove != FALSE) {
       const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
       INT16 *storedGain = &variation->positionalGain[moveIndex];
       const INT16 currentDiff = (INT16)
@@ -157,14 +136,11 @@ static void updateGains(Variation * variation, const int ply)
 }
 
 static void updateCounterMoves(Variation * variation, const int ply,
-                               Move counterMove)
-{
-   if (variation->plyInfo[ply - 1].currentMove != NULLMOVE)
-   {
+                               Move counterMove) {
+   if (variation->plyInfo[ply - 1].currentMove != NULLMOVE) {
       const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
 
-      if (counterMove != variation->counterMove1[moveIndex])
-      {
+      if (counterMove != variation->counterMove1[moveIndex]) {
          variation->counterMove2[moveIndex] =
             variation->counterMove1[moveIndex];
          variation->counterMove1[moveIndex] = counterMove;
@@ -173,14 +149,11 @@ static void updateCounterMoves(Variation * variation, const int ply,
 }
 
 static void updateFollowupMoves(Variation * variation, const int ply,
-                                Move followupMove)
-{
-   if (variation->plyInfo[ply - 2].currentMove != NULLMOVE)
-   {
+                                Move followupMove) {
+   if (variation->plyInfo[ply - 2].currentMove != NULLMOVE) {
       const int moveIndex = variation->plyInfo[ply - 2].indexCurrentMove;
 
-      if (followupMove != variation->followupMove1[moveIndex])
-      {
+      if (followupMove != variation->followupMove1[moveIndex]) {
          variation->followupMove2[moveIndex] =
             variation->followupMove1[moveIndex];
          variation->followupMove1[moveIndex] = followupMove;
@@ -197,8 +170,7 @@ static bool positionIsWellKnown(Variation * variation,
                                 const bool pvNode,
                                 const bool updateGainValues,
                                 Move * hashmove,
-                                const Move excludeMove, int *value)
-{
+                                const Move excludeMove, int *value) {
    Hashentry *tableHit = getHashentry(getSharedHashtable(),
                                       hashKey);
 
@@ -214,8 +186,7 @@ static bool positionIsWellKnown(Variation * variation,
       *value = hashEntryValue;
 
       /*
-         if (getHashentryStaticValue(tableHit) != getStaticValue(variation, ply))
-         {
+         if (getHashentryStaticValue(tableHit) != getStaticValue(variation, ply)) {
          logDebug("hv=%d sv=%d ev=%d\n", getHashentryStaticValue(tableHit),
          getStaticValue(variation, ply), getEvalValue(variation));
          dumpVariation(variation);
@@ -225,14 +196,12 @@ static bool positionIsWellKnown(Variation * variation,
       assert(getHashentryStaticValue(tableHit) ==
              getStaticValue(variation, ply));
 
-      if (pi->staticValueAvailable == FALSE && pvNode == FALSE)
-      {
+      if (pi->staticValueAvailable == FALSE && pvNode == FALSE) {
          pi->staticValue = pi->refinedStaticValue =
             getHashentryStaticValue(tableHit);
          pi->staticValueAvailable = TRUE;
 
-         if (updateGainValues)
-         {
+         if (updateGainValues) {
             updateGains(variation, ply);
          }
       }
@@ -245,11 +214,9 @@ static bool positionIsWellKnown(Variation * variation,
          assert(hashEntryValue >= VALUE_MATED &&
                 hashEntryValue < -VALUE_MATED);
 
-         switch (flag)
-         {
+         switch (flag) {
          case HASHVALUE_UPPER_LIMIT:
-            if (hashEntryValue <= alpha)
-            {
+            if (hashEntryValue <= alpha) {
                *value = (hashEntryValue <= VALUE_MATED ?
                          alpha : hashEntryValue);
 
@@ -257,8 +224,7 @@ static bool positionIsWellKnown(Variation * variation,
             }
 
             if (restDepth >= HASH_DEPTH_OFFSET &&
-                hashEntryValue < getStaticValue(variation, ply))
-            {
+                hashEntryValue < getStaticValue(variation, ply)) {
                variation->plyInfo[ply].refinedStaticValue = hashEntryValue;
             }
             break;
@@ -269,8 +235,7 @@ static bool positionIsWellKnown(Variation * variation,
             return TRUE;
 
          case HASHVALUE_LOWER_LIMIT:
-            if (hashEntryValue >= beta)
-            {
+            if (hashEntryValue >= beta) {
                *value = (hashEntryValue >= -VALUE_MATED ?
                          beta : hashEntryValue);
 
@@ -278,8 +243,7 @@ static bool positionIsWellKnown(Variation * variation,
             }
 
             if (restDepth >= HASH_DEPTH_OFFSET &&
-                hashEntryValue > getStaticValue(variation, ply))
-            {
+                hashEntryValue > getStaticValue(variation, ply)) {
                variation->plyInfo[ply].refinedStaticValue = hashEntryValue;
             }
             break;
@@ -289,20 +253,16 @@ static bool positionIsWellKnown(Variation * variation,
       }
    }
 
-   if (*bestTableHit != 0)
-   {
+   if (*bestTableHit != 0) {
       *hashmove = (Move) getHashentryMove(*bestTableHit);
 
       if (*hashmove != NO_MOVE)
       {                         /* 81% */
          assert(moveIsPseudoLegal(position, *hashmove));
 
-         if (moveIsPseudoLegal(position, *hashmove))
-         {
+         if (moveIsPseudoLegal(position, *hashmove)) {
             assert(moveIsLegal(position, *hashmove));
-         }
-         else
-         {
+         } else {
             *hashmove = NO_MOVE;
          }
       }
@@ -313,8 +273,7 @@ static bool positionIsWellKnown(Variation * variation,
 
 static int searchBestQuiescence(Variation * variation, int alpha, int beta,
                                 const int ply, const int restDepth,
-                                Move * bestMove, const bool pvNode)
-{
+                                Move * bestMove, const bool pvNode) {
    const int oldAlpha = alpha;
    UINT8 hashentryFlag;
    UINT8 hashDepth = (restDepth >= 0 ? 2 : 1);
@@ -346,15 +305,13 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    checkTerminationConditions(variation);
 
    if (variation->searchStatus != SEARCH_STATUS_RUNNING &&
-       variation->iteration > 1)
-   {
+       variation->iteration > 1) {
       return 0;
    }
 
    /* Check for a draw according to the 50-move-rule */
    /* ---------------------------------------------- */
-   if (position->halfMoveClock > 100)
-   {
+   if (position->halfMoveClock > 100) {
       return variation->drawScore[position->activeColor];
    }
 
@@ -366,10 +323,8 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    assert(historyLimit >= 0);
 
    for (i = POSITION_HISTORY_OFFSET + variation->ply - 4;
-        i >= historyLimit; i -= 2)
-   {
-      if (position->hashKey == variation->positionHistory[i])
-      {
+        i >= historyLimit; i -= 2) {
+      if (position->hashKey == variation->positionHistory[i]) {
          return variation->drawScore[position->activeColor];
       }
    }
@@ -380,60 +335,49 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    if (positionIsWellKnown(variation, position, position->hashKey,
                            &bestTableHit, ply, alpha, beta,
                            hashDepth, pvNode, FALSE,
-                           &hashmove, NO_MOVE, &hashValue))
-   {
+                           &hashmove, NO_MOVE, &hashValue)) {
       *bestMove = hashmove;
 
       return hashValue;
    }
 
    if (hashmove != NO_MOVE && inCheck == FALSE &&
-       moveIsQuiet(hashmove, position))
-   {
+       moveIsQuiet(hashmove, position)) {
       hashmove = NO_MOVE;
    }
 
-   if (inCheck == FALSE)
-   {
+   if (inCheck == FALSE) {
       const bool staticValueAvailable =
          variation->plyInfo[ply].staticValueAvailable;
 
       assert(flipTest(position) != FALSE);
 
-      if (staticValueAvailable == FALSE)
-      {
+      if (staticValueAvailable == FALSE) {
          best = getValue(position,
                          &variation->plyInfo[ply].accumulator, 0);
          variation->plyInfo[ply].staticValue =
             variation->plyInfo[ply].refinedStaticValue = best;
          variation->plyInfo[ply].staticValueAvailable = TRUE;
-      }
-      else
-      {
+      } else {
          best = variation->plyInfo[ply].staticValue;
       }
 
-      if (bestTableHit != 0)
-      {
+      if (bestTableHit != 0) {
          const int flag = getHashentryFlag(bestTableHit);
          const int requiredFlag = (hashValue > best ?
                                    HASHVALUE_LOWER_LIMIT :
                                    HASHVALUE_UPPER_LIMIT);
 
-         if (flag == requiredFlag)
-         {
+         if (flag == requiredFlag) {
             best = hashValue;
          }
       }
 
-      if (best > alpha)
-      {
+      if (best > alpha) {
          alpha = best;
 
-         if (best >= beta)
-         {
-            if (staticValueAvailable == FALSE)
-            {
+         if (best >= beta) {
+            if (staticValueAvailable == FALSE) {
                UINT8 hashentryFlag = HASHVALUE_EVAL;
 
                setHashentry(getSharedHashtable(), position->hashKey,
@@ -449,29 +393,24 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       currentValue = best;
    }
 
-   if (ply >= MAX_DEPTH)
-   {
+   if (ply >= MAX_DEPTH) {
       assert(flipTest(position) != FALSE);
 
       return getStaticValue(variation, ply);
    }
 
-   if (alpha < VALUE_MATED_HERE && inCheck == FALSE)
-   {
+   if (alpha < VALUE_MATED_HERE && inCheck == FALSE) {
       alpha = VALUE_MATED_HERE;
 
-      if (alpha >= beta)
-      {
+      if (alpha >= beta) {
          return VALUE_MATED_HERE;
       }
    }
 
-   if (beta > VALUE_MATE_HERE)
-   {
+   if (beta > VALUE_MATE_HERE) {
       beta = VALUE_MATE_HERE;
 
-      if (beta <= alpha)
-      {
+      if (beta <= alpha) {
          return VALUE_MATE_HERE;
       }
    }
@@ -482,8 +421,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
                           hashmove, restDepth, inCheck);
    initializePlyInfo(variation);
 
-   while ((currentMove = getNextMove(&movelist)) != NO_MOVE)
-   {
+   while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
       int value, newDepth =
          (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
       int optValue = currentValue + 199 +
@@ -496,25 +434,21 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
           getNewPiece(currentMove) != (Piece) QUEEN &&
           numberOfNonPawnPieces(position, position->activeColor) > 1 &&
           (pieceType(position->piece[getFromSquare(currentMove)]) != PAWN ||
-           colorRank(position->activeColor, toSquare) != RANK_7))
-      {
+           colorRank(position->activeColor, toSquare) != RANK_7)) {
          const bool enPassant = (bool)
             (toSquare == position->enPassantSquare &&
              pieceType(position->piece[getFromSquare(currentMove)]) == PAWN);
 
-         if (getNewPiece(currentMove) != NO_PIECE)
-         {
+         if (getNewPiece(currentMove) != NO_PIECE) {
             optValue +=
                basicValue[getNewPiece(currentMove)] - basicValue[PAWN];
          }
 
-         if (enPassant)
-         {
+         if (enPassant) {
             optValue += basicValue[PAWN];
          }
 
-         if (optValue < alpha && moveIsCheck(currentMove, position) == FALSE)
-         {
+         if (optValue < alpha && moveIsCheck(currentMove, position) == FALSE) {
             best = max(best, optValue);
 
             continue;
@@ -524,8 +458,7 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       assert(moveIsPseudoLegal(position, currentMove));
 
       if (makeMoveFast(variation, currentMove) != 0 ||
-          passiveKingIsSafe(&variation->singlePosition) == FALSE)
-      {
+          passiveKingIsSafe(&variation->singlePosition) == FALSE) {
          unmakeLastMove(variation);
 
          continue;
@@ -552,36 +485,30 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
       unmakeLastMove(variation);
 
       if (variation->searchStatus != SEARCH_STATUS_RUNNING &&
-          variation->iteration > 1)
-      {
+          variation->iteration > 1) {
          return 0;
       }
 
-      if (value > best)
-      {
+      if (value > best) {
          best = value;
 
-         if (best > alpha)
-         {
+         if (best > alpha) {
             alpha = best;
             *bestMove = currentMove;
 
-            if (pvNode)
-            {
+            if (pvNode) {
                appendMoveToPv(&(variation->plyInfo[ply].pv),
                               &(variation->plyInfo[ply - 1].pv), currentMove);
             }
 
-            if (best >= beta)
-            {
+            if (best >= beta) {
                break;
             }
          }
       }
    }
 
-   if (best == VALUE_MATED)
-   {
+   if (best == VALUE_MATED) {
       /* mate */
 
       assert(inCheck != FALSE);
@@ -591,12 +518,9 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
 
    /* Store the value in the transposition table. */
    /* ------------------------------------------- */
-   if (best >= beta)
-   {
+   if (best >= beta) {
       hashentryFlag = HASHVALUE_LOWER_LIMIT;
-   }
-   else
-   {
+   } else {
       hashentryFlag = (best > oldAlpha && pvNode ?
                        HASHVALUE_EXACT : HASHVALUE_UPPER_LIMIT);
    }
@@ -609,38 +533,31 @@ static int searchBestQuiescence(Variation * variation, int alpha, int beta,
    return best;
 }
 
-static bool moveIsCastling(const Move move, const Position * position)
-{
+static bool moveIsCastling(const Move move, const Position * position) {
    return (bool) (pieceType(position->piece[getFromSquare(move)]) == KING &&
                   distance(getFromSquare(move), getToSquare(move)) == 2);
 }
 
 static bool isPassedPawnMove(const Square pawnSquare,
                              const Square targetSquare,
-                             const Position * position)
-{
+                             const Position * position) {
    const Piece piece = position->piece[pawnSquare];
 
-   if (pieceType(piece) == PAWN)
-   {
+   if (pieceType(piece) == PAWN) {
       return pawnIsPassed(position, targetSquare, pieceColor(piece));
-   }
-   else
-   {
+   } else {
       return FALSE;
    }
 }
 
-static int getSingleMoveExtensionDepth(const bool pvNode)
-{
+static int getSingleMoveExtensionDepth(const bool pvNode) {
    return (pvNode ? 6 : 8) * DEPTH_RESOLUTION;
 }
 
 static int searchBest(Variation * variation, int alpha, int beta,
                       const int ply, const int restDepth, const bool pvNode,
                       const bool cutNode, Move * bestMove, Move excludeMove,
-                      const bool tryEarlyPrunings)
-{
+                      const bool tryEarlyPrunings) {
    Position *position = &variation->singlePosition;
    int best = VALUE_MATED;
    const int VALUE_MATE_HERE = -VALUE_MATED - ply + 1;
@@ -670,8 +587,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
    movelist.positionalGain = &(variation->positionalGain[0]);
 
-   if (ply + 1 > variation->selDepth)
-   {
+   if (ply + 1 > variation->selDepth) {
       variation->selDepth = ply + 1;
    }
 
@@ -684,8 +600,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
    /* Check for a draw according to the 50-move-rule */
    /* ---------------------------------------------- */
-   if (position->halfMoveClock > 100)
-   {
+   if (position->halfMoveClock > 100) {
       return variation->drawScore[position->activeColor];
    }
 
@@ -697,10 +612,8 @@ static int searchBest(Variation * variation, int alpha, int beta,
    assert(historyLimit >= 0);
 
    for (i = POSITION_HISTORY_OFFSET + variation->ply - 4;
-        i >= historyLimit; i -= 2)
-   {
-      if (position->hashKey == variation->positionHistory[i])
-      {
+        i >= historyLimit; i -= 2) {
+      if (position->hashKey == variation->positionHistory[i]) {
          return variation->drawScore[position->activeColor];
       }
    }
@@ -714,8 +627,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
                               pvNode);
 
       if (inCheck == FALSE &&
-          variation->plyInfo[ply].staticValueAvailable != FALSE)
-      {
+          variation->plyInfo[ply].staticValueAvailable != FALSE) {
          updateGains(variation, ply);
       }
 
@@ -726,26 +638,22 @@ static int searchBest(Variation * variation, int alpha, int beta,
    checkTerminationConditions(variation);
 
    if (variation->searchStatus != SEARCH_STATUS_RUNNING &&
-       variation->iteration > 1)
-   {
+       variation->iteration > 1) {
       return 0;
    }
 
    /* Probe the tablebases in case of reduced material */
    /* ------------------------------------------------ */
-   if (tbAvailable != FALSE && excludeMove == NO_MOVE)
-   {
+   if (tbAvailable != FALSE && excludeMove == NO_MOVE) {
       int numPieces = position->numberOfPieces[WHITE] +
                       position->numberOfPieces[BLACK];
       int wdlValue = TABLEBASE_ERROR;
 
-      if (restDepth >= 1 * DEPTH_RESOLUTION && numPieces <= 6)
-      {
+      if (restDepth >= 1 * DEPTH_RESOLUTION && numPieces <= 6) {
          wdlValue = probeTablebaseWDL(position);
       }
 
-      if (wdlValue != TABLEBASE_ERROR)
-      {
+      if (wdlValue != TABLEBASE_ERROR) {
          int score;
 
          variation->tbHits++;
@@ -761,17 +669,13 @@ static int searchBest(Variation * variation, int alpha, int beta,
          else // Loss
             score = VALUE_MATED + MAX_DEPTH + 1 + ply;
 
-         if (wdlValue == 0 || (wdlValue > 0 && score >= beta) || (wdlValue < 0 && score <= alpha))
-         {
+         if (wdlValue == 0 || (wdlValue > 0 && score >= beta) || (wdlValue < 0 && score <= alpha)) {
             return score;
          }
 
-         if (score > alpha && wdlValue > 0)
-         {
+         if (score > alpha && wdlValue > 0) {
             alpha = score;
-         }
-         else if (score < beta && wdlValue < 0)
-         {
+         } else if (score < beta && wdlValue < 0) {
             beta = score;
          }
       }
@@ -779,21 +683,18 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
    /* Probe the transposition table */
    /* ----------------------------- */
-   if (excludeMove == NO_MOVE)
-   {
+   if (excludeMove == NO_MOVE) {
       int hashValue;
 
       if (positionIsWellKnown(variation, position, hashKey,
                               &bestTableHit, ply, alpha, beta,
                               restDepth + HASH_DEPTH_OFFSET, pvNode,
                               inCheck == FALSE, &hashmove, excludeMove,
-                              &hashValue))
-      {
+                              &hashValue)) {
          *bestMove = hashmove;
 
          if (hashValue >= beta && *bestMove != NO_MOVE &&
-             moveIsQuiet(*bestMove, position))
-         {
+             moveIsQuiet(*bestMove, position)) {
             Move killerMove = *bestMove;
             const Piece movingPiece =
                position->piece[getFromSquare(killerMove)];
@@ -806,69 +707,57 @@ static int searchBest(Variation * variation, int alpha, int beta,
       }
    }
 
-   if (inCheck == FALSE)
-   {
+   if (inCheck == FALSE) {
       updateGains(variation, ply);
    }
 
-   if (ply >= 2)
-   {
+   if (ply >= 2) {
       if (variation->plyInfo[ply].staticValue >=
           variation->plyInfo[ply - 2].staticValue ||
           variation->plyInfo[ply].staticValueAvailable == FALSE ||
-          variation->plyInfo[ply - 2].staticValueAvailable == FALSE)
-      {
+          variation->plyInfo[ply - 2].staticValueAvailable == FALSE) {
          variationType = 1;
       }
    }
 
-   if (ply >= MAX_DEPTH)
-   {
+   if (ply >= MAX_DEPTH) {
       return getStaticValue(variation, ply);
    }
 
-   if (alpha < VALUE_MATED_HERE && inCheck == FALSE)
-   {
+   if (alpha < VALUE_MATED_HERE && inCheck == FALSE) {
       alpha = VALUE_MATED_HERE;
 
-      if (alpha >= beta)
-      {
+      if (alpha >= beta) {
          return VALUE_MATED_HERE;
       }
    }
 
-   if (beta > VALUE_MATE_HERE)
-   {
+   if (beta > VALUE_MATE_HERE) {
       beta = VALUE_MATE_HERE;
 
-      if (beta <= alpha)
-      {
+      if (beta <= alpha) {
          return VALUE_MATE_HERE;
       }
    }
 
    initializePlyInfo(variation);
 
-   if (tryEarlyPrunings == FALSE)
-   {
+   if (tryEarlyPrunings == FALSE) {
       goto checkAvailableMoves;
    }
 
    /* Razoring */
    if (pvNode == FALSE && restDepth < 4 * DEPTH_RESOLUTION &&
        inCheck == FALSE && hashmove == NO_MOVE && cutsAreAllowed &&
-       hasDangerousPawns(position, position->activeColor) == FALSE)
-   {
+       hasDangerousPawns(position, position->activeColor) == FALSE) {
       const int limit = alpha - (110 + 12 * restDepth);
 
-      if (getRefinedStaticValue(variation, ply) < limit)
-      {
+      if (getRefinedStaticValue(variation, ply) < limit) {
          const int qsValue =
             searchBestQuiescence(variation, limit - 1, limit, ply, 0,
                                  bestMove, pvNode);
 
-         if (qsValue < limit)
-         {
+         if (qsValue < limit) {
             return qsValue;
          }
       }
@@ -878,14 +767,12 @@ static int searchBest(Variation * variation, int alpha, int beta,
    if (pvNode == FALSE && restDepth < 4 * DEPTH_RESOLUTION &&
        inCheck == FALSE && cutsAreAllowed && excludeMove == NO_MOVE &&
        numPieces >= 2 &&
-       !hasDangerousPawns(position, opponent(position->activeColor)))
-   {
+       !hasDangerousPawns(position, opponent(position->activeColor))) {
       const int staticValue = getRefinedStaticValue(variation, ply);
       const bool improving = (ply >= 2 && staticValue > variation->plyInfo[ply - 2].staticValue);
       const int margin = (22 + 22 * restDepth) - (improving ? 22 : 0);
 
-      if (staticValue - margin >= beta)
-      {
+      if (staticValue - margin >= beta) {
          return (2 * beta + staticValue) / 3;
       }
    }
@@ -914,8 +801,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
                               NO_MOVE, FALSE);
       unmakeLastMove(variation);
 
-      if (nullValue >= VALUE_MATE_HERE)
-      {
+      if (nullValue >= VALUE_MATE_HERE) {
          nullValue = beta;
       }
 
@@ -933,17 +819,13 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
             goto storeResult;
          }
-      }
-      else if (nullValue >= beta)
+      } else if (nullValue >= beta)
       {                         /* 70% */
-         if (numPieces >= 3)
-         {
+         if (numPieces >= 3) {
             best = nullValue;
 
             goto storeResult;
-         }
-         else
-         {
+         } else {
             return nullValue;
          }
       }
@@ -952,8 +834,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    /* Try to find a quick refutation of the opponent's previous move */
    if (pvNode == FALSE && cutsAreAllowed &&
        restDepth >= 5 * DEPTH_RESOLUTION && excludeMove == NO_MOVE &&
-       inCheck == FALSE)
-   {
+       inCheck == FALSE) {
       const int limit = beta + 96;
       const int staticValue = getRefinedStaticValue(variation, ply);
       const Move qrHashmove = (hashmove != NO_MOVE &&
@@ -964,22 +845,19 @@ static int searchBest(Variation * variation, int alpha, int beta,
                           &variation->plyInfo[ply],
                           &variation->historyValue[0], qrHashmove, inCheck);
 
-      while ((currentMove = getNextMove(&movelist)) != NO_MOVE)
-      {
+      while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
          const Square toSquare = getToSquare(currentMove);
          const Piece capturedPiece = position->piece[toSquare];
          int moveValue;
 
-         if (staticValue + basicValue[capturedPiece] < beta + 75)
-         {
+         if (staticValue + basicValue[capturedPiece] < beta + 75) {
             continue;
          }
 
          /* Execute the current move and check if it is legal. */
          /* -------------------------------------------------- */
          if (makeMoveFast(variation, currentMove) != 0 ||
-             passiveKingIsSafe(&variation->singlePosition) == FALSE)
-         {
+             passiveKingIsSafe(&variation->singlePosition) == FALSE) {
             unmakeLastMove(variation);
 
             continue;
@@ -998,8 +876,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
          unmakeLastMove(variation);
 
-         if (moveValue >= limit)
-         {
+         if (moveValue >= limit) {
             best = moveValue;
             *bestMove = currentMove;
 
@@ -1015,8 +892,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    if (hashmove == NO_MOVE &&
        restDepth >= (pvNode ? 3 : 7) * DEPTH_RESOLUTION &&
        (pvNode || (inCheck == FALSE &&
-                   getRefinedStaticValue(variation, ply) >= beta - 49)))
-   {
+                   getRefinedStaticValue(variation, ply) >= beta - 49))) {
       const Move excludeHere =
          (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
       const int searchDepth =
@@ -1025,28 +901,24 @@ static int searchBest(Variation * variation, int alpha, int beta,
       searchBest(variation, alpha, beta, ply, searchDepth, pvNode,
                  TRUE, &bestReply, excludeHere, FALSE);
 
-      if (moveIsPseudoLegal(position, bestReply))
-      {
+      if (moveIsPseudoLegal(position, bestReply)) {
          hashmove = bestReply;
       }
 
       if (hashmove != NO_MOVE && excludeMove == NO_MOVE &&
-          restDepth >= getSingleMoveExtensionDepth(pvNode))
-      {
+          restDepth >= getSingleMoveExtensionDepth(pvNode)) {
          Hashentry *tableHit = getHashentry(getSharedHashtable(),
                                             variation->singlePosition.
                                             hashKey);
 
-         if (tableHit != 0)
-         {
+         if (tableHit != 0) {
             bestTableHit = tableHit;
          }
       }
    }
 
    /* Check if the conditions for a singular extension are met */
-   if (bestTableHit != 0 && excludeMove == NO_MOVE && hashmove != NO_MOVE)
-   {
+   if (bestTableHit != 0 && excludeMove == NO_MOVE && hashmove != NO_MOVE) {
       const int singleMoveExtensionDepth =
          getSingleMoveExtensionDepth(pvNode);
       const int importance =
@@ -1055,40 +927,33 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
       if (restDepth >= singleMoveExtensionDepth &&
           importance >= restDepth - 3 * DEPTH_RESOLUTION &&
-          flag != HASHVALUE_UPPER_LIMIT)
-      {
+          flag != HASHVALUE_UPPER_LIMIT) {
          singularExtensionNode = TRUE;
          hashEntryValue =
             calcEffectiveValue(getHashentryValue(bestTableHit), ply);
       }
    }
 
-   if (ply >= 1)
-   {
+   if (ply >= 1) {
       const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
 
       variation->plyInfo[ply].killerMove3 =
          variation->counterMove1[moveIndex];
       variation->plyInfo[ply].killerMove4 =
          variation->counterMove2[moveIndex];
-   }
-   else
-   {
+   } else {
       variation->plyInfo[ply].killerMove3 = NO_MOVE;
       variation->plyInfo[ply].killerMove4 = NO_MOVE;
    }
 
-   if (ply >= 2)
-   {
+   if (ply >= 2) {
       const int moveIndex = variation->plyInfo[ply - 2].indexCurrentMove;
 
       variation->plyInfo[ply].killerMove5 =
          variation->followupMove1[moveIndex];
       variation->plyInfo[ply].killerMove6 =
          variation->followupMove2[moveIndex];
-   }
-   else
-   {
+   } else {
       variation->plyInfo[ply].killerMove5 = NO_MOVE;
       variation->plyInfo[ply].killerMove6 = NO_MOVE;
    }
@@ -1102,8 +967,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
    /* Loop through all moves in this node. */
    /* ------------------------------------ */
-   while ((currentMove = getNextMove(&movelist)) != NO_MOVE)
-   {
+   while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
       const int stage = moveGenerationStage[movelist.currentStage];
       int value = 0, newDepth;
       int extension = 0;
@@ -1122,13 +986,11 @@ static int searchBest(Variation * variation, int alpha, int beta,
       bool reduce = FALSE, nodeWasBlocked = FALSE;
 
       if (variation->searchStatus != SEARCH_STATUS_RUNNING &&
-          variation->iteration > 1)
-      {
+          variation->iteration > 1) {
          return 0;
       }
 
-      if (excludeMove != NO_MOVE && movesAreEqual(currentMove, excludeMove))
-      {
+      if (excludeMove != NO_MOVE && movesAreEqual(currentMove, excludeMove)) {
          assert(excludeMove != NULLMOVE);
 
          continue;              /* exclude excludeMove */
@@ -1148,40 +1010,29 @@ static int searchBest(Variation * variation, int alpha, int beta,
       if (pvNode == FALSE && inCheck == FALSE && quietMove != FALSE &&
           !isPassedPawnMove(getFromSquare(currentMove), toSquare, position) &&
           !moveIsCastling(currentMove, position) &&
-          best > VALUE_ALMOST_MATED && cutsAreAllowed && restDepth < 32)
-      {
+          best > VALUE_ALMOST_MATED && cutsAreAllowed && restDepth < 32) {
          bool moveIsRelevant = FALSE;
          const int predictedDepth = restDepth - reduction;
 
-         if (numMovesPlayed >= quietMoveCountLimit[variationType][restDepth])
-         {
-            if (simpleMoveIsCheck(position, currentMove))
-            {
+         if (numMovesPlayed >= quietMoveCountLimit[variationType][restDepth]) {
+            if (simpleMoveIsCheck(position, currentMove)) {
                moveIsRelevant = TRUE;
-            }
-            else
-            {
+            } else {
                continue;
             }
          }
 
          if (moveIsRelevant == FALSE &&
-             predictedDepth <= NUM_FUTILITY_MARGIN_VALUES)
-         {
+             predictedDepth <= NUM_FUTILITY_MARGIN_VALUES) {
             const int futLimit =
                getRefinedStaticValue(variation, ply) + gain +
                futilityMargin[predictedDepth];
 
-            if (futLimit < beta)
-            {
-               if (simpleMoveIsCheck(position, currentMove))
-               {
+            if (futLimit < beta) {
+               if (simpleMoveIsCheck(position, currentMove)) {
                   moveIsRelevant = TRUE;
-               }
-               else
-               {
-                  if (futLimit > best)
-                  {
+               } else {
+                  if (futLimit > best) {
                      best = futLimit;
                   }
 
@@ -1193,8 +1044,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
          if (moveIsRelevant == FALSE &&
              predictedDepth < 4 * DEPTH_RESOLUTION &&
              seeMove(position, currentMove) < 0 &&
-             simpleMoveIsCheck(position, currentMove) == FALSE)
-         {
+             simpleMoveIsCheck(position, currentMove) == FALSE) {
             continue;
          }
       }
@@ -1202,8 +1052,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
       /* Execute the current move and check if it is legal. */
       /* -------------------------------------------------- */
       if (makeMoveFast(variation, currentMove) != 0 ||
-          passiveKingIsSafe(&variation->singlePosition) == FALSE)
-      {
+          passiveKingIsSafe(&variation->singlePosition) == FALSE) {
          unmakeLastMove(variation);
 
          continue;
@@ -1211,17 +1060,13 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
       if (numMovesPlayed > 0 && inCheck == FALSE &&
           stage == MGS_REST && deferCount < 10 &&
-          checkNodeExclusion(restDepth))
-      {
-         if (nodeIsInUse(position->hashKey, restDepth))
-         {
+          checkNodeExclusion(restDepth)) {
+         if (nodeIsInUse(position->hashKey, restDepth)) {
             deferMove(&movelist, currentMove);
             deferCount++;
             unmakeLastMove(variation);
             continue;
-         }
-         else
-         {
+         } else {
             nodeWasBlocked = setNodeUsage(position->hashKey, restDepth);
          }
       }
@@ -1232,46 +1077,38 @@ static int searchBest(Variation * variation, int alpha, int beta,
       variation->plyInfo[ply].currentMoveIsCheck = check =
          activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-      if (check)
-      {
+      if (check) {
          unmakeLastMove(variation);
 
-         if (seeMove(position, currentMove) >= 0)
-         {
+         if (seeMove(position, currentMove) >= 0) {
             extension = DEPTH_RESOLUTION;
          }
 
          makeMoveFast(variation, currentMove);
       }
 
-      if (pvNode)
-      {
+      if (pvNode) {
          if (pieceType(position->piece[toSquare]) == PAWN &&
              pawnIsPassed(position, toSquare,
-                          opponent(position->activeColor)))
-         {
+                          opponent(position->activeColor))) {
             extension = DEPTH_RESOLUTION;
-         }
-         else if (capturedPiece != NO_PIECE &&
+         } else if (capturedPiece != NO_PIECE &&
                   pieceType(capturedPiece) != PAWN &&
                   numberOfNonPawnPieces(position, WHITE) ==
-                  numberOfNonPawnPieces(position, BLACK))
-         {
+                  numberOfNonPawnPieces(position, BLACK)) {
             extension = DEPTH_RESOLUTION;
          }
       }
 
       if (singularExtensionNode != FALSE &&
           extension < DEPTH_RESOLUTION &&
-          movesAreEqual(currentMove, hashmove))
-      {
+          movesAreEqual(currentMove, hashmove)) {
          const int limitValue = hashEntryValue - (149 * restDepth) / 256;
 
          assert(excludeMove == NO_MOVE);
 
          if (limitValue > VALUE_ALMOST_MATED &&
-             limitValue < -VALUE_ALMOST_MATED)
-         {
+             limitValue < -VALUE_ALMOST_MATED) {
             int excludeValue;
             PlyInfo pi = variation->plyInfo[ply];
 
@@ -1283,8 +1120,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
             makeMoveFast(variation, currentMove);
             variation->plyInfo[ply] = pi;
 
-            if (excludeValue < limitValue)
-            {
+            if (excludeValue < limitValue) {
                extension = DEPTH_RESOLUTION;
             }
          }
@@ -1301,21 +1137,17 @@ static int searchBest(Variation * variation, int alpha, int beta,
                         variation->plyInfo[ply].killerMove1) == FALSE &&
           movesAreEqual(currentMove,
                         variation->plyInfo[ply].killerMove2) == FALSE &&
-          isPassedPawnMove(toSquare, toSquare, position) == FALSE)
-      {
+          isPassedPawnMove(toSquare, toSquare, position) == FALSE) {
          reduce = TRUE;
       }
 
       /* Recursive search */
       /* ---------------- */
-      if (pvNode && numMovesPlayed == 0)
-      {
+      if (pvNode && numMovesPlayed == 0) {
          value = -searchBest(variation, -beta, -alpha, ply + 1,
                              newDepth, pvNode, FALSE, &bestReply, NO_MOVE,
                              TRUE);
-      }
-      else
-      {
+      } else {
          const Move cm1 = variation->plyInfo[ply].killerMove3;
          const Move cm2 = variation->plyInfo[ply].killerMove4;
          const bool counterMove = movesAreEqual(currentMove, cm1) ||
@@ -1328,15 +1160,13 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
          bool fullDepthSearch = TRUE;
 
-         if (reduce && effectiveReduction > 0)
-         {
+         if (reduce && effectiveReduction > 0) {
             value = -searchBest(variation, -alpha - 1, -alpha, ply + 1,
                                 reducedRestDepth, FALSE, TRUE,
                                 &bestReply, NO_MOVE, TRUE);
 
             if (value > alpha && effectiveReduction >= 4 * DEPTH_RESOLUTION &&
-                stage != MGS_KILLER_MOVES)
-            {
+                stage != MGS_KILLER_MOVES) {
                const int limitedRestDepth =
                   max(DEPTH_RESOLUTION, newDepth - 2 * DEPTH_RESOLUTION);
 
@@ -1348,8 +1178,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
             fullDepthSearch = (bool) (value > alpha);
          }
 
-         if (fullDepthSearch)
-         {
+         if (fullDepthSearch) {
             value = -searchBest(variation, -alpha - 1, -alpha, ply + 1,
                                 newDepth, FALSE, !cutNode, &bestReply,
                                 NO_MOVE, TRUE);
@@ -1365,16 +1194,14 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
       assert(value >= VALUE_MATED && value <= -VALUE_MATED);
 
-      if (nodeWasBlocked)
-      {
+      if (nodeWasBlocked) {
          resetNodeUsage(position->hashKey);
       }
 
       unmakeLastMove(variation);
       numMovesPlayed++;
 
-      if (quietMove && inCheck == FALSE)
-      {
+      if (quietMove && inCheck == FALSE) {
          quietMoveIndex[quietMoveCount++] =
             historyIndex(currentMove, position);
       }
@@ -1390,8 +1217,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
             alpha = best;
             *bestMove = currentMove;
 
-            if (pvNode)
-            {
+            if (pvNode) {
                appendMoveToPv(&(variation->plyInfo[ply].pv),
                               &(variation->plyInfo[ply - 1].pv), currentMove);
             }
@@ -1406,21 +1232,16 @@ static int searchBest(Variation * variation, int alpha, int beta,
 
    /* No legal move was found. Check if it's mate or stalemate. */
    /* --------------------------------------------------------- */
-   if (best == VALUE_MATED)
-   {
-      if (excludeMove != NO_MOVE && excludeMove != NULLMOVE)
-      {
+   if (best == VALUE_MATED) {
+      if (excludeMove != NO_MOVE && excludeMove != NULLMOVE) {
          return beta - 1;
       }
 
-      if (inCheck)
-      {
+      if (inCheck) {
          /* mate */
 
          best = VALUE_MATED + ply;
-      }
-      else
-      {
+      } else {
          /* stalemate */
 
          best = variation->drawScore[position->activeColor];
@@ -1431,8 +1252,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    /* ------------------------------------------------------- */
    if (*bestMove != NO_MOVE && moveIsQuiet(*bestMove, position) &&
        inCheck == FALSE &&
-       (excludeMove == NO_MOVE || excludeMove == NULLMOVE))
-   {
+       (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
       Move killerMove = *bestMove;
       const Piece movingPiece = position->piece[getFromSquare(killerMove)];
       const int index = historyIndex(*bestMove, position);
@@ -1441,8 +1261,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
           ((HISTORY_MAX - variation->historyValue[index]) * restDepth) / 256);
       int i;
 
-      for (i = 0; i < quietMoveCount; i++)
-      {
+      for (i = 0; i < quietMoveCount; i++) {
          const int historyIdx = quietMoveIndex[i];
 
          variation->historyValue[historyIdx] = (UINT16)
@@ -1458,8 +1277,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
       registerKillerMove(&variation->plyInfo[ply], killerMove);
       updateCounterMoves(variation, ply, killerMove);
 
-      if (ply >= 2 && variation->plyInfo[ply - 1].isHashMove)
-      {
+      if (ply >= 2 && variation->plyInfo[ply - 1].isHashMove) {
          updateFollowupMoves(variation, ply, killerMove);
       }
    }
@@ -1469,14 +1287,10 @@ static int searchBest(Variation * variation, int alpha, int beta,
    /* Store the value in the transposition table. */
    /* ------------------------------------------- */
    if ((excludeMove == NO_MOVE || excludeMove == NULLMOVE) &&
-       variation->searchStatus == SEARCH_STATUS_RUNNING)
-   {
-      if (best >= beta)
-      {
+       variation->searchStatus == SEARCH_STATUS_RUNNING) {
+      if (best >= beta) {
          hashentryFlag = HASHVALUE_LOWER_LIMIT;
-      }
-      else
-      {
+      } else {
          hashentryFlag = (pvNode && *bestMove != NO_MOVE ?
                           HASHVALUE_EXACT : HASHVALUE_UPPER_LIMIT);
       }
@@ -1493,72 +1307,58 @@ static int searchBest(Variation * variation, int alpha, int beta,
 }
 
 void copyPvFromHashtable(Variation * variation, const int pvIndex,
-                         PrincipalVariation * pv, const Move bestBaseMove)
-{
+                         PrincipalVariation * pv, const Move bestBaseMove) {
    Move bestMove = NO_MOVE;
 
-   if (pvIndex == 0)
-   {
+   if (pvIndex == 0) {
       bestMove = bestBaseMove;
-   }
-   else
-   {
+   } else {
       Hashentry *tableHit = getHashentry(getSharedHashtable(),
                                          variation->singlePosition.hashKey);
 
-      if (tableHit != NULL)
-      {
+      if (tableHit != NULL) {
          Move currentMove = (Move) getHashentryMove(tableHit);
 
-         if (moveIsLegal(&variation->singlePosition, currentMove))
-         {
+         if (moveIsLegal(&variation->singlePosition, currentMove)) {
             bestMove = (Move) getHashentryMove(tableHit);
          }
       }
    }
 
-   if (bestMove != NO_MOVE && pvIndex < MAX_DEPTH)
-   {
+   if (bestMove != NO_MOVE && pvIndex < MAX_DEPTH) {
       pv->move[pvIndex] = (UINT16) bestMove;
       pv->move[pvIndex + 1] = (UINT16) NO_MOVE;
       pv->length = pvIndex + 1;
       makeMove(variation, bestMove);
       copyPvFromHashtable(variation, pvIndex + 1, pv, bestBaseMove);
       unmakeLastMove(variation);
-   }
-   else
-   {
+   } else {
       pv->move[pvIndex] = (UINT16) NO_MOVE;
       pv->length = pvIndex;
    }
 }
 
 static void copyPvToHashtable(Variation * variation,
-                              PrincipalVariation * pv, const int pvIndex)
-{
+                              PrincipalVariation * pv, const int pvIndex) {
    Move move = (Move) pv->move[pvIndex];
 
-   if (pvIndex < pv->length && moveIsLegal(&variation->singlePosition, move))
-   {
+   if (pvIndex < pv->length && moveIsLegal(&variation->singlePosition, move)) {
       UINT8 importance = (UINT8) HASH_DEPTH_OFFSET;
       bool entryExists = FALSE;
       Move bestMove = NO_MOVE;
       Hashentry *tableHit = getHashentry(getSharedHashtable(),
                                          variation->singlePosition.hashKey);
 
-      if (tableHit != 0)
-      {
+      if (tableHit != 0) {
          bestMove = (Move) getHashentryMove(tableHit);
          importance = max(importance, getHashentryImportance(tableHit));
 
-         if (bestMove != NO_MOVE && movesAreEqual(bestMove, move))
-         {
+         if (bestMove != NO_MOVE && movesAreEqual(bestMove, move)) {
             entryExists = TRUE;
          }
       }
 
-      if (entryExists == FALSE)
-      {
+      if (entryExists == FALSE) {
          UINT8 hashentryFlag = HASHVALUE_LOWER_LIMIT;
 
          /* Store the move in the transposition table. */
@@ -1577,15 +1377,12 @@ static void copyPvToHashtable(Variation * variation,
 }
 
 static void registerBestMove(Variation * variation, Move * move,
-                             const int value)
-{
-   if (variation->searchStatus == SEARCH_STATUS_RUNNING)
-   {
+                             const int value) {
+   if (variation->searchStatus == SEARCH_STATUS_RUNNING) {
       setMoveValue(move, value);
       variation->bestBaseMove = *move;
 
-      if (variation->iteration > 4 && variation->numberOfCurrentBaseMove > 1)
-      {
+      if (variation->iteration > 4 && variation->numberOfCurrentBaseMove > 1) {
          variation->bestMoveChangeCount += 256;
       }
    }
@@ -1593,8 +1390,7 @@ static void registerBestMove(Variation * variation, Move * move,
 
 static int getBaseMoveValue(Variation * variation, const Move move,
                             const int alpha, const int beta,
-                            const bool fullWindow)
-{
+                            const bool fullWindow) {
    int depth = DEPTH_RESOLUTION * variation->iteration;
    int value;
    Move bestReply;
@@ -1608,37 +1404,29 @@ static int getBaseMoveValue(Variation * variation, const Move move,
    makeMoveFast(variation, move);
 
    if (variation->nodes > GUI_NODE_COUNT_MIN &&
-       variation->threadNumber == 0 && variation->handleSearchEvent != 0)
-   {
+       variation->threadNumber == 0 && variation->handleSearchEvent != 0) {
       getGuiSearchMutex();
       variation->handleSearchEvent(SEARCHEVENT_NEW_BASEMOVE, variation);
       releaseGuiSearchMutex();
    }
 
-   if (activeKingIsSafe(&variation->singlePosition) == FALSE)
-   {
+   if (activeKingIsSafe(&variation->singlePosition) == FALSE) {
       variation->plyInfo[0].currentMoveIsCheck = TRUE;
       depth += DEPTH_RESOLUTION;
-   }
-   else
-   {
+   } else {
       variation->plyInfo[0].currentMoveIsCheck = FALSE;
    }
 
-   if (fullWindow)
-   {
+   if (fullWindow) {
       value = -searchBest(variation, -beta, -alpha, 1,
                           depth - DEPTH_RESOLUTION, TRUE, FALSE,
                           &bestReply, NO_MOVE, TRUE);
-   }
-   else
-   {
+   } else {
       value = -searchBest(variation, -alpha - 1, -alpha, 1,
                           depth - DEPTH_RESOLUTION, FALSE, TRUE,
                           &bestReply, NO_MOVE, TRUE);
 
-      if (value > alpha)
-      {
+      if (value > alpha) {
          value = -searchBest(variation, -beta, -alpha, 1,
                              depth - DEPTH_RESOLUTION, TRUE,
                              FALSE, &bestReply, NO_MOVE, TRUE);
@@ -1650,34 +1438,25 @@ static int getBaseMoveValue(Variation * variation, const Move move,
    return value;
 }
 
-int getPvScoreType(int value, int alpha, int beta)
-{
-   if (value <= alpha)
-   {
+int getPvScoreType(int value, int alpha, int beta) {
+   if (value <= alpha) {
       return HASHVALUE_UPPER_LIMIT;
-   }
-   else if (value >= beta)
-   {
+   } else if (value >= beta) {
       return HASHVALUE_LOWER_LIMIT;
-   }
-   else
-   {
+   } else {
       return HASHVALUE_EXACT;
    }
 }
 
-static void sendPvInfo(Variation * variation, const int eventType)
-{
+static void sendPvInfo(Variation * variation, const int eventType) {
    if ((variation->nodes > GUI_NODE_COUNT_MIN ||
         eventType == SEARCHEVENT_PLY_FINISHED) &&
-       variation->threadNumber == 0 && variation->handleSearchEvent != 0)
-   {
+       variation->threadNumber == 0 && variation->handleSearchEvent != 0) {
       int i;
 
       getGuiSearchMutex();
 
-      for (i = 0; i < numPvs && variation->pv[i].length > 0; i++)
-      {
+      for (i = 0; i < numPvs && variation->pv[i].length > 0; i++) {
          variation->pvId = i;
          variation->handleSearchEvent(eventType, variation);
       }
@@ -1687,8 +1466,7 @@ static void sendPvInfo(Variation * variation, const int eventType)
 }
 
 static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
-                             const int aspirationWindow)
-{
+                             const int aspirationWindow) {
    const int previousBest = variation->previousBest;
    const int ply = 0;
    Position *position = &variation->singlePosition;
@@ -1705,8 +1483,7 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    variation->selDepth = variation->iteration;
    initializePvsOfVariation(variation);
 
-   do
-   {
+   do {
       int pvCount = 0, worstValue = VALUE_MATED;
       const int numPvLimit = min(basemoves->numberOfMoves, numPvs);
 
@@ -1715,13 +1492,11 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
       best = VALUE_MATED;
 
    if (tbAvailable != FALSE &&
-       position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7)
-   {
+       position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7) {
       int i;
       bool allProbed = TRUE;
 
-      for (i = 0; i < basemoves->numberOfMoves; i++)
-      {
+      for (i = 0; i < basemoves->numberOfMoves; i++) {
          Move currentMove = basemoves->moves[i];
          Move tbMove = NO_MOVE;
          int score;
@@ -1730,25 +1505,21 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
          score = probeTablebaseDTZ(&variation->singlePosition, &tbMove);
          unmakeLastMove(variation);
 
-         if (score != TABLEBASE_ERROR)
-         {
+         if (score != TABLEBASE_ERROR) {
             // We need to invert the score because probeTablebaseDTZ returns it from the side to move's perspective
             setMoveValue(&basemoves->moves[i], -score);
-         }
-         else
-         {
+         } else {
             allProbed = FALSE;
          }
       }
 
-      if (allProbed)
-      {
+      if (allProbed) {
          variation->tbHits++;
          sortMoves(basemoves);
-         
+
          // Set the best move as found in TBs
          variation->bestBaseMove = basemoves->moves[0];
-         
+
          // Initialize PV with the best move
          variation->completePv.move[0] = (UINT16)variation->bestBaseMove;
          variation->completePv.move[1] = (UINT16)NO_MOVE;
@@ -1759,8 +1530,7 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
 
       for (variation->numberOfCurrentBaseMove = 1;
            variation->numberOfCurrentBaseMove <= basemoves->numberOfMoves;
-           variation->numberOfCurrentBaseMove++)
-      {
+           variation->numberOfCurrentBaseMove++) {
          int value;
          const int icm = variation->numberOfCurrentBaseMove - 1;
          const bool searchBelowBest = fullWindow || numPvs > 1;
@@ -1776,13 +1546,11 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
                                   searchAlpha, beta, pvNode);
 
          if (variation->searchStatus != SEARCH_STATUS_RUNNING &&
-             variation->iteration > 1)
-         {
+             variation->iteration > 1) {
             break;
          }
 
-         if (icm == 0 || value > searchAlpha)
-         {
+         if (icm == 0 || value > searchAlpha) {
             PrincipalVariation pv;
 
             setMoveValue(&basemoves->moves[icm], value);
@@ -1792,28 +1560,23 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
                            basemoves->moves[icm]);
             addPvByScore(variation, &pv);
 
-            if (++pvCount >= numPvLimit)
-            {
+            if (++pvCount >= numPvLimit) {
                sendPvInfo(variation, SEARCHEVENT_NEW_PV);
             }
 
-            if (icm == 0 || value > best)
-            {
+            if (icm == 0 || value > best) {
                registerBestMove(variation, &basemoves->moves[icm], value);
 
-               if (value > best && value < beta)
-               {
+               if (value > best && value < beta) {
                   variation->completePv = pv;
                }
             }
          }
 
-         if (value > best)
-         {
+         if (value > best) {
             best = value;
 
-            if (value >= beta && numPvs == 1)
-            {
+            if (value >= beta && numPvs == 1) {
                break;
             }
          }
@@ -1821,19 +1584,15 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
 
       /* Store the value in the transposition table. */
       /* ------------------------------------------- */
-      if (variation->searchStatus == SEARCH_STATUS_RUNNING)
-      {
+      if (variation->searchStatus == SEARCH_STATUS_RUNNING) {
          UINT8 hashentryFlag;
          const int depth = DEPTH_RESOLUTION * variation->iteration;
          const Move bestMove = variation->bestBaseMove;
 
-         if (best > alpha)
-         {
+         if (best > alpha) {
             hashentryFlag =
                (best >= beta ? HASHVALUE_LOWER_LIMIT : HASHVALUE_EXACT);
-         }
-         else
-         {
+         } else {
             hashentryFlag = HASHVALUE_UPPER_LIMIT;
          }
 
@@ -1847,17 +1606,12 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
       worstValue = (numPvs == 1 ? best :
                     max(VALUE_MATED + 3, variation->pv[numPvs - 1].score));
 
-      if (best >= beta)
-      {
+      if (best >= beta) {
          beta = min(-VALUE_MATED, best + window);
-      }
-      else if (worstValue <= alpha && worstValue > VALUE_MATED + 2)
-      {
+      } else if (worstValue <= alpha && worstValue > VALUE_MATED + 2) {
          alpha = max(VALUE_MATED, alpha - window);
          variation->failingLow = TRUE;
-      }
-      else
-      {
+      } else {
          exactValueFound = TRUE;        /* exact value found */
       }
 
@@ -1868,8 +1622,7 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
       assert(fullWindow == TRUE ||
              movesAreEqual(basemoves->moves[0], variation->bestBaseMove));
 
-      if (variation->threadNumber == 0)
-      {
+      if (variation->threadNumber == 0) {
          copyPvToHashtable(variation, &variation->completePv, 0);
       }
    }
@@ -1879,14 +1632,12 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    variation->pv[0].score = getMoveValue(variation->bestBaseMove);
 
    if (variation->threadNumber == 0 && variation->iteration > 1 &&
-       variation->completePv.length <= 1)
-   {
+       variation->completePv.length <= 1) {
       PrincipalVariation tmpPv;
 
       copyPvFromHashtable(variation, 0, &tmpPv, variation->bestBaseMove);
 
-      if (tmpPv.length > 1)
-      {
+      if (tmpPv.length > 1) {
          variation->completePv = tmpPv;
       }
    }
@@ -1894,8 +1645,7 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    sendPvInfo(variation, SEARCHEVENT_PLY_FINISHED);
 }
 
-Move search(Variation * variation, Movelist * acceptableSolutions)
-{
+Move search(Variation * variation, Movelist * acceptableSolutions) {
    Movelist movelist;
    long timeTarget;
    int stableIterationCount = 0;
@@ -1905,8 +1655,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    UINT64 nodeCount = 0;
    int iv1 = 0, iv2 = 0, iv3 = 0;
 
-   if (resetSharedHashtable)
-   {
+   if (resetSharedHashtable) {
       resetHashtable(getSharedHashtable());
       resetSharedHashtable = FALSE;
    }
@@ -1931,13 +1680,11 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    initializePlyInfo(variation);
    getLegalMoves(variation, &movelist);
 
-
    variation->numberOfBaseMoves = movelist.numberOfMoves;
    setMoveValue(&variation->bestBaseMove, VALUE_MATED);
 
    for (variation->iteration = 1; variation->iteration <= MAX_DEPTH;
-        variation->iteration++)
-   {
+        variation->iteration++) {
       long calculationTime;
       int iterationValue, aspirationWindow;
 
@@ -1949,12 +1696,9 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       calculationTime =
          (unsigned long) (getTimestamp() - variation->startTime);
 
-      if (movesAreEqual(variation->bestBaseMove, bestMove))
-      {
+      if (movesAreEqual(variation->bestBaseMove, bestMove)) {
          stableBestMoveCount++;
-      }
-      else
-      {
+      } else {
          stableBestMoveCount = 0;
       }
 
@@ -1968,17 +1712,13 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       assert(calculationTime >= 0);
 
       if (acceptableSolutions != 0 &&
-          listContainsMove(acceptableSolutions, variation->bestBaseMove))
-      {
+          listContainsMove(acceptableSolutions, variation->bestBaseMove)) {
          stableIterationCount++;
 
-         if (stableIterationCount == 1)
-         {
+         if (stableIterationCount == 1) {
             nodeCount = variation->nodes;
          }
-      }
-      else
-      {
+      } else {
          stableIterationCount = 0;
          nodeCount = variation->nodes;
       }
@@ -1986,12 +1726,9 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       /* Check for a fail low. */
       /* --------------------- */
 
-      if (variation->numberOfBaseMoves == 1)
-      {
+      if (variation->numberOfBaseMoves == 1) {
          timeTarget = (19 * variation->timeTarget) / 256;
-      }
-      else
-      {
+      } else {
          const int timeWeight = 160 +
             (223 * variation->bestMoveChangeCount) / 256;
 
@@ -2006,14 +1743,10 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
       if (variation->threadNumber == 0 &&
           variation->searchStatus == SEARCH_STATUS_RUNNING &&
           variation->iteration > 8 && variation->timeLimit != 0 &&
-          calculationTime >= timeTarget)
-      {
-         if (variation->ponderMode)
-         {
+          calculationTime >= timeTarget) {
+         if (variation->ponderMode) {
             variation->terminateSearchOnPonderhit = TRUE;
-         }
-         else
-         {
+         } else {
             variation->searchStatus = SEARCH_STATUS_TERMINATE;
          }
       }
@@ -2022,14 +1755,12 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
           (getMoveValue(variation->bestBaseMove) <=
            VALUE_MATED + variation->iteration ||
            getMoveValue(variation->bestBaseMove) >=
-           -VALUE_MATED - variation->iteration))
-      {
+           -VALUE_MATED - variation->iteration)) {
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
       if (variation->searchStatus == SEARCH_STATUS_RUNNING &&
-          variation->iteration == MAX_DEPTH)
-      {
+          variation->iteration == MAX_DEPTH) {
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
@@ -2037,33 +1768,28 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
           (getMoveValue(variation->bestBaseMove) > 20000 ||
            (stableIterationCount >= 2 &&
             (getMoveValue(variation->bestBaseMove) >= 13 ||
-             (getTimestamp() - variation->startTime) >= 3000))))
-      {
+             (getTimestamp() - variation->startTime) >= 3000)))) {
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
-      if (variation->searchStatus != SEARCH_STATUS_RUNNING)
-      {
+      if (variation->searchStatus != SEARCH_STATUS_RUNNING) {
          variation->terminateSearchOnPonderhit = TRUE;
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
 
          variation->finishTime = getTimestamp();
          variation->finishTimeProcess = getProcessTimestamp();
 
-         if (variation->threadNumber == 0)
-         {
+         if (variation->threadNumber == 0) {
             incrementDate(getSharedHashtable());
 
-            if (variation->handleSearchEvent != 0)
-            {
+            if (variation->handleSearchEvent != 0) {
                variation->handleSearchEvent(SEARCHEVENT_SEARCH_FINISHED,
                                             variation);
             }
          }
       }
 
-      if (variation->searchStatus != SEARCH_STATUS_RUNNING)
-      {
+      if (variation->searchStatus != SEARCH_STATUS_RUNNING) {
          releaseGuiSearchMutex();
          break;
       }
@@ -2073,8 +1799,7 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
 
    variation->nodes = nodeCount;
 
-   if (statCount1 != 0 || statCount2 != 0)
-   {
+   if (statCount1 != 0 || statCount2 != 0) {
       logReport("statCount1=%lld statCount2=%lld (%lld%%) \n",
                 statCount1, statCount2,
                 (statCount2 * 100) / max(1, statCount1));
@@ -2083,22 +1808,15 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    return variation->bestBaseMove;
 }
 
-
-static void initializeArrays(void)
-{
+static void initializeArrays(void) {
    int i, j;
 
-   for (i = 0; i < 64; i++)
-   {
-      for (j = 0; j < 64; j++)
-      {
-         if (i == 0 || j == 0)
-         {
+   for (i = 0; i < 64; i++) {
+      for (j = 0; j < 64; j++) {
+         if (i == 0 || j == 0) {
             quietPvMoveReduction[i][j] =
                quietMoveReduction[0][i][j] = quietMoveReduction[1][i][j] = 0;
-         }
-         else
-         {
+         } else {
             const double baseFactor = log((double) (i)) * log((double) (j));
             const double pvReduction = baseFactor / 2.93;
             const double nonPvReduction = 0.33 + baseFactor / 2.21;
@@ -2111,40 +1829,33 @@ static void initializeArrays(void)
                (int) (nonPvReduction >= 1.0 ?
                       floor(nonPvReduction * DEPTH_RESOLUTION) : 0);
 
-            if (quietMoveReduction[0][i][j] > 2 * DEPTH_RESOLUTION)
-            {
+            if (quietMoveReduction[0][i][j] > 2 * DEPTH_RESOLUTION) {
                quietMoveReduction[0][i][j] += DEPTH_RESOLUTION;
-            }
-            else if (quietMoveReduction[0][i][j] > DEPTH_RESOLUTION)
-            {
+            } else if (quietMoveReduction[0][i][j] > DEPTH_RESOLUTION) {
                quietMoveReduction[0][i][j] += DEPTH_RESOLUTION / 2;
             }
          }
       }
    }
 
-   for (i = 0; i < 32; i++)
-   {
+   for (i = 0; i < 32; i++) {
       quietMoveCountLimit[0][i] = (int) (2.4 + 0.228 * pow(i, 1.7908));
       quietMoveCountLimit[1][i] = (int) (3.1 + 0.344 * pow(i + 0.78, 1.7908));
 
    }
 
-   for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++)
-   {
+   for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++) {
       futilityMargin[i] = (1960 * i) / 64 - 27;
 
    }
 }
 
-int initializeModuleSearch(void)
-{
+int initializeModuleSearch(void) {
    initializeArrays();
 
    return 0;
 }
 
-int testModuleSearch(void)
-{
+int testModuleSearch(void) {
    return 0;
 }

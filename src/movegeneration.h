@@ -31,8 +31,7 @@
 extern const Move NO_MOVE;
 extern const Move NULLMOVE;
 
-typedef enum
-{
+typedef enum {
    MGS_INITIALIZE,
    MGS_FINISHED,
    MGS_GOOD_CAPTURES_AND_PROMOTIONS,

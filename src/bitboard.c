@@ -200,16 +200,14 @@ const Bitboard magicBishopNumber[64] = {
 };
 /* *INDENT-ON* */
 
-bool testSquare(const Bitboard bitboard, const Square square)
-{
+bool testSquare(const Bitboard bitboard, const Square square) {
    return (bool) (((bitboard) & minValue[(square)]) != EMPTY_BITBOARD);
 }
 
 /**
  * Get the king moves for the specified square.
  */
-Bitboard getKingMoves(const Square square)
-{
+Bitboard getKingMoves(const Square square) {
    return generalMoves[KING][square];
 }
 
@@ -218,14 +216,10 @@ Bitboard getKingMoves(const Square square)
  * the current position.
  */
 Bitboard getCastlingMoves(const Color color, const BYTE castlingRights,
-                          const Bitboard obstacles)
-{
-   if (color == WHITE)
-   {
+                          const Bitboard obstacles) {
+   if (color == WHITE) {
       return castlings[WHITE][castlingRights][obstacles & 0xFF];
-   }
-   else
-   {
+   } else {
       return castlings[BLACK][castlingRights][obstacles >> 56];
    }
 }
@@ -234,8 +228,7 @@ Bitboard getCastlingMoves(const Color color, const BYTE castlingRights,
  * Get the queen moves for the specified square.
  */
 /*
- Bitboard getQueenMoves(const Square square, const BYTE * obstacles)
-{
+ Bitboard getQueenMoves(const Square square, const BYTE * obstacles) {
    const ObstacleSquareInfo *_obsi = &obsi[square];
 
    return _obsi->hLane[obstacles[_obsi->hLaneNumber]] |
@@ -245,23 +238,17 @@ Bitboard getCastlingMoves(const Color color, const BYTE castlingRights,
 }
 */
 
-int getWidth(const Bitboard set)
-{
-   if (set == EMPTY_BITBOARD)
-   {
+int getWidth(const Bitboard set) {
+   if (set == EMPTY_BITBOARD) {
       return 0;
-   }
-   else
-   {
+   } else {
       File leftMost = FILE_A, rightMost = FILE_H;
 
-      while ((set & squaresOfFile[leftMost]) == EMPTY_BITBOARD)
-      {
+      while ((set & squaresOfFile[leftMost]) == EMPTY_BITBOARD) {
          leftMost++;
       }
 
-      while ((set & squaresOfFile[rightMost]) == EMPTY_BITBOARD)
-      {
+      while ((set & squaresOfFile[rightMost]) == EMPTY_BITBOARD) {
          rightMost--;
       }
 
@@ -272,8 +259,7 @@ int getWidth(const Bitboard set)
 /**
  * Get the queen moves for the specified square.
  */
-Bitboard getMagicQueenMoves(const Square square, const Bitboard obstacles)
-{
+Bitboard getMagicQueenMoves(const Square square, const Bitboard obstacles) {
    MagicSquareInfoRook *msir = &magicSquareInfoRook[square];
    MagicSquareInfoBishop *msib = &magicSquareInfoBishop[square];
 
@@ -285,8 +271,7 @@ Bitboard getMagicQueenMoves(const Square square, const Bitboard obstacles)
 /**
  * Get the rook moves for the specified square.
  */
-Bitboard getRookMoves(const Square square, const BYTE * obstacles)
-{
+Bitboard getRookMoves(const Square square, const BYTE * obstacles) {
    const ObstacleSquareInfo *_obsi = &obsi[square];
 
    return _obsi->hLane[obstacles[_obsi->hLaneNumber]] |
@@ -296,8 +281,7 @@ Bitboard getRookMoves(const Square square, const BYTE * obstacles)
 /**
  * Get the rook moves for the specified square.
  */
-Bitboard getMagicRookMoves(const Square square, const Bitboard obstacles)
-{
+Bitboard getMagicRookMoves(const Square square, const Bitboard obstacles) {
    MagicSquareInfoRook *msir = &magicSquareInfoRook[square];
 
    return
@@ -307,8 +291,7 @@ Bitboard getMagicRookMoves(const Square square, const Bitboard obstacles)
 /**
  * Get the bishop moves for the specified square.
  */
-Bitboard getBishopMoves(const Square square, const BYTE * obstacles)
-{
+Bitboard getBishopMoves(const Square square, const BYTE * obstacles) {
    const ObstacleSquareInfo *_obsi = &obsi[square];
 
    return _obsi->uLane[obstacles[_obsi->uLaneNumber]] |
@@ -318,8 +301,7 @@ Bitboard getBishopMoves(const Square square, const BYTE * obstacles)
 /**
  * Get the bishop moves for the specified square.
  */
-Bitboard getMagicBishopMoves(const Square square, const Bitboard obstacles)
-{
+Bitboard getMagicBishopMoves(const Square square, const Bitboard obstacles) {
    MagicSquareInfoBishop *msib = &magicSquareInfoBishop[square];
 
    return
@@ -329,8 +311,7 @@ Bitboard getMagicBishopMoves(const Square square, const Bitboard obstacles)
 /**
  * Get the knight moves for the specified square.
  */
-Bitboard getKnightMoves(const Square square)
-{
+Bitboard getKnightMoves(const Square square) {
    return generalMoves[KNIGHT][square];
 }
 
@@ -338,8 +319,7 @@ Bitboard getKnightMoves(const Square square)
  * Get the pawn captures for the specified square.
  */
 Bitboard getPawnCaptures(const Piece piece, const Square square,
-                         const Bitboard allPieces)
-{
+                         const Bitboard allPieces) {
    return generalMoves[piece][square] & allPieces;
 }
 
@@ -347,25 +327,19 @@ Bitboard getPawnCaptures(const Piece piece, const Square square,
  * Get the pawn advances for the specified square.
  */
 Bitboard getPawnAdvances(const Color color, const Square square,
-                         const Bitboard obstacles)
-{
+                         const Bitboard obstacles) {
    Bitboard advances;
 
-   if (color == WHITE)
-   {
+   if (color == WHITE) {
       advances = (minValue[square] << 8) & ~obstacles;
 
-      if (rank(square) == RANK_2)
-      {
+      if (rank(square) == RANK_2) {
          advances |= (advances << 8) & ~obstacles;
       }
-   }
-   else
-   {
+   } else {
       advances = (minValue[square] >> 8) & ~obstacles;
 
-      if (rank(square) == RANK_7)
-      {
+      if (rank(square) == RANK_7) {
          advances |= (advances >> 8) & ~obstacles;
       }
    }
@@ -377,27 +351,21 @@ Bitboard getPawnAdvances(const Color color, const Square square,
  * Get the pawns interested in advancing to the specified square.
  */
 Bitboard getInterestedPawns(const Color color, const Square square,
-                            const Bitboard obstacles)
-{
+                            const Bitboard obstacles) {
    Bitboard interestedPawns;
 
-   if (color == WHITE)
-   {
+   if (color == WHITE) {
       interestedPawns = minValue[square] >> 8;
 
       if (rank(square) == RANK_4 &&
-          (interestedPawns & obstacles) == EMPTY_BITBOARD)
-      {
+          (interestedPawns & obstacles) == EMPTY_BITBOARD) {
          interestedPawns |= minValue[square] >> 16;
       }
-   }
-   else
-   {
+   } else {
       interestedPawns = minValue[square] << 8;
 
       if (rank(square) == RANK_5 &&
-          (interestedPawns & obstacles) == EMPTY_BITBOARD)
-      {
+          (interestedPawns & obstacles) == EMPTY_BITBOARD) {
          interestedPawns |= minValue[square] << 16;
       }
    }
@@ -408,72 +376,63 @@ Bitboard getInterestedPawns(const Color color, const Square square,
 /**
  * Get the squares between the two specified squares.
  */
-Bitboard getSquaresBetween(const Square square1, const Square square2)
-{
+Bitboard getSquaresBetween(const Square square1, const Square square2) {
    return squaresBetween[square1][square2];
 }
 
 /**
  * Get the squares behind 'target', as seen from 'viewpoint'.
  */
-Bitboard getSquaresBehind(const Square target, const Square viewpoint)
-{
+Bitboard getSquaresBehind(const Square target, const Square viewpoint) {
    return squaresBehind[target][viewpoint];
 }
 
 /**
  * Shift all set squares one file to the left.
  */
-Bitboard shiftLeft(const Bitboard bitboard)
-{
+Bitboard shiftLeft(const Bitboard bitboard) {
    return (bitboard & nonA) >> 1;
 }
 
 /**
  * Shift all set squares one file to the right.
  */
-Bitboard shiftRight(const Bitboard bitboard)
-{
+Bitboard shiftRight(const Bitboard bitboard) {
    return (bitboard & nonH) << 1;
 }
 
 /**
  * Get all squares lateral to the specified squares.
  */
-Bitboard getLateralSquares(const Bitboard squares)
-{
+Bitboard getLateralSquares(const Bitboard squares) {
    return ((squares & nonA) >> 1) | ((squares & nonH) << 1);
 }
 
 /**
  * Get the squares of the specified file.
  */
-Bitboard getSquaresOfFile(const File file)
-{
+Bitboard getSquaresOfFile(const File file) {
    return squaresOfFile[file];
 }
 
 /**
  * Get the squares of the specified rank.
  */
-Bitboard getSquaresOfRank(const Rank rank)
-{
+Bitboard getSquaresOfRank(const Rank rank) {
    return squaresOfRank[rank];
 }
 
 /**
  * Get the number of set squares in the specified bitboard.
  */
-int getNumberOfSetSquares(const Bitboard bitboard)
-{
+int getNumberOfSetSquares(const Bitboard bitboard) {
    return __builtin_popcountll(bitboard);
 }
 
 /**
  * Get the rank overlay of the specified bitboard.
  */
-int getRankOverlay(const Bitboard bitboard)
-{
+int getRankOverlay(const Bitboard bitboard) {
    return rankOverlay[(bitboard) & UHEX_FFFF] |
       rankOverlay[(bitboard >> 16) & UHEX_FFFF] |
       rankOverlay[(bitboard >> 32) & UHEX_FFFF] |
@@ -483,10 +442,8 @@ int getRankOverlay(const Bitboard bitboard)
 /**
  * Get the moves of the the specified piece.
  */
-Bitboard getMoves(Square square, Piece piece, Bitboard allPieces)
-{
-   switch (pieceType(piece))
-   {
+Bitboard getMoves(Square square, Piece piece, Bitboard allPieces) {
+   switch (pieceType(piece)) {
    case PAWN:
       return getPawnCaptures(piece, square, allPieces) |
          getPawnAdvances(pieceColor(piece), square, allPieces);
@@ -506,10 +463,8 @@ Bitboard getMoves(Square square, Piece piece, Bitboard allPieces)
 /**
  * Get the capture moves of the the specified piece.
  */
-Bitboard getCaptureMoves(Square square, Piece piece, Bitboard allPieces)
-{
-   switch (pieceType(piece))
-   {
+Bitboard getCaptureMoves(Square square, Piece piece, Bitboard allPieces) {
+   switch (pieceType(piece)) {
    case PAWN:
       return getPawnCaptures(piece, square, allPieces);
    case KING:
@@ -528,8 +483,7 @@ Bitboard getCaptureMoves(Square square, Piece piece, Bitboard allPieces)
 /**
  * Set a square in the specified vector of obstacles.
  */
-void setObstacleSquare(Square square, BYTE obstacles[NUM_LANES])
-{
+void setObstacleSquare(Square square, BYTE obstacles[NUM_LANES]) {
    SquareLaneInfo *sqi = &squareLaneInfo[square];
 
    obstacles[sqi->hLane] |= sqi->hLaneSetMask;
@@ -541,8 +495,7 @@ void setObstacleSquare(Square square, BYTE obstacles[NUM_LANES])
 /**
  * Clear a square in the specified vector of obstacles.
  */
-void clearObstacleSquare(Square square, BYTE obstacles[NUM_LANES])
-{
+void clearObstacleSquare(Square square, BYTE obstacles[NUM_LANES]) {
    SquareLaneInfo *sqi = &squareLaneInfo[square];
 
    obstacles[sqi->hLane] &= sqi->hLaneClearMask;
@@ -554,16 +507,13 @@ void clearObstacleSquare(Square square, BYTE obstacles[NUM_LANES])
 /**
  * Calculate all obstacles according to the specified bitboard.
  */
-void calculateObstacles(Bitboard board, BYTE obstacles[NUM_LANES])
-{
+void calculateObstacles(Bitboard board, BYTE obstacles[NUM_LANES]) {
    Square square;
 
    memset(obstacles, 0x00, NUM_LANES);
 
-   ITERATE(square)
-   {
-      if (board & minValue[square])
-      {
+   ITERATE(square) {
+      if (board & minValue[square]) {
          setObstacleSquare(square, obstacles);
       }
    }
@@ -584,16 +534,14 @@ void floodBoard(Bitboard * board);
 /**
  * Get the targets of all pawns specified by 'whitePawns'.
  */
-Bitboard getWhitePawnTargets(const Bitboard whitePawns)
-{
+Bitboard getWhitePawnTargets(const Bitboard whitePawns) {
    return ((whitePawns & nonA) << 7) | ((whitePawns & nonH) << 9);
 }
 
 /**
  * Get the targets of all pawns specified by 'blackPawns'.
  */
-Bitboard getBlackPawnTargets(const Bitboard blackPawns)
-{
+Bitboard getBlackPawnTargets(const Bitboard blackPawns) {
    return ((blackPawns & nonA) >> 9) | ((blackPawns & nonH) >> 7);
 }
 
@@ -602,22 +550,17 @@ Bitboard getBlackPawnTargets(const Bitboard blackPawns)
  */
 #define ITERATE_BITBOARD(b,sq) while ( ( sq = getLastSquare(b) ) >= 0 )
 
-void floodBoard(Bitboard * board)
-{
+void floodBoard(Bitboard * board) {
    const Bitboard toLeft = *board & nonA, toRight = *board & nonH;
 
    *board = (toLeft >> 1) | (toLeft << 7) | (*board >> 8) | (toLeft >> 9) |
       (toRight << 1) | (toRight >> 7) | (*board << 8) | (toRight << 9);
 }
 
-Square getLastSquare(Bitboard * vector)
-{
-   if (*vector == EMPTY_BITBOARD)
-   {
+Square getLastSquare(Bitboard * vector) {
+   if (*vector == EMPTY_BITBOARD) {
       return NO_SQUARE;
-   }
-   else
-   {
+   } else {
       const int index = 63 - __builtin_clzll(*vector);
 
       *vector &= maxValue[index];
@@ -626,14 +569,10 @@ Square getLastSquare(Bitboard * vector)
    }
 }
 
-Square getFirstSquare(Bitboard * vector)
-{
-   if (*vector == EMPTY_BITBOARD)
-   {
+Square getFirstSquare(Bitboard * vector) {
+   if (*vector == EMPTY_BITBOARD) {
       return NO_SQUARE;
-   }
-   else
-   {
+   } else {
       const int index = __builtin_ctzll(*vector);
 
       *vector &= maxValue[index];
@@ -642,37 +581,32 @@ Square getFirstSquare(Bitboard * vector)
    }
 }
 
-int getSetSquares(const Bitboard board, UINT8 squares[_64_])
-{
+int getSetSquares(const Bitboard board, UINT8 squares[_64_]) {
    int index;
    UINT8 *currentSquare = &squares[0];
 
-   if ((index = (int) (0xFFFF & board)) != 0)
-   {
+   if ((index = (int) (0xFFFF & board)) != 0) {
       const SetSquaresInfo *info = &setSquares[0][index];
 
       memcpy(currentSquare, info->setSquares, info->numSetSquares);
       currentSquare += info->numSetSquares;
    }
 
-   if ((index = (int) (0xFFFF & (board >> 16))) != 0)
-   {
+   if ((index = (int) (0xFFFF & (board >> 16))) != 0) {
       const SetSquaresInfo *info = &setSquares[1][index];
 
       memcpy(currentSquare, info->setSquares, info->numSetSquares);
       currentSquare += info->numSetSquares;
    }
 
-   if ((index = (int) (0xFFFF & (board >> 32))) != 0)
-   {
+   if ((index = (int) (0xFFFF & (board >> 32))) != 0) {
       const SetSquaresInfo *info = &setSquares[2][index];
 
       memcpy(currentSquare, info->setSquares, info->numSetSquares);
       currentSquare += info->numSetSquares;
    }
 
-   if ((index = (int) (board >> 48)) != 0)
-   {
+   if ((index = (int) (board >> 48)) != 0) {
       const SetSquaresInfo *info = &setSquares[3][index];
 
       memcpy(currentSquare, info->setSquares, info->numSetSquares);
@@ -682,14 +616,12 @@ int getSetSquares(const Bitboard board, UINT8 squares[_64_])
    return (int) (currentSquare - &squares[0]);
 }
 
-Bitboard getMultipleSquaresBetween(const Square origin, Bitboard targets)
-{
+Bitboard getMultipleSquaresBetween(const Square origin, Bitboard targets) {
    Bitboard squares = targets;
    Square targetSquare;
    Bitboard *sqb = &(squaresBetween[origin][0]);
 
-   ITERATE_BITBOARD(&targets, targetSquare)
-   {
+   ITERATE_BITBOARD(&targets, targetSquare) {
       squares |= sqb[targetSquare];
    }
 
@@ -697,15 +629,13 @@ Bitboard getMultipleSquaresBetween(const Square origin, Bitboard targets)
 }
 
 int getFloodValue(const Square origin, const Bitboard targets,
-                  const Bitboard permittedSquares)
-{
+                  const Bitboard permittedSquares) {
    Bitboard floodedSquares = getKingMoves(origin) & permittedSquares;
    Bitboard oldFloodedSquares = minValue[origin];
    int numSteps = 1;
 
    while ((targets & floodedSquares) == EMPTY_BITBOARD &&
-          floodedSquares != oldFloodedSquares)
-   {
+          floodedSquares != oldFloodedSquares) {
       oldFloodedSquares = floodedSquares;
       floodBoard(&floodedSquares);
       floodedSquares |= oldFloodedSquares;
@@ -716,47 +646,36 @@ int getFloodValue(const Square origin, const Bitboard targets,
    return numSteps;
 }
 
-static void initializeKingMoves(void)
-{
+static void initializeKingMoves(void) {
    int offset[] = { 1, -1, 7, -7, 8, -8, 9, -9 }, direction;
    Square square;
 
-   ITERATE(square)
-   {
-      for (direction = 0; direction < 8; direction++)
-      {
+   ITERATE(square) {
+      for (direction = 0; direction < 8; direction++) {
          Square target = (Square) (square + offset[direction]);
 
-         if (squareIsValid(target) && distance(square, target) == 1)
-         {
+         if (squareIsValid(target) && distance(square, target) == 1) {
             generalMoves[KING][square] |= minValue[target];
          }
       }
    }
 }
 
-static void initializeRookMoves(void)
-{
+static void initializeRookMoves(void) {
    int offset[] = { 1, -1, 8, -8 }, direction, moveLength;
    Square square;
 
-   ITERATE(square)
-   {
-      for (direction = 0; direction < 4; direction++)
-      {
-         for (moveLength = 1; moveLength <= 7; moveLength++)
-         {
+   ITERATE(square) {
+      for (direction = 0; direction < 4; direction++) {
+         for (moveLength = 1; moveLength <= 7; moveLength++) {
             Square target =
                (Square) (square + offset[direction] * moveLength);
             bool sameFile = (bool) (file(square) == file(target));
             bool sameRow = (bool) (rank(square) == rank(target));
 
-            if (squareIsValid(target) && (sameFile || sameRow))
-            {
+            if (squareIsValid(target) && (sameFile || sameRow)) {
                generalMoves[ROOK][square] |= minValue[target];
-            }
-            else
-            {
+            } else {
                break;
             }
          }
@@ -764,28 +683,21 @@ static void initializeRookMoves(void)
    }
 }
 
-static void initializeBishopMoves(void)
-{
+static void initializeBishopMoves(void) {
    int offset[] = { 7, -7, 9, -9 }, direction, moveLength;
    Square square;
 
-   ITERATE(square)
-   {
-      for (direction = 0; direction < 4; direction++)
-      {
-         for (moveLength = 1; moveLength <= 7; moveLength++)
-         {
+   ITERATE(square) {
+      for (direction = 0; direction < 4; direction++) {
+         for (moveLength = 1; moveLength <= 7; moveLength++) {
             Square target =
                (Square) (square + offset[direction] * moveLength);
             int hDistance = horizontalDistance(square, target);
             int vDistance = verticalDistance(square, target);
 
-            if (squareIsValid(target) && hDistance == vDistance)
-            {
+            if (squareIsValid(target) && hDistance == vDistance) {
                generalMoves[BISHOP][square] |= minValue[target];
-            }
-            else
-            {
+            } else {
                break;
             }
          }
@@ -793,79 +705,63 @@ static void initializeBishopMoves(void)
    }
 }
 
-static void initializeQueenMoves(void)
-{
+static void initializeQueenMoves(void) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       generalMoves[QUEEN][square] =
          generalMoves[ROOK][square] | generalMoves[BISHOP][square];
    }
 }
 
-static void initializeKnightMoves(void)
-{
+static void initializeKnightMoves(void) {
    int offset[] = { 6, -6, 10, -10, 15, -15, 17, -17 }, direction;
    Square square;
 
-   ITERATE(square)
-   {
-      for (direction = 0; direction < 8; direction++)
-      {
+   ITERATE(square) {
+      for (direction = 0; direction < 8; direction++) {
          Square target = (Square) (square + offset[direction]);
 
-         if (squareIsValid(target) && distance(square, target) <= 2)
-         {
+         if (squareIsValid(target) && distance(square, target) <= 2) {
             generalMoves[KNIGHT][square] |= minValue[target];
          }
       }
    }
 }
 
-static void initializePawnMoves(void)
-{
+static void initializePawnMoves(void) {
    Square square;
 
-   ITERATE(square)
-   {
-      if (file(square) != FILE_A)
-      {
-         if (square <= H8 - 7)
-         {
+   ITERATE(square) {
+      if (file(square) != FILE_A) {
+         if (square <= H8 - 7) {
             generalMoves[WHITE_PAWN][square] |= minValue[square + 7];
          }
 
-         if (square >= A1 + 9)
-         {
+         if (square >= A1 + 9) {
             generalMoves[BLACK_PAWN][square] |= minValue[square - 9];
          }
       }
 
-      if (file(square) != FILE_H)
-      {
-         if (square <= H8 - 9)
-         {
+      if (file(square) != FILE_H) {
+         if (square <= H8 - 9) {
             generalMoves[WHITE_PAWN][square] |= minValue[square + 9];
          }
 
-         if (square >= A1 + 7)
-         {
+         if (square >= A1 + 7) {
             generalMoves[BLACK_PAWN][square] |= minValue[square - 7];
          }
       }
    }
 }
 
-static Bitboard calculateSquaresBehind(Square square, int offset)
-{
+static Bitboard calculateSquaresBehind(Square square, int offset) {
    Bitboard squares = EMPTY_BITBOARD;
 
    for (square = (Square) (square + offset);
         squareIsValid(square) &&
         distance(square, (Square) (square - offset)) == 1;
-        square = (Square) (square + offset))
-   {
+        square = (Square) (square + offset)) {
       Bitboard mv = minValue[square];
 
       squares |= mv;
@@ -874,16 +770,13 @@ static Bitboard calculateSquaresBehind(Square square, int offset)
    return squares;
 }
 
-static void initializeSquaresBehind(void)
-{
+static void initializeSquaresBehind(void) {
    Square sq1, sq2;
 
-   ITERATE(sq1)
-   {
+   ITERATE(sq1) {
       Bitboard squares = generalMoves[QUEEN][sq1];
 
-      ITERATE_BITBOARD(&squares, sq2)
-      {
+      ITERATE_BITBOARD(&squares, sq2) {
          int offset = offset(sq1, sq2);
 
          squaresBehind[sq2][sq1] = calculateSquaresBehind(sq2, offset);
@@ -891,40 +784,33 @@ static void initializeSquaresBehind(void)
    }
 }
 
-static Bitboard calculateSquaresBetween(Square sq1, Square sq2)
-{
+static Bitboard calculateSquaresBetween(Square sq1, Square sq2) {
    Bitboard squares = EMPTY_BITBOARD;
    int _offset = offset(sq1, sq2), square;
 
-   for (square = sq1 + _offset; square != sq2; square += _offset)
-   {
+   for (square = sq1 + _offset; square != sq2; square += _offset) {
       squares |= minValue[square];
    }
 
    return squares;
 }
 
-static void initializeSquaresBetween(void)
-{
+static void initializeSquaresBetween(void) {
    Square sq1, sq2;
 
-   ITERATE(sq1)
-   {
+   ITERATE(sq1) {
       Bitboard squares = generalMoves[QUEEN][sq1];
 
-      ITERATE_BITBOARD(&squares, sq2)
-      {
+      ITERATE_BITBOARD(&squares, sq2) {
          squaresBetween[sq1][sq2] = calculateSquaresBetween(sq1, sq2);
       }
    }
 }
 
-static void initializeSquareLaneInfo(void)
-{
+static void initializeSquareLaneInfo(void) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       SquareLaneInfo *sqi = &squareLaneInfo[square];
 
       sqi->hLane = hLaneNumber[square] = HLANE(square);
@@ -945,15 +831,12 @@ static void initializeSquareLaneInfo(void)
    }
 }
 
-static Bitboard getHlaneVector(int lane, BYTE mask)
-{
+static Bitboard getHlaneVector(int lane, BYTE mask) {
    int i;
    Bitboard v = EMPTY_BITBOARD;
 
-   for (i = 0; i < 8; i++)
-   {
-      if (mask & minValue[i])
-      {
+   for (i = 0; i < 8; i++) {
+      if (mask & minValue[i]) {
          v |= minValue[7 - i];
       }
    }
@@ -963,15 +846,12 @@ static Bitboard getHlaneVector(int lane, BYTE mask)
    return v;
 }
 
-static Bitboard getVlaneVector(int lane, BYTE mask)
-{
+static Bitboard getVlaneVector(int lane, BYTE mask) {
    int i;
    Bitboard v = EMPTY_BITBOARD;
 
-   for (i = 0; i < 8; i++)
-   {
-      if (mask & minValue[i])
-      {
+   for (i = 0; i < 8; i++) {
+      if (mask & minValue[i]) {
          v |= minValue[8 * (7 - i)];
       }
    }
@@ -981,32 +861,24 @@ static Bitboard getVlaneVector(int lane, BYTE mask)
    return v;
 }
 
-static Bitboard getUlaneVector(int lane, BYTE mask)
-{
+static Bitboard getUlaneVector(int lane, BYTE mask) {
    int i;
    Bitboard v = EMPTY_BITBOARD;
 
-   for (i = 0; i < 8; i++)
-   {
+   for (i = 0; i < 8; i++) {
       v <<= 8;
 
-      if (mask & minValue[i])
-      {
+      if (mask & minValue[i]) {
          v |= minValue[7 - i];
       }
    }
 
-   if (lane < 7)
-   {
-      for (i = lane; i < 7; i++)
-      {
+   if (lane < 7) {
+      for (i = lane; i < 7; i++) {
          v = (v & nonA) >> 1;
       }
-   }
-   else
-   {
-      for (i = lane; i > 7; i--)
-      {
+   } else {
+      for (i = lane; i > 7; i--) {
          v = (v & nonH) << 1;
       }
    }
@@ -1014,32 +886,24 @@ static Bitboard getUlaneVector(int lane, BYTE mask)
    return v;
 }
 
-static Bitboard getDlaneVector(int lane, BYTE mask)
-{
+static Bitboard getDlaneVector(int lane, BYTE mask) {
    int i;
    Bitboard v = EMPTY_BITBOARD;
 
-   for (i = 0; i < 8; i++)
-   {
+   for (i = 0; i < 8; i++) {
       v <<= 8;
 
-      if (mask & minValue[7 - i])
-      {
+      if (mask & minValue[7 - i]) {
          v |= minValue[i];
       }
    }
 
-   if (lane < 7)
-   {
-      for (i = lane; i < 7; i++)
-      {
+   if (lane < 7) {
+      for (i = lane; i < 7; i++) {
          v = (v & nonA) >> 1;
       }
-   }
-   else
-   {
-      for (i = lane; i > 7; i--)
-      {
+   } else {
+      for (i = lane; i > 7; i--) {
          v = (v & nonH) << 1;
       }
    }
@@ -1048,17 +912,14 @@ static Bitboard getDlaneVector(int lane, BYTE mask)
 }
 
 static Bitboard getLaneMask(Square square, int offset,
-                            Bitboard legalSquares, Bitboard obstacles)
-{
+                            Bitboard legalSquares, Bitboard obstacles) {
    Bitboard laneMask = EMPTY_BITBOARD, mv = EMPTY_BITBOARD;
 
    while ((square = (Square) (square + offset)) >= A1 &&
-          square <= H8 && ((mv = minValue[square]) & legalSquares))
-   {
+          square <= H8 && ((mv = minValue[square]) & legalSquares)) {
       laneMask |= mv;
 
-      if (mv & obstacles)
-      {
+      if (mv & obstacles) {
          break;
       }
    }
@@ -1066,8 +927,7 @@ static Bitboard getLaneMask(Square square, int offset,
    return laneMask;
 }
 
-static Bitboard getHLaneMask(Square square, BYTE mask)
-{
+static Bitboard getHLaneMask(Square square, BYTE mask) {
    int lane = HLANE(square);
    Bitboard legalSquares = getHlaneVector(lane, 255);
    Bitboard obstacles = getHlaneVector(lane, mask);
@@ -1079,8 +939,7 @@ static Bitboard getHLaneMask(Square square, BYTE mask)
    return laneMask;
 }
 
-static Bitboard getVLaneMask(Square square, BYTE mask)
-{
+static Bitboard getVLaneMask(Square square, BYTE mask) {
    int lane = VLANE(square);
    Bitboard legalSquares = getVlaneVector(lane, 255);
    Bitboard obstacles = getVlaneVector(lane, mask);
@@ -1092,8 +951,7 @@ static Bitboard getVLaneMask(Square square, BYTE mask)
    return laneMask;
 }
 
-static Bitboard getULaneMask(Square square, BYTE mask)
-{
+static Bitboard getULaneMask(Square square, BYTE mask) {
    int lane = ULANE(square);
    Bitboard legalSquares = getUlaneVector(lane, 255);
    Bitboard obstacles = getUlaneVector(lane, mask);
@@ -1105,8 +963,7 @@ static Bitboard getULaneMask(Square square, BYTE mask)
    return laneMask;
 }
 
-static Bitboard getDLaneMask(Square square, BYTE mask)
-{
+static Bitboard getDLaneMask(Square square, BYTE mask) {
    int lane = DLANE(square);
    Bitboard legalSquares = getDlaneVector(lane, 255);
    Bitboard obstacles = getDlaneVector(lane, mask);
@@ -1118,17 +975,14 @@ static Bitboard getDLaneMask(Square square, BYTE mask)
    return laneMask;
 }
 
-static Bitboard getWhitePawnMoves(Square square, BYTE laneMask)
-{
+static Bitboard getWhitePawnMoves(Square square, BYTE laneMask) {
    int lane = VLANE(square);
    Bitboard moves = EMPTY_BITBOARD, board = getVlaneVector(lane, laneMask);
 
-   if (square >= A2 && square <= H7 && (board & minValue[square + 8]) == 0)
-   {
+   if (square >= A2 && square <= H7 && (board & minValue[square + 8]) == 0) {
       moves |= minValue[square + 8];
 
-      if (square <= H2 && (board & minValue[square + 16]) == 0)
-      {
+      if (square <= H2 && (board & minValue[square + 16]) == 0) {
          moves |= minValue[square + 16];
       }
    }
@@ -1136,17 +990,14 @@ static Bitboard getWhitePawnMoves(Square square, BYTE laneMask)
    return moves;
 }
 
-static Bitboard getInterestedWhitePawns(Square square, BYTE laneMask)
-{
+static Bitboard getInterestedWhitePawns(Square square, BYTE laneMask) {
    int lane = VLANE(square);
    Bitboard pawns = EMPTY_BITBOARD, board = getVlaneVector(lane, laneMask);
 
-   if (square >= A3 && square <= H8 && (board & minValue[square]) == 0)
-   {
+   if (square >= A3 && square <= H8 && (board & minValue[square]) == 0) {
       pawns |= minValue[square - 8];
 
-      if (rank(square) == RANK_4 && (board & minValue[square - 8]) == 0)
-      {
+      if (rank(square) == RANK_4 && (board & minValue[square - 8]) == 0) {
          pawns |= minValue[square - 16];
       }
    }
@@ -1154,17 +1005,14 @@ static Bitboard getInterestedWhitePawns(Square square, BYTE laneMask)
    return pawns;
 }
 
-static Bitboard getBlackPawnMoves(Square square, BYTE laneMask)
-{
+static Bitboard getBlackPawnMoves(Square square, BYTE laneMask) {
    int lane = VLANE(square);
    Bitboard moves = EMPTY_BITBOARD, board = getVlaneVector(lane, laneMask);
 
-   if (square >= A2 && square <= H7 && (board & minValue[square - 8]) == 0)
-   {
+   if (square >= A2 && square <= H7 && (board & minValue[square - 8]) == 0) {
       moves |= minValue[square - 8];
 
-      if (square >= A7 && (board & minValue[square - 16]) == 0)
-      {
+      if (square >= A7 && (board & minValue[square - 16]) == 0) {
          moves |= minValue[square - 16];
       }
    }
@@ -1172,17 +1020,14 @@ static Bitboard getBlackPawnMoves(Square square, BYTE laneMask)
    return moves;
 }
 
-static Bitboard getInterestedBlackPawns(Square square, BYTE laneMask)
-{
+static Bitboard getInterestedBlackPawns(Square square, BYTE laneMask) {
    int lane = VLANE(square);
    Bitboard pawns = EMPTY_BITBOARD, board = getVlaneVector(lane, laneMask);
 
-   if (square >= A1 && square <= H6 && (board & minValue[square]) == 0)
-   {
+   if (square >= A1 && square <= H6 && (board & minValue[square]) == 0) {
       pawns |= minValue[square + 8];
 
-      if (rank(square) == RANK_5 && (board & minValue[square + 8]) == 0)
-      {
+      if (rank(square) == RANK_5 && (board & minValue[square + 8]) == 0) {
          pawns |= minValue[square + 16];
       }
    }
@@ -1190,15 +1035,12 @@ static Bitboard getInterestedBlackPawns(Square square, BYTE laneMask)
    return pawns;
 }
 
-static void initializeLaneMasks(void)
-{
+static void initializeLaneMasks(void) {
    Square square;
    int i;
 
-   ITERATE(square)
-   {
-      for (i = 0; i <= 255; i++)
-      {
+   ITERATE(square) {
+      for (i = 0; i <= 255; i++) {
          BYTE mask = (BYTE) i;
 
          hlane[square][i] = getHLaneMask(square, mask);
@@ -1214,8 +1056,7 @@ static void initializeLaneMasks(void)
       }
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       int i;
 
       obsi[square].hLaneNumber = hLaneNumber[square];
@@ -1223,8 +1064,7 @@ static void initializeLaneMasks(void)
       obsi[square].uLaneNumber = uLaneNumber[square];
       obsi[square].dLaneNumber = dLaneNumber[square];
 
-      for (i = 0; i < 256; i++)
-      {
+      for (i = 0; i < 256; i++) {
          obsi[square].hLane[i] = hlane[square][i];
          obsi[square].vLane[i] = vlane[square][i];
          obsi[square].uLane[i] = ulane[square][i];
@@ -1233,61 +1073,49 @@ static void initializeLaneMasks(void)
    }
 }
 
-static Bitboard getCastlings(const Bitboard obstacles)
-{
+static Bitboard getCastlings(const Bitboard obstacles) {
    Bitboard castlings = EMPTY_BITBOARD;
 
    if ((obstacles & minValue[F1]) == EMPTY_BITBOARD &&
-       (obstacles & minValue[G1]) == EMPTY_BITBOARD)
-   {
+       (obstacles & minValue[G1]) == EMPTY_BITBOARD) {
       castlings |= minValue[G1];
    }
 
    if ((obstacles & minValue[B1]) == EMPTY_BITBOARD &&
        (obstacles & minValue[C1]) == EMPTY_BITBOARD &&
-       (obstacles & minValue[D1]) == EMPTY_BITBOARD)
-   {
+       (obstacles & minValue[D1]) == EMPTY_BITBOARD) {
       castlings |= minValue[C1];
    }
 
    return castlings;
 }
 
-static void initializeCastlings(void)
-{
+static void initializeCastlings(void) {
    int i, c;
 
-   for (i = 0; i <= 255; i++)
-   {
+   for (i = 0; i <= 255; i++) {
       BYTE mask = (BYTE) i;
       Bitboard moves = getCastlings((Bitboard) mask);
 
-      for (c = 0; c <= 15; c++)
-      {
+      for (c = 0; c <= 15; c++) {
          castlings[WHITE][c][mask] = castlings[BLACK][c][mask] = 0;
 
-         if (moves & minValue[G1])
-         {
-            if (c & WHITE_00)
-            {
+         if (moves & minValue[G1]) {
+            if (c & WHITE_00) {
                castlings[WHITE][c][mask] |= minValue[G1];
             }
 
-            if (c & BLACK_00)
-            {
+            if (c & BLACK_00) {
                castlings[BLACK][c][mask] |= minValue[G8];
             }
          }
 
-         if (moves & minValue[C1])
-         {
-            if (c & WHITE_000)
-            {
+         if (moves & minValue[C1]) {
+            if (c & WHITE_000) {
                castlings[WHITE][c][mask] |= minValue[C1];
             }
 
-            if (c & BLACK_000)
-            {
+            if (c & BLACK_000) {
                castlings[BLACK][c][mask] |= minValue[C8];
             }
          }
@@ -1295,31 +1123,25 @@ static void initializeCastlings(void)
    }
 }
 
-static INT8 _getNumberOfSetBits(INT32 v)
-{
+static INT8 _getNumberOfSetBits(INT32 v) {
    int count = 0, i;
 
-   for (i = 0; i < 16; i++)
-   {
+   for (i = 0; i < 16; i++) {
       count += (v >> i) & 1;
    }
 
    return (INT8) count;
 }
 
-static UINT8 _getRankOverlay(INT32 v)
-{
+static UINT8 _getRankOverlay(INT32 v) {
    return (UINT8) ((v & 0xff) | ((v >> 8) & 0xff));
 }
 
-unsigned int getMinimumDistance(const Bitboard targets, const Square square)
-{
+unsigned int getMinimumDistance(const Bitboard targets, const Square square) {
    unsigned int distance;
 
-   for (distance = 1; distance <= 7; distance++)
-   {
-      if ((squaresInDistance[distance][square] & targets) != EMPTY_BITBOARD)
-      {
+   for (distance = 1; distance <= 7; distance++) {
+      if ((squaresInDistance[distance][square] & targets) != EMPTY_BITBOARD) {
          return distance;
       }
    }
@@ -1327,14 +1149,11 @@ unsigned int getMinimumDistance(const Bitboard targets, const Square square)
    return 0;
 }
 
-unsigned int getMaximumDistance(const Bitboard targets, const Square square)
-{
+unsigned int getMaximumDistance(const Bitboard targets, const Square square) {
    unsigned int distance;
 
-   for (distance = 7; distance > 0; distance--)
-   {
-      if ((squaresInDistance[distance][square] & targets) != EMPTY_BITBOARD)
-      {
+   for (distance = 7; distance > 0; distance--) {
+      if ((squaresInDistance[distance][square] & targets) != EMPTY_BITBOARD) {
          return distance;
       }
    }
@@ -1342,46 +1161,36 @@ unsigned int getMaximumDistance(const Bitboard targets, const Square square)
    return 0;
 }
 
-static Bitboard getPremaskExclusions(const Square square)
-{
-   if (testSquare(border, square))
-   {
+static Bitboard getPremaskExclusions(const Square square) {
+   if (testSquare(border, square)) {
       Bitboard exclusions = EMPTY_BITBOARD;
 
-      if (testSquare(squaresOfFile[FILE_A], square) == FALSE)
-      {
+      if (testSquare(squaresOfFile[FILE_A], square) == FALSE) {
          exclusions |= squaresOfFile[FILE_A];
       }
 
-      if (testSquare(squaresOfFile[FILE_H], square) == FALSE)
-      {
+      if (testSquare(squaresOfFile[FILE_H], square) == FALSE) {
          exclusions |= squaresOfFile[FILE_H];
       }
 
-      if (testSquare(squaresOfRank[RANK_1], square) == FALSE)
-      {
+      if (testSquare(squaresOfRank[RANK_1], square) == FALSE) {
          exclusions |= squaresOfRank[RANK_1];
       }
 
-      if (testSquare(squaresOfRank[RANK_8], square) == FALSE)
-      {
+      if (testSquare(squaresOfRank[RANK_8], square) == FALSE) {
          exclusions |= squaresOfRank[RANK_8];
       }
 
       return exclusions;
-   }
-   else
-   {
+   } else {
       return border;
    }
 }
 
-static void initializePremasks(void)
-{
+static void initializePremasks(void) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       preMaskRook[square] = generalMoves[WHITE_ROOK][square] &
          ~getPremaskExclusions(square);
       preMaskBishop[square] = generalMoves[WHITE_BISHOP][square] &
@@ -1389,8 +1198,7 @@ static void initializePremasks(void)
    }
 }
 
-static void initializeMagicRookMoves(const Square square)
-{
+static void initializeMagicRookMoves(const Square square) {
    Square squareOfIndex[12];
    Bitboard allMoves = preMaskRook[square];
    const Bitboard premask = preMaskRook[square];
@@ -1399,35 +1207,29 @@ static void initializeMagicRookMoves(const Square square)
    BYTE obstacles[NUM_LANES];
    const Bitboard magicNumber = magicRookNumber[square];
 
-   for (i = 0; i < IMAX_ROOK; i++)
-   {
+   for (i = 0; i < IMAX_ROOK; i++) {
       magicRookMoves[square][i] = EMPTY_BITBOARD;
    }
 
-   for (i = 0; i < 12; i++)
-   {
+   for (i = 0; i < 12; i++) {
       squareOfIndex[i] = NO_SQUARE;
    }
 
    i = 0;
 
-   ITERATE_BITBOARD(&allMoves, sq1)
-   {
+   ITERATE_BITBOARD(&allMoves, sq1) {
       assert(i < 12);
 
       squareOfIndex[i++] = sq1;
    }
 
-   for (pieceSetup = 0; pieceSetup < 4096; pieceSetup++)
-   {
+   for (pieceSetup = 0; pieceSetup < 4096; pieceSetup++) {
       Bitboard currentSetup = EMPTY_BITBOARD, effectiveMoves;
       int j = 1;
       Bitboard magicIndex;
 
-      for (i = 0; i < 12 && squareOfIndex[i] != NO_SQUARE; i++)
-      {
-         if ((pieceSetup & j) != 0)
-         {
+      for (i = 0; i < 12 && squareOfIndex[i] != NO_SQUARE; i++) {
+         if ((pieceSetup & j) != 0) {
             setSquare(currentSetup, squareOfIndex[i]);
          }
 
@@ -1441,8 +1243,7 @@ static void initializeMagicRookMoves(const Square square)
    }
 }
 
-static void initializeMagicBishopMoves(const Square square)
-{
+static void initializeMagicBishopMoves(const Square square) {
    Square squareOfIndex[12];
    Bitboard allMoves = preMaskBishop[square];
    const Bitboard premask = preMaskBishop[square];
@@ -1451,35 +1252,29 @@ static void initializeMagicBishopMoves(const Square square)
    BYTE obstacles[NUM_LANES];
    const Bitboard magicNumber = magicBishopNumber[square];
 
-   for (i = 0; i < IMAX_BISHOP; i++)
-   {
+   for (i = 0; i < IMAX_BISHOP; i++) {
       magicBishopMoves[square][i] = EMPTY_BITBOARD;
    }
 
-   for (i = 0; i < 12; i++)
-   {
+   for (i = 0; i < 12; i++) {
       squareOfIndex[i] = NO_SQUARE;
    }
 
    i = 0;
 
-   ITERATE_BITBOARD(&allMoves, sq1)
-   {
+   ITERATE_BITBOARD(&allMoves, sq1) {
       assert(i < 12);
 
       squareOfIndex[i++] = sq1;
    }
 
-   for (pieceSetup = 0; pieceSetup < 4096; pieceSetup++)
-   {
+   for (pieceSetup = 0; pieceSetup < 4096; pieceSetup++) {
       Bitboard currentSetup = EMPTY_BITBOARD, effectiveMoves;
       int j = 1;
       Bitboard magicIndex;
 
-      for (i = 0; i < 12 && squareOfIndex[i] != NO_SQUARE; i++)
-      {
-         if ((pieceSetup & j) != 0)
-         {
+      for (i = 0; i < 12 && squareOfIndex[i] != NO_SQUARE; i++) {
+         if ((pieceSetup & j) != 0) {
             setSquare(currentSetup, squareOfIndex[i]);
          }
 
@@ -1493,38 +1288,31 @@ static void initializeMagicBishopMoves(const Square square)
    }
 }
 
-Bitboard getFlippedBitboard(Bitboard original)
-{
+Bitboard getFlippedBitboard(Bitboard original) {
    Bitboard flipped = EMPTY_BITBOARD;
    Square square;
 
-   ITERATE_BITBOARD(&original, square)
-   {
+   ITERATE_BITBOARD(&original, square) {
       setSquare(flipped, getFlippedSquare(square));
    }
 
    return flipped;
 }
 
-int initializeModuleBitboard(void)
-{
+int initializeModuleBitboard(void) {
    INT32 i;
    INT32 j;
    INT8 k, indexLow, indexHigh;
    UINT64 min = 1;
    Square square;
 
-   if (isInitialized)
-   {
+   if (isInitialized) {
       return 0;
-   }
-   else
-   {
+   } else {
       isInitialized = TRUE;
    }
 
-   ITERATE(i)
-   {
+   ITERATE(i) {
       minValue[i] = min;
       maxValue[i] = ~min;
 
@@ -1534,20 +1322,16 @@ int initializeModuleBitboard(void)
    lowestBit[0] = highestBit[0] = NO_SQUARE;
    numSetBits[0] = rankOverlay[0] = 0;
 
-   for (i = 1; i <= 0xffffL; i++)
-   {
+   for (i = 1; i <= 0xffffL; i++) {
       numSetBits[i] = _getNumberOfSetBits(i);
       rankOverlay[i] = _getRankOverlay(i);
 
       j = i;
       indexLow = indexHigh = NO_SQUARE;
 
-      for (k = 0x00; k <= 0x0f; k++)
-      {
-         if ((j & 1) == 1)
-         {
-            if (indexLow == NO_SQUARE)
-            {
+      for (k = 0x00; k <= 0x0f; k++) {
+         if ((j & 1) == 1) {
+            if (indexLow == NO_SQUARE) {
                indexLow = k;
             }
 
@@ -1561,66 +1345,52 @@ int initializeModuleBitboard(void)
       highestBit[i] = indexHigh;
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       int distance;
 
-      if (squareColor(square) == DARK)
-      {
+      if (squareColor(square) == DARK) {
          setSquare(darkSquares, square);
          clearSquare(lightSquares, square);
-      }
-      else
-      {
+      } else {
          clearSquare(darkSquares, square);
          setSquare(lightSquares, square);
       }
 
-      for (distance = 0; distance <= 7; distance++)
-      {
+      for (distance = 0; distance <= 7; distance++) {
          Square square2;
 
          squaresInDistance[distance][square] = EMPTY_BITBOARD;
 
-         ITERATE(square2)
-         {
-            if (distance(square, square2) <= distance)
-            {
+         ITERATE(square2) {
+            if (distance(square, square2) <= distance) {
                setSquare(squaresInDistance[distance][square], square2);
             }
          }
       }
 
-      for (distance = 0; distance <= 14; distance++)
-      {
+      for (distance = 0; distance <= 14; distance++) {
          Square square2;
 
          squaresInTaxiDistance[distance][square] = EMPTY_BITBOARD;
 
-         ITERATE(square2)
-         {
-            if (taxiDistance(square, square2) <= distance)
-            {
+         ITERATE(square2) {
+            if (taxiDistance(square, square2) <= distance) {
                setSquare(squaresInTaxiDistance[distance][square], square2);
             }
          }
       }
    }
 
-   for (i = FILE_A; i <= FILE_H; i++)
-   {
+   for (i = FILE_A; i <= FILE_H; i++) {
       int j;
 
-      for (j = FILE_A; j <= FILE_H; j++)
-      {
+      for (j = FILE_A; j <= FILE_H; j++) {
          int k;
 
          squaresOfFileRange[i][j] = squaresOfRankRange[i][j] = EMPTY_BITBOARD;
 
-         for (k = FILE_A; k <= FILE_H; k++)
-         {
-            if ((k >= i && k <= j) || (k >= j && k <= i))
-            {
+         for (k = FILE_A; k <= FILE_H; k++) {
+            if ((k >= i && k <= j) || (k >= j && k <= i)) {
                squaresOfFileRange[i][j] |= squaresOfFile[k];
                squaresOfRankRange[i][j] |= squaresOfRank[k];
             }
@@ -1657,8 +1427,7 @@ int initializeModuleBitboard(void)
    initializeLaneMasks();
    initializeCastlings();
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       const Bitboard corona = generalMoves[KING][square];
       Square square2;
 
@@ -1669,8 +1438,7 @@ int initializeModuleBitboard(void)
          squaresBelow[WHITE][square] = squaresBelow[BLACK][square] =
          squaresLeftOf[square] = squaresRightOf[square] = EMPTY_BITBOARD;
 
-      ITERATE(square2)
-      {
+      ITERATE(square2) {
          const Bitboard orthoSquares = generalMoves[ROOK][square2];
          const Bitboard diaSquares = generalMoves[BISHOP][square2];
          const Bitboard knightSquares = generalMoves[KNIGHT][square2];
@@ -1678,95 +1446,79 @@ int initializeModuleBitboard(void)
          const Bitboard blackPawnSquares = generalMoves[BLACK_PAWN][square2];
 
          if (square != square2 && (corona & orthoSquares) != EMPTY_BITBOARD &&
-             taxiDistance(square, square2) > 1)
-         {
+             taxiDistance(square, square2) > 1) {
             setSquare(orthoKingAttackers[square], square2);
          }
 
          if (square != square2 && (corona & diaSquares) != EMPTY_BITBOARD &&
              (distance(square, square2) > 1 ||
-              taxiDistance(square, square2) != 2))
-         {
+              taxiDistance(square, square2) != 2)) {
             setSquare(diaKingAttackers[square], square2);
          }
 
          if (square != square2 &&
              (corona & knightSquares) != EMPTY_BITBOARD &&
-             testSquare(knightSquares, square) == EMPTY_BITBOARD)
-         {
+             testSquare(knightSquares, square) == EMPTY_BITBOARD) {
             setSquare(knightKingAttackers[square], square2);
          }
 
          if (square != square2 &&
              (corona & whitePawnSquares) != EMPTY_BITBOARD &&
-             testSquare(whitePawnSquares, square) == EMPTY_BITBOARD)
-         {
+             testSquare(whitePawnSquares, square) == EMPTY_BITBOARD) {
             setSquare(pawnKingAttackers[WHITE][square], square2);
          }
 
          if (square != square2 &&
              (corona & blackPawnSquares) != EMPTY_BITBOARD &&
-             testSquare(blackPawnSquares, square) == EMPTY_BITBOARD)
-         {
+             testSquare(blackPawnSquares, square) == EMPTY_BITBOARD) {
             setSquare(pawnKingAttackers[BLACK][square], square2);
          }
 
-         if (rank(square2) < rank(square))
-         {
+         if (rank(square2) < rank(square)) {
             setSquare(squaresBelow[WHITE][square], square2);
             setSquare(squaresAbove[BLACK][square], square2);
          }
 
-         if (rank(square2) > rank(square))
-         {
+         if (rank(square2) > rank(square)) {
             setSquare(squaresAbove[WHITE][square], square2);
             setSquare(squaresBelow[BLACK][square], square2);
          }
 
-         if (file(square2) < file(square))
-         {
+         if (file(square2) < file(square)) {
             setSquare(squaresLeftOf[square], square2);
          }
 
-         if (file(square2) > file(square))
-         {
+         if (file(square2) > file(square)) {
             setSquare(squaresRightOf[square], square2);
          }
       }
    }
 
-   for (i = 0; i < 256; i++)
-   {
-      for (j = 0; j < 8; j++)
-      {
+   for (i = 0; i < 256; i++) {
+      for (j = 0; j < 8; j++) {
          bitshiftGap[j][i] = (i == 0 ? 0 : 8);
 
-         for (k = 0; k < 8; k++)
-         {
+         for (k = 0; k < 8; k++) {
             const int diff = (j > k ? j - k : k - j);
             if ((minValue[(int) k] & i) != 0
-                && diff < bitshiftGap[j][i])
-            {
+                && diff < bitshiftGap[j][i]) {
                bitshiftGap[j][i] = (UINT8) diff;
             }
          }
       }
    }
 
-   for (i = 0; i < 4; i++)
-   {
+   for (i = 0; i < 4; i++) {
       UINT64 bitMask;
 
-      for (bitMask = 0; bitMask < 0x10000; bitMask++)
-      {
+      for (bitMask = 0; bitMask < 0x10000; bitMask++) {
          SetSquaresInfo *info = &setSquares[i][bitMask];
          Bitboard board = bitMask << (16 * i);
          Square square;
 
          info->numSetSquares = 0;
 
-         ITERATE_BITBOARD(&board, square)
-         {
+         ITERATE_BITBOARD(&board, square) {
             info->setSquares[info->numSetSquares++] = (UINT8) square;
          }
       }
@@ -1774,29 +1526,25 @@ int initializeModuleBitboard(void)
 
    initializePremasks();
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       initializeMagicRookMoves(square);
       initializeMagicBishopMoves(square);
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       int i;
 
       magicSquareInfoRook[square].preMask = preMaskRook[square];
       magicSquareInfoRook[square].magicNumber = magicRookNumber[square];
 
-      for (i = 0; i < IMAX_ROOK; i++)
-      {
+      for (i = 0; i < IMAX_ROOK; i++) {
          magicSquareInfoRook[square].moves[i] = magicRookMoves[square][i];
       }
 
       magicSquareInfoBishop[square].preMask = preMaskBishop[square];
       magicSquareInfoBishop[square].magicNumber = magicBishopNumber[square];
 
-      for (i = 0; i < IMAX_BISHOP; i++)
-      {
+      for (i = 0; i < IMAX_BISHOP; i++) {
          magicSquareInfoBishop[square].moves[i] = magicBishopMoves[square][i];
       }
    }
@@ -1806,8 +1554,7 @@ int initializeModuleBitboard(void)
 
 #ifndef NDEBUG
 
-static int testBitOperations(void)
-{
+static int testBitOperations(void) {
    Bitboard b = EMPTY_BITBOARD;
 
    assert(testSquare(lightSquares, A1) == 0);
@@ -1878,8 +1625,7 @@ static int testBitOperations(void)
    return 0;
 }
 
-static int testGeneralMoves(void)
-{
+static int testGeneralMoves(void) {
    assert(testSquare(generalMoves[KING][C3], C4));
    assert(testSquare(generalMoves[KING][C3], D4));
    assert(testSquare(generalMoves[KING][C3], D3));
@@ -1943,8 +1689,7 @@ static int testGeneralMoves(void)
    return 0;
 }
 
-static int testPieces(void)
-{
+static int testPieces(void) {
    Bitboard b = EMPTY_BITBOARD, moves;
    BYTE obstacles[NUM_LANES];
 
@@ -2020,8 +1765,7 @@ static int testPieces(void)
    return 0;
 }
 
-static int testPawns(void)
-{
+static int testPawns(void) {
    Bitboard b = EMPTY_BITBOARD, moves, pawns;
    BYTE obstacles[NUM_LANES];
 
@@ -2101,8 +1845,7 @@ static int testPawns(void)
    return 0;
 }
 
-static int testKings(void)
-{
+static int testKings(void) {
    Bitboard obstacles = EMPTY_BITBOARD, moves;
    BYTE castlingRights = WHITE_00 | WHITE_000 | BLACK_000 | BLACK_00;
 
@@ -2234,8 +1977,7 @@ static int testKings(void)
    return 0;
 }
 
-static int testFlooding(void)
-{
+static int testFlooding(void) {
    Bitboard kingMoves = getKingMoves(D4);
    Bitboard expected;
 
@@ -2260,16 +2002,14 @@ static int testFlooding(void)
    return 0;
 }
 
-static int testGetSetSquares(void)
-{
+static int testGetSetSquares(void) {
    UINT8 moveSquares[_64_];
    Bitboard kingMoves = getKingMoves(D4);
    int numMoves = getSetSquares(kingMoves, moveSquares), i;
 
    assert(numMoves == 8);
 
-   for (i = 0; i < numMoves; i++)
-   {
+   for (i = 0; i < numMoves; i++) {
       const Square square = (Square) moveSquares[i];
 
       assert(testSquare(kingMoves, square) == TRUE);
@@ -2280,43 +2020,35 @@ static int testGetSetSquares(void)
 
 #endif
 
-int testModuleBitboard(void)
-{
+int testModuleBitboard(void) {
 #ifndef NDEBUG
    int result;
 
-   if ((result = testBitOperations()) != 0)
-   {
+   if ((result = testBitOperations()) != 0) {
       return result;
    }
 
-   if ((result = testGeneralMoves()) != 0)
-   {
+   if ((result = testGeneralMoves()) != 0) {
       return result;
    }
 
-   if ((result = testPieces()) != 0)
-   {
+   if ((result = testPieces()) != 0) {
       return result;
    }
 
-   if ((result = testPawns()) != 0)
-   {
+   if ((result = testPawns()) != 0) {
       return result;
    }
 
-   if ((result = testKings()) != 0)
-   {
+   if ((result = testKings()) != 0) {
       return result;
    }
 
-   if ((result = testFlooding()) != 0)
-   {
+   if ((result = testFlooding()) != 0) {
       return result;
    }
 
-   if ((result = testGetSetSquares()) != 0)
-   {
+   if ((result = testGetSetSquares()) != 0) {
       return result;
    }
 #endif

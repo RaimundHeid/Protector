@@ -46,10 +46,8 @@ const int VALUEOFFSET_BAD_MOVE = 28000;
 /**
  * Register the specified killermove.
  */
-void registerKillerMove(PlyInfo * plyInfo, Move killerMove)
-{
-   if (plyInfo->killerMove1 != killerMove)
-   {
+void registerKillerMove(PlyInfo * plyInfo, Move killerMove) {
+   if (plyInfo->killerMove1 != killerMove) {
       plyInfo->killerMove2 = plyInfo->killerMove1;
       plyInfo->killerMove1 = killerMove;
    }
@@ -58,8 +56,7 @@ void registerKillerMove(PlyInfo * plyInfo, Move killerMove)
 /**
  * Test if the passive king can be captured.
  */
-bool passiveKingIsSafe(Position * position)
-{
+bool passiveKingIsSafe(Position * position) {
    return (bool)
       (getDirectAttackers(position,
                           position->king[opponent(position->activeColor)],
@@ -70,8 +67,7 @@ bool passiveKingIsSafe(Position * position)
 /**
  * Test if the active king is safe (i.e. not in check).
  */
-bool activeKingIsSafe(Position * position)
-{
+bool activeKingIsSafe(Position * position) {
    return (bool)
       (getDirectAttackers(position,
                           position->king[position->activeColor],
@@ -79,8 +75,7 @@ bool activeKingIsSafe(Position * position)
                           position->allPieces) == EMPTY_BITBOARD);
 }
 
-int seeMove(Position * position, const Move move)
-{
+int seeMove(Position * position, const Move move) {
    const Square to = getToSquare(move);
    const Piece targetPiece = position->piece[to];
    const Bitboard all = position->allPieces;
@@ -104,16 +99,14 @@ int seeMove(Position * position, const Move move)
 /**
  * Compare the value of the two specified moves.
  */
-int compareMoves(const void *move1, const void *move2)
-{
+int compareMoves(const void *move1, const void *move2) {
    return getMoveValue(*((Move *) move2)) - getMoveValue(*((Move *) move1));
 }
 
 /**
  * Sort the specified movelist.
  */
-void sortMoves(Movelist * movelist)
-{
+void sortMoves(Movelist * movelist) {
    qsort(&(movelist->moves[0]), movelist->numberOfMoves,
          sizeof(Move), compareMoves);
 }
@@ -124,8 +117,7 @@ void sortMoves(Movelist * movelist)
 void initQuiescenceMovelist(Movelist * movelist,
                             Position * position, PlyInfo * plyInfo,
                             UINT16 * historyValue, const Move hashMove,
-                            const int restDepth, const bool check)
-{
+                            const int restDepth, const bool check) {
    movelist->position = position;
    movelist->plyInfo = plyInfo;
    movelist->historyValue = historyValue;
@@ -136,19 +128,15 @@ void initQuiescenceMovelist(Movelist * movelist,
    movelist->killer3Executed = movelist->killer4Executed = FALSE;
    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 
-   if (check)
-   {
+   if (check) {
       movelist->currentStage = MG_SCHEME_ESCAPE;
-   }
-   else
-   {
+   } else {
       movelist->currentStage =
          (restDepth >= 0 ?
           MG_SCHEME_QUIESCENCE_WITH_CHECKS : MG_SCHEME_QUIESCENCE);
    }
 
-   if (hashMove != NO_MOVE)
-   {
+   if (hashMove != NO_MOVE) {
       movelist->moves[movelist->numberOfMoves++] = hashMove;
    }
 }
@@ -159,8 +147,7 @@ void initQuiescenceMovelist(Movelist * movelist,
 void initCaptureMovelist(Movelist * movelist,
                          Position * position, PlyInfo * plyInfo,
                          UINT16 * historyValue, const Move hashMove,
-                         const bool check)
-{
+                         const bool check) {
    movelist->position = position;
    movelist->plyInfo = plyInfo;
    movelist->historyValue = historyValue;
@@ -171,17 +158,13 @@ void initCaptureMovelist(Movelist * movelist,
    movelist->killer3Executed = movelist->killer4Executed = FALSE;
    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 
-   if (check)
-   {
+   if (check) {
       movelist->currentStage = MG_SCHEME_ESCAPE;
-   }
-   else
-   {
+   } else {
       movelist->currentStage = MGS_GOOD_CAPTURES;
    }
 
-   if (hashMove != NO_MOVE)
-   {
+   if (hashMove != NO_MOVE) {
       movelist->moves[movelist->numberOfMoves++] = hashMove;
    }
 }
@@ -191,8 +174,7 @@ void initCaptureMovelist(Movelist * movelist,
  */
 void initStandardMovelist(Movelist * movelist, Position * position,
                           PlyInfo * plyInfo, UINT16 * historyValue,
-                          const Move hashMove, const bool check)
-{
+                          const Move hashMove, const bool check) {
    movelist->position = position;
    movelist->plyInfo = plyInfo;
    movelist->historyValue = historyValue;
@@ -200,16 +182,12 @@ void initStandardMovelist(Movelist * movelist, Position * position,
    movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
    movelist->hashMove = hashMove;
 
-   if (check)
-   {
+   if (check) {
       movelist->currentStage = MG_SCHEME_ESCAPE;
-   }
-   else
-   {
+   } else {
       movelist->currentStage = MG_SCHEME_STANDARD;
 
-      if (hashMove != NO_MOVE)
-      {
+      if (hashMove != NO_MOVE) {
          movelist->moves[movelist->numberOfMoves++] = hashMove;
       }
    }
@@ -219,8 +197,7 @@ void initStandardMovelist(Movelist * movelist, Position * position,
  * Initialize the specified movelist for check move generation.
  */
 void initCheckMovelist(Movelist * movelist, Position * position,
-                       UINT16 * historyValue)
-{
+                       UINT16 * historyValue) {
    movelist->position = position;
    movelist->plyInfo = 0;
    movelist->historyValue = historyValue;
@@ -236,8 +213,7 @@ void initCheckMovelist(Movelist * movelist, Position * position,
 /**
  * Initialize the specified movelist for move insertion.
  */
-void initMovelist(Movelist * movelist, Position * position)
-{
+void initMovelist(Movelist * movelist, Position * position) {
    movelist->position = position;
    movelist->plyInfo = 0;
    movelist->historyValue = 0;
@@ -250,24 +226,18 @@ void initMovelist(Movelist * movelist, Position * position)
    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 }
 
-Move getNextMove(Movelist * movelist)
-{
-   do
-   {
-      if (movelist->nextMove < movelist->numberOfMoves)
-      {
-         switch (moveGenerationStage[movelist->currentStage])
-         {
+Move getNextMove(Movelist * movelist) {
+   do {
+      if (movelist->nextMove < movelist->numberOfMoves) {
+         switch (moveGenerationStage[movelist->currentStage]) {
          case MGS_GOOD_CAPTURES_AND_PROMOTIONS:
          case MGS_GOOD_CAPTURES_AND_PROMOTIONS_PURE:
-         case MGS_GOOD_CAPTURES:
-            {
+         case MGS_GOOD_CAPTURES: {
                const Move move = movelist->moves[movelist->nextMove++];
 
                if (basicValue[movelist->position->piece[getFromSquare(move)]]
                    > basicValue[movelist->position->piece[getToSquare(move)]]
-                   && seeMove(movelist->position, move) < 0)
-               {
+                   && seeMove(movelist->position, move) < 0) {
                   movelist->badCaptures[movelist->numberOfBadCaptures++] =
                      move;
 
@@ -277,12 +247,10 @@ Move getNextMove(Movelist * movelist)
                return move;
             }
 
-         case MGS_SAFE_CHECKS:
-            {
+         case MGS_SAFE_CHECKS: {
                const Move move = movelist->moves[movelist->nextMove++];
 
-               if (seeMove(movelist->position, move) < 0)
-               {
+               if (seeMove(movelist->position, move) < 0) {
                   continue;
                }
 
@@ -293,14 +261,11 @@ Move getNextMove(Movelist * movelist)
 
             return movelist->moves[movelist->nextMove++];
          }
-      }
-      else
-      {
+      } else {
          Position *position;
          Move killer1, killer2, killer3, killer4, killer5, killer6;
 
-         switch (moveGenerationStage[++movelist->currentStage])
-         {
+         switch (moveGenerationStage[++movelist->currentStage]) {
          case MGS_GOOD_CAPTURES_AND_PROMOTIONS:
             generateSpecialMoves(movelist);
             break;
@@ -331,8 +296,7 @@ Move getNextMove(Movelist * movelist)
                 (Piece) getMoveValue(killer1) &&
                 (pieceType(position->piece[getFromSquare(killer1)]) != PAWN ||
                  getToSquare(killer1) != position->enPassantSquare) &&
-                movesAreEqual(killer1, movelist->hashMove) == FALSE)
-            {
+                movesAreEqual(killer1, movelist->hashMove) == FALSE) {
                setMoveValue(&killer1, 6);
                movelist->moves[movelist->numberOfMoves++] = killer1;
                movelist->killer1Executed = TRUE;
@@ -344,8 +308,7 @@ Move getNextMove(Movelist * movelist)
                 (Piece) getMoveValue(killer2) &&
                 (pieceType(position->piece[getFromSquare(killer2)]) != PAWN ||
                  getToSquare(killer2) != position->enPassantSquare) &&
-                movesAreEqual(killer2, movelist->hashMove) == FALSE)
-            {
+                movesAreEqual(killer2, movelist->hashMove) == FALSE) {
                setMoveValue(&killer2, 5);
                movelist->moves[movelist->numberOfMoves++] = killer2;
                movelist->killer2Executed = TRUE;
@@ -359,8 +322,7 @@ Move getNextMove(Movelist * movelist)
                  getToSquare(killer3) != position->enPassantSquare) &&
                 movesAreEqual(killer3, movelist->hashMove) == FALSE &&
                 movesAreEqual(killer3, killer1) == FALSE &&
-                movesAreEqual(killer3, killer2) == FALSE)
-            {
+                movesAreEqual(killer3, killer2) == FALSE) {
                setMoveValue(&killer3, 4);
                movelist->moves[movelist->numberOfMoves++] = killer3;
                movelist->killer3Executed = TRUE;
@@ -374,8 +336,7 @@ Move getNextMove(Movelist * movelist)
                  getToSquare(killer4) != position->enPassantSquare) &&
                 movesAreEqual(killer4, movelist->hashMove) == FALSE &&
                 movesAreEqual(killer4, killer1) == FALSE &&
-                movesAreEqual(killer4, killer2) == FALSE)
-            {
+                movesAreEqual(killer4, killer2) == FALSE) {
                setMoveValue(&killer4, 3);
                movelist->moves[movelist->numberOfMoves++] = killer4;
                movelist->killer4Executed = TRUE;
@@ -391,8 +352,7 @@ Move getNextMove(Movelist * movelist)
                 movesAreEqual(killer5, killer1) == FALSE &&
                 movesAreEqual(killer5, killer2) == FALSE &&
                 movesAreEqual(killer5, killer3) == FALSE &&
-                movesAreEqual(killer5, killer4) == FALSE)
-            {
+                movesAreEqual(killer5, killer4) == FALSE) {
                setMoveValue(&killer5, 2);
                movelist->moves[movelist->numberOfMoves++] = killer5;
                movelist->killer5Executed = TRUE;
@@ -408,8 +368,7 @@ Move getNextMove(Movelist * movelist)
                 movesAreEqual(killer6, killer1) == FALSE &&
                 movesAreEqual(killer6, killer2) == FALSE &&
                 movesAreEqual(killer6, killer3) == FALSE &&
-                movesAreEqual(killer6, killer4) == FALSE)
-            {
+                movesAreEqual(killer6, killer4) == FALSE) {
                setMoveValue(&killer6, 1);
                movelist->moves[movelist->numberOfMoves++] = killer6;
                movelist->killer6Executed = TRUE;
@@ -455,8 +414,7 @@ Move getNextMove(Movelist * movelist)
    return NO_MOVE;
 }
 
-bool moveIsPseudoLegal(const Position * position, const Move move)
-{
+bool moveIsPseudoLegal(const Position * position, const Move move) {
    const Square from = getFromSquare(move), to = getToSquare(move);
    const Piece newPiece = getNewPiece(move);
    Piece piece;
@@ -464,46 +422,36 @@ bool moveIsPseudoLegal(const Position * position, const Move move)
 
    if (squareIsValid(from) == FALSE || squareIsValid(to) == FALSE ||
        (piece = position->piece[from]) == NO_PIECE ||
-       pieceColor(piece) != position->activeColor)
-   {
+       pieceColor(piece) != position->activeColor) {
       return FALSE;
    }
 
    if (pieceType(position->piece[from]) == PAWN &&
-       colorRank(position->activeColor, from) == RANK_7)
-   {
+       colorRank(position->activeColor, from) == RANK_7) {
       if (newPiece != WHITE_QUEEN && newPiece != WHITE_ROOK &&
-          newPiece != WHITE_BISHOP && newPiece != WHITE_KNIGHT)
-      {
+          newPiece != WHITE_BISHOP && newPiece != WHITE_KNIGHT) {
          return FALSE;
       }
-   }
-   else
-   {
-      if (newPiece != NO_PIECE)
-      {
+   } else {
+      if (newPiece != NO_PIECE) {
          return FALSE;
       }
    }
 
    if (pieceType(position->piece[from]) == PAWN &&
-       position->enPassantSquare != NO_SQUARE)
-   {
+       position->enPassantSquare != NO_SQUARE) {
       Bitboard allPieces = position->allPieces |
          minValue[position->enPassantSquare];
 
       moves = getMoves(from, piece, allPieces);
-   }
-   else
-   {
+   } else {
       moves = getMoves(from, piece, position->allPieces);
    }
 
    excludeSquares(moves, position->piecesOfColor[position->activeColor]);
 
    if (pieceType(piece) == KING &&
-       hasCastlings(position->activeColor, position->castlingRights))
-   {
+       hasCastlings(position->activeColor, position->castlingRights)) {
       moves |= getCastlingMoves(position->activeColor,
                                 position->castlingRights,
                                 position->allPieces);
@@ -512,21 +460,18 @@ bool moveIsPseudoLegal(const Position * position, const Move move)
    return (bool) testSquare(moves, to);
 }
 
-bool moveIsLegal(const Position * position, const Move move)
-{
+bool moveIsLegal(const Position * position, const Move move) {
    bool result = FALSE;
    Variation variation;
 
-   if (moveIsPseudoLegal(position, move) == FALSE)
-   {
+   if (moveIsPseudoLegal(position, move) == FALSE) {
       return FALSE;
    }
 
    setBasePosition(&variation, position);
 
    if (makeMove(&variation, move) == 0 &&
-       passiveKingIsSafe(&variation.singlePosition))
-   {
+       passiveKingIsSafe(&variation.singlePosition)) {
       result = TRUE;
    }
 
@@ -536,8 +481,7 @@ bool moveIsLegal(const Position * position, const Move move)
 }
 
 static Bitboard getPinnedPieces(const Position * position,
-                                const Color pinningColor)
-{
+                                const Color pinningColor) {
    const Square kingSquare = position->king[opponent(pinningColor)];
    Bitboard pinnedPieces = EMPTY_BITBOARD, pinningCandidates =
       (generalMoves[ROOK][kingSquare] &
@@ -548,18 +492,15 @@ static Bitboard getPinnedPieces(const Position * position,
         position->piecesOfType[BISHOP | pinningColor]));
    Square pinningCandidate;
 
-   ITERATE_BITBOARD(&pinningCandidates, pinningCandidate)
-   {
+   ITERATE_BITBOARD(&pinningCandidates, pinningCandidate) {
       const Bitboard imSquares = squaresBetween[kingSquare][pinningCandidate];
 
       if ((imSquares & position->piecesOfColor[pinningColor]) ==
-          EMPTY_BITBOARD)
-      {
+          EMPTY_BITBOARD) {
          const Bitboard pinnedCandidates = imSquares &
             position->piecesOfColor[opponent(pinningColor)];
 
-         if (getNumberOfSetSquares(pinnedCandidates) == 1)
-         {
+         if (getNumberOfSetSquares(pinnedCandidates) == 1) {
             pinnedPieces |= pinnedCandidates;
          }
       }
@@ -569,8 +510,7 @@ static Bitboard getPinnedPieces(const Position * position,
 }
 
 int getNumberOfPieceMoves(const Position * position, const Color color,
-                          const int sufficientNumberOfMoves)
-{
+                          const int sufficientNumberOfMoves) {
    const Color oppColor = opponent(color);
    const Bitboard unpinnedPieces = ~getPinnedPieces(position, oppColor);
    const Bitboard permittedSquares = ~position->piecesOfColor[color];
@@ -580,10 +520,8 @@ int getNumberOfPieceMoves(const Position * position, const Color color,
       ~(position->piecesOfType[PAWN | color] |
         minValue[position->king[color]]) & unpinnedPieces;
 
-   ITERATE_BITBOARD(&pieces, square)
-   {
-      switch (pieceType(position->piece[square]))
-      {
+   ITERATE_BITBOARD(&pieces, square) {
+      switch (pieceType(position->piece[square])) {
       case QUEEN:
          moves =
             getMagicQueenMoves(square,
@@ -611,8 +549,7 @@ int getNumberOfPieceMoves(const Position * position, const Color color,
 
       numberOfMoves += getNumberOfSetSquares(moves);
 
-      if (numberOfMoves >= sufficientNumberOfMoves)
-      {
+      if (numberOfMoves >= sufficientNumberOfMoves) {
          return numberOfMoves;
       }
    }
@@ -621,8 +558,7 @@ int getNumberOfPieceMoves(const Position * position, const Color color,
 }
 
 int seeMoveRec(Position * position, const Move move,
-               Bitboard attackers[2], const int minValue)
-{
+               Bitboard attackers[2], const int minValue) {
    const Square from = getFromSquare(move), to = getToSquare(move);
    const Color activeColor = pieceColor(position->piece[from]);
    const Color passiveColor = opponent(activeColor);
@@ -632,8 +568,7 @@ int seeMoveRec(Position * position, const Move move,
    Move bestCapture;
    int recResult;
 
-   if (pieceType(position->piece[to]) == KING)
-   {
+   if (pieceType(position->piece[to]) == KING) {
       return valueCaptured;
    }
 
@@ -641,8 +576,7 @@ int seeMoveRec(Position * position, const Move move,
    clearSquare(position->allPieces, from);
    clearSquare(attackers[activeColor], from);
 
-   if (horizontalDistance(to, from) == verticalDistance(to, from))
-   {
+   if (horizontalDistance(to, from) == verticalDistance(to, from)) {
       attackers[WHITE] |=
          getMagicBishopMoves(to, position->allPieces) &
          (position->piecesOfType[WHITE_QUEEN] |
@@ -651,9 +585,7 @@ int seeMoveRec(Position * position, const Move move,
          getMagicBishopMoves(to, position->allPieces) &
          (position->piecesOfType[BLACK_QUEEN] |
           position->piecesOfType[BLACK_BISHOP]) & position->allPieces;
-   }
-   else
-   {
+   } else {
       attackers[WHITE] |=
          getMagicRookMoves(to, position->allPieces) &
          (position->piecesOfType[WHITE_QUEEN] |
@@ -665,8 +597,7 @@ int seeMoveRec(Position * position, const Move move,
    }
 
    if (to == position->enPassantSquare &&
-       pieceType(position->piece[to]) == PAWN)
-   {
+       pieceType(position->piece[to]) == PAWN) {
       const Square captureSquare = (Square)
          (to + (rank(from) - rank(to)) * 8);
 
@@ -687,46 +618,33 @@ int seeMoveRec(Position * position, const Move move,
       valueCaptured += basicValue[position->piece[captureSquare]];
    }
 
-   if (getNewPiece(move) != NO_PIECE)
-   {
+   if (getNewPiece(move) != NO_PIECE) {
       valueCaptured += basicValue[getNewPiece(move) | activeColor] -
          basicValue[PAWN | activeColor];
       position->piece[to] = (Piece) (getNewPiece(move) | activeColor);
    }
 
-   if (attackers[passiveColor] == EMPTY_BITBOARD)
-   {
+   if (attackers[passiveColor] == EMPTY_BITBOARD) {
       return valueCaptured;
    }
 
    position->enPassantSquare = NO_SQUARE;
 
-   if (attackers[passiveColor] & position->piecesOfType[PAWN | passiveColor])
-   {
+   if (attackers[passiveColor] & position->piecesOfType[PAWN | passiveColor]) {
       leastValuableAttacker = (Piece) (PAWN | passiveColor);
-   }
-   else if (attackers[passiveColor] &
-            position->piecesOfType[KNIGHT | passiveColor])
-   {
+   } else if (attackers[passiveColor] &
+            position->piecesOfType[KNIGHT | passiveColor]) {
       leastValuableAttacker = (Piece) (KNIGHT | passiveColor);
-   }
-   else if (attackers[passiveColor] &
-            position->piecesOfType[BISHOP | passiveColor])
-   {
+   } else if (attackers[passiveColor] &
+            position->piecesOfType[BISHOP | passiveColor]) {
       leastValuableAttacker = (Piece) (BISHOP | passiveColor);
-   }
-   else if (attackers[passiveColor] &
-            position->piecesOfType[ROOK | passiveColor])
-   {
+   } else if (attackers[passiveColor] &
+            position->piecesOfType[ROOK | passiveColor]) {
       leastValuableAttacker = (Piece) (ROOK | passiveColor);
-   }
-   else if (attackers[passiveColor] &
-            position->piecesOfType[QUEEN | passiveColor])
-   {
+   } else if (attackers[passiveColor] &
+            position->piecesOfType[QUEEN | passiveColor]) {
       leastValuableAttacker = (Piece) (QUEEN | passiveColor);
-   }
-   else
-   {
+   } else {
       leastValuableAttacker = (Piece) (KING | passiveColor);
    }
 
@@ -734,12 +652,9 @@ int seeMoveRec(Position * position, const Move move,
       attackers[passiveColor] & position->piecesOfType[leastValuableAttacker];
 
    if ((leastValuableAttacker == WHITE_PAWN && rank(to) == RANK_8) ||
-       (leastValuableAttacker == BLACK_PAWN && rank(to) == RANK_1))
-   {
+       (leastValuableAttacker == BLACK_PAWN && rank(to) == RANK_1)) {
       bestNewPiece = WHITE_QUEEN;
-   }
-   else
-   {
+   } else {
       bestNewPiece = NO_PIECE;
    }
 
@@ -757,8 +672,7 @@ int seeMoveRec(Position * position, const Move move,
    return max(minValue, valueCaptured - recResult);
 }
 
-void getLegalMoves(Variation * variation, Movelist * movelist)
-{
+void getLegalMoves(Variation * variation, Movelist * movelist) {
    const int ply = variation->ply;
    Position *position = &variation->singlePosition;
    PlyInfo *plyInfo = &variation->plyInfo[ply];
@@ -780,10 +694,8 @@ void getLegalMoves(Variation * variation, Movelist * movelist)
                         plyInfo, &variation->historyValue[0],
                         hashmove, FALSE);
 
-   while ((currentMove = getNextMove(&allMoves)) != NO_MOVE)
-   {
-      if (moveIsLegal(position, currentMove))
-      {
+   while ((currentMove = getNextMove(&allMoves)) != NO_MOVE) {
+      if (moveIsLegal(position, currentMove)) {
          movelist->moves[movelist->numberOfMoves++] = currentMove;
       }
    }
@@ -791,8 +703,7 @@ void getLegalMoves(Variation * variation, Movelist * movelist)
    sortMoves(movelist);
 }
 
-Gameresult getGameresult(Variation * variation)
-{
+Gameresult getGameresult(Variation * variation) {
    Movelist movelist;
    Gameresult result;
    Position *pos = &variation->singlePosition;
@@ -802,24 +713,20 @@ Gameresult getGameresult(Variation * variation)
 
    historyLimit = POSITION_HISTORY_OFFSET - pos->halfMoveClock;
 
-   for (i = POSITION_HISTORY_OFFSET - 4; i >= historyLimit; i -= 2)
-   {
-      if (pos->hashKey == variation->positionHistory[i])
-      {
+   for (i = POSITION_HISTORY_OFFSET - 4; i >= historyLimit; i -= 2) {
+      if (pos->hashKey == variation->positionHistory[i]) {
          repetitionCount++;
       }
    }
 
-   if (repetitionCount >= 2)
-   {
+   if (repetitionCount >= 2) {
       strcpy(result.result, GAMERESULT_DRAW);
       strcpy(result.reason, GAMERESULT_REPETITION);
 
       return result;
    }
 
-   if (pos->halfMoveClock >= 100)
-   {
+   if (pos->halfMoveClock >= 100) {
       strcpy(result.result, GAMERESULT_DRAW);
       strcpy(result.reason, GAMERESULT_50_MOVE_RULE);
 
@@ -829,8 +736,7 @@ Gameresult getGameresult(Variation * variation)
    if (pos->numberOfPawns[WHITE] == 0 &&
        pos->numberOfPawns[BLACK] == 0 &&
        hasWinningPotential(pos, WHITE) == FALSE &&
-       hasWinningPotential(pos, BLACK) == FALSE)
-   {
+       hasWinningPotential(pos, BLACK) == FALSE) {
       strcpy(result.result, GAMERESULT_DRAW);
       strcpy(result.reason, GAMERESULT_INSUFFICIENT_MATERIAL);
 
@@ -839,27 +745,18 @@ Gameresult getGameresult(Variation * variation)
 
    getLegalMoves(variation, &movelist);
 
-   if (movelist.numberOfMoves > 0)
-   {
+   if (movelist.numberOfMoves > 0) {
       strcpy(result.result, GAMERESULT_UNKNOWN);
       strcpy(result.reason, "");
-   }
-   else
-   {
-      if (activeKingIsSafe(pos))
-      {
+   } else {
+      if (activeKingIsSafe(pos)) {
          strcpy(result.result, GAMERESULT_DRAW);
          strcpy(result.reason, GAMERESULT_STALEMATE);
-      }
-      else
-      {
-         if (pos->activeColor == WHITE)
-         {
+      } else {
+         if (pos->activeColor == WHITE) {
             strcpy(result.result, GAMERESULT_BLACK_WINS);
             strcpy(result.reason, GAMERESULT_BLACK_MATES);
-         }
-         else
-         {
+         } else {
             strcpy(result.result, GAMERESULT_WHITE_WINS);
             strcpy(result.reason, GAMERESULT_WHITE_MATES);
          }
@@ -869,15 +766,12 @@ Gameresult getGameresult(Variation * variation)
    return result;
 }
 
-bool listContainsMove(const Movelist * movelist, const Move move)
-{
+bool listContainsMove(const Movelist * movelist, const Move move) {
    int i;
    const Move shortMove = move & 0xFFFF;
 
-   for (i = 0; i < movelist->numberOfMoves; i++)
-   {
-      if ((movelist->moves[i] & 0xFFFF) == shortMove)
-      {
+   for (i = 0; i < movelist->numberOfMoves; i++) {
+      if ((movelist->moves[i] & 0xFFFF) == shortMove) {
          return TRUE;
       }
    }
@@ -885,19 +779,15 @@ bool listContainsMove(const Movelist * movelist, const Move move)
    return FALSE;
 }
 
-static void deleteMove(Movelist * movelist, const Move move)
-{
+static void deleteMove(Movelist * movelist, const Move move) {
    int i;
    const Move shortMove = move & 0xFFFF;
 
-   for (i = 0; i < movelist->numberOfMoves; i++)
-   {
-      if ((movelist->moves[i] & 0xFFFF) == shortMove)
-      {
+   for (i = 0; i < movelist->numberOfMoves; i++) {
+      if ((movelist->moves[i] & 0xFFFF) == shortMove) {
          movelist->numberOfMoves--;
 
-         if (i < movelist->numberOfMoves)
-         {
+         if (i < movelist->numberOfMoves) {
             memmove(&movelist->moves[i],
                     &movelist->moves[i + 1],
                     (movelist->numberOfMoves - i) * sizeof(Move));
@@ -908,15 +798,12 @@ static void deleteMove(Movelist * movelist, const Move move)
    }
 }
 
-static void setMoveValueInList(Movelist * movelist, const Move move)
-{
+static void setMoveValueInList(Movelist * movelist, const Move move) {
    int i;
    const Move shortMove = move & 0xFFFF;
 
-   for (i = 0; i < movelist->numberOfMoves; i++)
-   {
-      if ((movelist->moves[i] & 0xFFFF) == shortMove)
-      {
+   for (i = 0; i < movelist->numberOfMoves; i++) {
+      if ((movelist->moves[i] & 0xFFFF) == shortMove) {
          movelist->moves[i] = move;
 
          return;
@@ -925,39 +812,31 @@ static void setMoveValueInList(Movelist * movelist, const Move move)
 }
 
 bool listContainsSimpleMove(Movelist * movelist, const Square from,
-                            const Square to)
-{
+                            const Square to) {
    return listContainsMove(movelist, getPackedMove(from, to, NO_PIECE));
 }
 
-void initializeMoveValues(Movelist * movelist)
-{
+void initializeMoveValues(Movelist * movelist) {
    int i;
 
-   for (i = 0; i < movelist->numberOfMoves; i++)
-   {
+   for (i = 0; i < movelist->numberOfMoves; i++) {
       setMoveValue(&movelist->moves[i], VALUE_MATED - 1 - i);
    }
 }
 
-static void addMoveByValue(Movelist * movelist, const Move move)
-{
+static void addMoveByValue(Movelist * movelist, const Move move) {
    int low = -1, high = movelist->numberOfMoves, insertPosition;
    const int value = getMoveValue(move);
 
-   while (high - low > 1)
-   {
+   while (high - low > 1) {
       const int avg = (low + high) >> 1;
 
       assert(avg >= 0);
       assert(avg < movelist->numberOfMoves);
 
-      if (value <= getMoveValue(movelist->moves[avg]))
-      {
+      if (value <= getMoveValue(movelist->moves[avg])) {
          low = avg;
-      }
-      else
-      {
+      } else {
          high = avg;
       }
    }
@@ -969,8 +848,7 @@ static void addMoveByValue(Movelist * movelist, const Move move)
    assert(insertPosition == 0 ||
           value <= getMoveValue(movelist->moves[insertPosition - 1]));
 
-   if (insertPosition < movelist->numberOfMoves)
-   {
+   if (insertPosition < movelist->numberOfMoves) {
       assert(value > getMoveValue(movelist->moves[insertPosition]));
 
       memmove(&movelist->moves[insertPosition + 1],
@@ -983,13 +861,11 @@ static void addMoveByValue(Movelist * movelist, const Move move)
 }
 
 void addMoveAtPosition(Movelist * movelist, const Move move,
-                       const int insertPosition)
-{
+                       const int insertPosition) {
    assert(insertPosition >= 0);
    assert(insertPosition <= movelist->numberOfMoves);
 
-   if (insertPosition < movelist->numberOfMoves)
-   {
+   if (insertPosition < movelist->numberOfMoves) {
       memmove(&movelist->moves[insertPosition + 1],
               &movelist->moves[insertPosition],
               (movelist->numberOfMoves - insertPosition) * sizeof(Move));
@@ -999,15 +875,13 @@ void addMoveAtPosition(Movelist * movelist, const Move move,
    movelist->numberOfMoves++;
 }
 
-void deleteMoveAtPosition(Movelist * movelist, const int position)
-{
+void deleteMoveAtPosition(Movelist * movelist, const int position) {
    assert(position >= 0);
    assert(position < movelist->numberOfMoves);
 
    movelist->numberOfMoves--;
 
-   if (position < movelist->numberOfMoves)
-   {
+   if (position < movelist->numberOfMoves) {
       memmove(&movelist->moves[position],
               &movelist->moves[position + 1],
               (movelist->numberOfMoves - position) * sizeof(Move));
@@ -1015,45 +889,38 @@ void deleteMoveAtPosition(Movelist * movelist, const int position)
 }
 
 static INT16 captureMoveSortValue(const Position * position,
-                                  const Square from, const Square to)
-{
+                                  const Square from, const Square to) {
    return (INT16) (6 * pieceOrder[position->piece[to]] -
                    pieceOrder[position->piece[from]]);
 }
 
 static INT16 promotionMoveSortValue(const Position * position,
-                                    const Square to, const Piece newPiece)
-{
+                                    const Square to, const Piece newPiece) {
    return (INT16) (promotionPieceValue[newPiece] +
                    6 * pieceOrder[position->piece[to]]);
 }
 
 static INT16 historyMoveSortValue(const Position * position,
-                                  const Movelist * movelist, const Move move)
-{
+                                  const Movelist * movelist, const Move move) {
    return (INT16) (movelist->historyValue[historyIndex(move, position)] -
                    VALUEOFFSET_HISTORY_MOVE);
 }
 
 static void addCaptures(Movelist * movelist, const Position * position,
-                        const Square from, Bitboard captures)
-{
+                        const Square from, Bitboard captures) {
    Square to;
 
-   ITERATE_BITBOARD(&captures, to)
-   {
+   ITERATE_BITBOARD(&captures, to) {
       const INT16 value = captureMoveSortValue(position, from, to);
       int i = 0;
 
       movelist->moves[movelist->numberOfMoves] = (value - 1) << 16;
 
-      while (getMoveValue(movelist->moves[i]) >= value)
-      {
+      while (getMoveValue(movelist->moves[i]) >= value) {
          i++;
       }
 
-      if (i < movelist->numberOfMoves)
-      {
+      if (i < movelist->numberOfMoves) {
          memmove(&movelist->moves[i + 1], &movelist->moves[i],
                  (movelist->numberOfMoves - i) * sizeof(Move));
       }
@@ -1064,12 +931,10 @@ static void addCaptures(Movelist * movelist, const Position * position,
 }
 
 static void addPromotions(Movelist * movelist,
-                          const Square from, Bitboard moves)
-{
+                          const Square from, Bitboard moves) {
    Square to;
 
-   ITERATE_BITBOARD(&moves, to)
-   {
+   ITERATE_BITBOARD(&moves, to) {
       INT16 value;
 
       value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN);
@@ -1089,18 +954,15 @@ static void addPromotions(Movelist * movelist,
    }
 }
 
-void deferMove(Movelist * movelist, Move move)
-{
+void deferMove(Movelist * movelist, Move move) {
    const int targetSpot = min(movelist->numberOfMoves - 1,
                               movelist->nextMove + 1);
 
    if (targetSpot > movelist->nextMove &&
-       movelist->numberOfMoves < MAX_MOVES_PER_POSITION - 1)
-   {
+       movelist->numberOfMoves < MAX_MOVES_PER_POSITION - 1) {
       int i;
 
-      for (i = movelist->numberOfMoves; i > targetSpot; i--)
-      {
+      for (i = movelist->numberOfMoves; i > targetSpot; i--) {
          movelist->moves[i] = movelist->moves[i - 1];
       }
 
@@ -1109,8 +971,7 @@ void deferMove(Movelist * movelist, Move move)
    }
 }
 
-void generateSpecialMoves(Movelist * movelist)
-{
+void generateSpecialMoves(Movelist * movelist) {
    const Position *position = movelist->position;
    const Color activeColor = position->activeColor;
    const Color passiveColor = opponent(activeColor);
@@ -1124,8 +985,7 @@ void generateSpecialMoves(Movelist * movelist)
    movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
    pawnCaptureTargets = captureTargets;
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       setSquare(pawnCaptureTargets, position->enPassantSquare);
    }
 
@@ -1133,33 +993,27 @@ void generateSpecialMoves(Movelist * movelist)
    promotionPawns = pieces & promotionCandidates[activeColor];
    pieces &= ~promotionPawns;
 
-   ITERATE_BITBOARD(&promotionPawns, from)
-   {
+   ITERATE_BITBOARD(&promotionPawns, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets) |
          getPawnAdvances(activeColor, from, position->allPieces);
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addPromotions(movelist, from, moves);
 
-         if (hashFrom == from)
-         {
+         if (hashFrom == from) {
             deleteMove(movelist, movelist->hashMove);
          }
       }
    }
 
-   if (position->activeColor == WHITE)
-   {
+   if (position->activeColor == WHITE) {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) >> 9) |
          ((pawnCaptureTargets & nonH) >> 7);
 
       pieces &= capturingPawns;
-   }
-   else
-   {
+   } else {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) << 7) |
          ((pawnCaptureTargets & nonH) << 9);
@@ -1167,15 +1021,12 @@ void generateSpecialMoves(Movelist * movelist)
       pieces &= capturingPawns;
    }
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets);
 
-      if (moves != EMPTY_BITBOARD)
-      {
-         if (hashFrom == from)
-         {
+      if (moves != EMPTY_BITBOARD) {
+         if (hashFrom == from) {
             clearSquare(moves, getToSquare(movelist->hashMove));
          }
 
@@ -1185,10 +1036,8 @@ void generateSpecialMoves(Movelist * movelist)
 
    pieces = getOrdinaryPieces(position, activeColor);
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
-      switch (pieceType(position->piece[from]))
-      {
+   ITERATE_BITBOARD(&pieces, from) {
+      switch (pieceType(position->piece[from])) {
       case QUEEN:
          moves = getMagicQueenMoves(from, position->allPieces);
          break;
@@ -1209,8 +1058,7 @@ void generateSpecialMoves(Movelist * movelist)
          break;
       }
 
-      if (hashFrom == from)
-      {
+      if (hashFrom == from) {
          clearSquare(moves, getToSquare(movelist->hashMove));
       }
 
@@ -1218,23 +1066,20 @@ void generateSpecialMoves(Movelist * movelist)
       movelist->movesOfPiece[movelist->numberOfPieces++].moves = moves;
       moves &= captureTargets;
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addCaptures(movelist, position, from, moves);
       }
    }
 
    moves = getKingMoves(position->king[activeColor]);
 
-   if (hasCastlings(position->activeColor, position->castlingRights))
-   {
+   if (hasCastlings(position->activeColor, position->castlingRights)) {
       moves |= getCastlingMoves(position->activeColor,
                                 position->castlingRights,
                                 position->allPieces);
    }
 
-   if (hashFrom == position->king[activeColor])
-   {
+   if (hashFrom == position->king[activeColor]) {
       clearSquare(moves, getToSquare(movelist->hashMove));
    }
 
@@ -1243,14 +1088,12 @@ void generateSpecialMoves(Movelist * movelist)
    movelist->movesOfPiece[movelist->numberOfPieces++].moves = moves;
    moves &= captureTargets;
 
-   if (moves != EMPTY_BITBOARD)
-   {
+   if (moves != EMPTY_BITBOARD) {
       addCaptures(movelist, position, position->king[activeColor], moves);
    }
 }
 
-void generateSpecialMovesPure(Movelist * movelist)
-{
+void generateSpecialMovesPure(Movelist * movelist) {
    const Position *position = movelist->position;
    const Color activeColor = position->activeColor;
    const Color passiveColor = opponent(activeColor);
@@ -1264,8 +1107,7 @@ void generateSpecialMovesPure(Movelist * movelist)
    movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
    pawnCaptureTargets = captureTargets;
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       setSquare(pawnCaptureTargets, position->enPassantSquare);
    }
 
@@ -1273,33 +1115,27 @@ void generateSpecialMovesPure(Movelist * movelist)
    promotionPawns = pieces & promotionCandidates[activeColor];
    pieces &= ~promotionPawns;
 
-   ITERATE_BITBOARD(&promotionPawns, from)
-   {
+   ITERATE_BITBOARD(&promotionPawns, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets) |
          getPawnAdvances(activeColor, from, position->allPieces);
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addPromotions(movelist, from, moves);
 
-         if (hashFrom == from)
-         {
+         if (hashFrom == from) {
             deleteMove(movelist, movelist->hashMove);
          }
       }
    }
 
-   if (position->activeColor == WHITE)
-   {
+   if (position->activeColor == WHITE) {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) >> 9) |
          ((pawnCaptureTargets & nonH) >> 7);
 
       pieces &= capturingPawns;
-   }
-   else
-   {
+   } else {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) << 7) |
          ((pawnCaptureTargets & nonH) << 9);
@@ -1307,15 +1143,12 @@ void generateSpecialMovesPure(Movelist * movelist)
       pieces &= capturingPawns;
    }
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets);
 
-      if (moves != EMPTY_BITBOARD)
-      {
-         if (hashFrom == from)
-         {
+      if (moves != EMPTY_BITBOARD) {
+         if (hashFrom == from) {
             clearSquare(moves, getToSquare(movelist->hashMove));
          }
 
@@ -1325,10 +1158,8 @@ void generateSpecialMovesPure(Movelist * movelist)
 
    pieces = getOrdinaryPieces(position, activeColor);
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
-      switch (pieceType(position->piece[from]))
-      {
+   ITERATE_BITBOARD(&pieces, from) {
+      switch (pieceType(position->piece[from])) {
       case QUEEN:
          moves = getMagicQueenMoves(from, position->allPieces);
          break;
@@ -1355,15 +1186,12 @@ void generateSpecialMovesPure(Movelist * movelist)
 
       moves &= captureTargets;
 
-      if (moves != EMPTY_BITBOARD)
-      {
-         if (hashFrom == from)
-         {
+      if (moves != EMPTY_BITBOARD) {
+         if (hashFrom == from) {
             clearSquare(moves, getToSquare(movelist->hashMove));
          }
 
-         if (moves != EMPTY_BITBOARD)
-         {
+         if (moves != EMPTY_BITBOARD) {
             addCaptures(movelist, position, from, moves);
          }
       }
@@ -1371,22 +1199,18 @@ void generateSpecialMovesPure(Movelist * movelist)
 
    moves = getKingMoves(position->king[activeColor]) & captureTargets;
 
-   if (moves != EMPTY_BITBOARD)
-   {
-      if (hashFrom == position->king[activeColor])
-      {
+   if (moves != EMPTY_BITBOARD) {
+      if (hashFrom == position->king[activeColor]) {
          clearSquare(moves, getToSquare(movelist->hashMove));
       }
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addCaptures(movelist, position, position->king[activeColor], moves);
       }
    }
 }
 
-void generateCaptures(Movelist * movelist)
-{
+void generateCaptures(Movelist * movelist) {
    const Position *position = movelist->position;
    const Color activeColor = position->activeColor;
    const Color passiveColor = opponent(activeColor);
@@ -1404,32 +1228,26 @@ void generateCaptures(Movelist * movelist)
    promotionPawns = pieces & promotionCandidates[activeColor];
    pieces &= ~promotionPawns;
 
-   ITERATE_BITBOARD(&promotionPawns, from)
-   {
+   ITERATE_BITBOARD(&promotionPawns, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets);
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addPromotions(movelist, from, moves);
 
-         if (hashFrom == from)
-         {
+         if (hashFrom == from) {
             deleteMove(movelist, movelist->hashMove);
          }
       }
    }
 
-   if (position->activeColor == WHITE)
-   {
+   if (position->activeColor == WHITE) {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) >> 9) |
          ((pawnCaptureTargets & nonH) >> 7);
 
       pieces &= capturingPawns;
-   }
-   else
-   {
+   } else {
       const Bitboard capturingPawns =
          ((pawnCaptureTargets & nonA) << 7) |
          ((pawnCaptureTargets & nonH) << 9);
@@ -1437,15 +1255,12 @@ void generateCaptures(Movelist * movelist)
       pieces &= capturingPawns;
    }
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       moves = getPawnCaptures((Piece) (PAWN | activeColor), from,
                               pawnCaptureTargets);
 
-      if (moves != EMPTY_BITBOARD)
-      {
-         if (hashFrom == from)
-         {
+      if (moves != EMPTY_BITBOARD) {
+         if (hashFrom == from) {
             clearSquare(moves, getToSquare(movelist->hashMove));
          }
 
@@ -1455,10 +1270,8 @@ void generateCaptures(Movelist * movelist)
 
    pieces = getOrdinaryPieces(position, activeColor);
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
-      switch (pieceType(position->piece[from]))
-      {
+   ITERATE_BITBOARD(&pieces, from) {
+      switch (pieceType(position->piece[from])) {
       case QUEEN:
          moves = getMagicQueenMoves(from, position->allPieces);
          break;
@@ -1479,8 +1292,7 @@ void generateCaptures(Movelist * movelist)
          break;
       }
 
-      if (hashFrom == from)
-      {
+      if (hashFrom == from) {
          clearSquare(moves, getToSquare(movelist->hashMove));
       }
 
@@ -1488,16 +1300,14 @@ void generateCaptures(Movelist * movelist)
       movelist->movesOfPiece[movelist->numberOfPieces++].moves = moves;
       moves &= captureTargets;
 
-      if (moves != EMPTY_BITBOARD)
-      {
+      if (moves != EMPTY_BITBOARD) {
          addCaptures(movelist, position, from, moves);
       }
    }
 
    moves = getKingMoves(position->king[activeColor]);
 
-   if (hashFrom == position->king[activeColor])
-   {
+   if (hashFrom == position->king[activeColor]) {
       clearSquare(moves, getToSquare(movelist->hashMove));
    }
 
@@ -1506,14 +1316,12 @@ void generateCaptures(Movelist * movelist)
    movelist->movesOfPiece[movelist->numberOfPieces++].moves = moves;
    moves &= captureTargets;
 
-   if (moves != EMPTY_BITBOARD)
-   {
+   if (moves != EMPTY_BITBOARD) {
       addCaptures(movelist, position, position->king[activeColor], moves);
    }
 }
 
-void generateRestMoves(Movelist * movelist)
-{
+void generateRestMoves(Movelist * movelist) {
    const Position *position = movelist->position;
    const Bitboard permittedSquares = ~position->allPieces;
    const Color activeColor = position->activeColor;
@@ -1543,15 +1351,13 @@ void generateRestMoves(Movelist * movelist)
        getFromSquare(movelist->plyInfo->killerMove6) : NO_SQUARE);
    int i;
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       Bitboard moves =
          getPawnAdvances(activeColor, from, position->allPieces);
 
       assert(moves != EMPTY_BITBOARD);
 
-      if (getFromSquare(movelist->hashMove) == from)
-      {
+      if (getFromSquare(movelist->hashMove) == from) {
          clearSquare(moves, getToSquare(movelist->hashMove));
       }
 
@@ -1562,48 +1368,40 @@ void generateRestMoves(Movelist * movelist)
    movelist->nextMove = 0;
    movelist->numberOfMoves = 0;
 
-   for (i = 0; i < movelist->numberOfPieces; i++)
-   {
+   for (i = 0; i < movelist->numberOfPieces; i++) {
       Bitboard moves = movelist->movesOfPiece[i].moves & permittedSquares;
       UINT8 moveSquares[_64_];
       int numMoves, moveIndex;
 
       from = movelist->movesOfPiece[i].square;
 
-      if (from == k1from)
-      {
+      if (from == k1from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove1));
       }
 
-      if (from == k2from)
-      {
+      if (from == k2from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove2));
       }
 
-      if (from == k3from)
-      {
+      if (from == k3from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove3));
       }
 
-      if (from == k4from)
-      {
+      if (from == k4from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove4));
       }
 
-      if (from == k5from)
-      {
+      if (from == k5from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove5));
       }
 
-      if (from == k6from)
-      {
+      if (from == k6from) {
          clearSquare(moves, getToSquare(movelist->plyInfo->killerMove6));
       }
 
       numMoves = getSetSquares(moves, moveSquares);
 
-      for (moveIndex = 0; moveIndex < numMoves; moveIndex++)
-      {
+      for (moveIndex = 0; moveIndex < numMoves; moveIndex++) {
          Move move = getOrdinaryMove(from, (Square) moveSquares[moveIndex]);
 
          setMoveValue(&move, historyMoveSortValue(position, movelist, move));
@@ -1614,8 +1412,7 @@ void generateRestMoves(Movelist * movelist)
    }
 }
 
-void generateDangerousPawnAdvances(Movelist * movelist)
-{
+void generateDangerousPawnAdvances(Movelist * movelist) {
    const Position *position = movelist->position;
    const Color activeColor = position->activeColor;
    const Rank sixthRank = (activeColor == WHITE ? RANK_6 : RANK_3);
@@ -1623,16 +1420,13 @@ void generateDangerousPawnAdvances(Movelist * movelist)
       squaresOfRank[sixthRank];
    Square from;
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       if ((moves = getPawnAdvances(activeColor, from, position->allPieces)) !=
-          EMPTY_BITBOARD)
-      {
+          EMPTY_BITBOARD) {
          const Square to = getLastSquare(&moves);
          Move move = getPackedMove(from, to, NO_PIECE);
 
-         if (move == movelist->hashMove)
-         {
+         if (move == movelist->hashMove) {
             continue;
          }
 
@@ -1642,8 +1436,7 @@ void generateDangerousPawnAdvances(Movelist * movelist)
    }
 }
 
-void generateChecks(Movelist * movelist, bool allChecks)
-{
+void generateChecks(Movelist * movelist, bool allChecks) {
    Position *position = movelist->position;
    const Color activeColor = position->activeColor;
    const Color passiveColor = opponent(activeColor);
@@ -1655,13 +1448,10 @@ void generateChecks(Movelist * movelist, bool allChecks)
    Square from;
    int i;
 
-   ITERATE_BITBOARD(&pieces, from)
-   {
+   ITERATE_BITBOARD(&pieces, from) {
       if ((moves = getPawnAdvances(activeColor, from, position->allPieces)) !=
-          EMPTY_BITBOARD)
-      {
-         if (getFromSquare(movelist->hashMove) == from)
-         {
+          EMPTY_BITBOARD) {
+         if (getFromSquare(movelist->hashMove) == from) {
             clearSquare(moves, getToSquare(movelist->hashMove));
          }
 
@@ -1678,8 +1468,7 @@ void generateChecks(Movelist * movelist, bool allChecks)
    permittedSquares = (allChecks ? ~position->piecesOfColor[activeColor] :
                        ~position->allPieces);
 
-   for (i = 0; i < movelist->numberOfPieces; i++)
-   {
+   for (i = 0; i < movelist->numberOfPieces; i++) {
       Bitboard checks = EMPTY_BITBOARD;
       const Square from = movelist->movesOfPiece[i].square;
       const PieceType piece = pieceType(position->piece[from]);
@@ -1687,8 +1476,7 @@ void generateChecks(Movelist * movelist, bool allChecks)
 
       moves = movelist->movesOfPiece[i].moves & permittedSquares;
 
-      if (testSquare(orthoChecks, from))
-      {
+      if (testSquare(orthoChecks, from)) {
          static const int pieceProperties = PP_SLIDING_PIECE | PP_ORTHOPIECE;
          Bitboard batteryPiece = position->piecesOfColor[activeColor] &
             squaresBehind[from][opponentKing] &
@@ -1697,13 +1485,10 @@ void generateChecks(Movelist * movelist, bool allChecks)
 
          if (batteryPieceSquare != NO_SQUARE &&
              (int) (position->piece[batteryPieceSquare] & pieceProperties) !=
-             pieceProperties)
-         {
+             pieceProperties) {
             batteryPieceSquare = NO_SQUARE;
          }
-      }
-      else if (testSquare(diaChecks, from))
-      {
+      } else if (testSquare(diaChecks, from)) {
          static const int pieceProperties = PP_SLIDING_PIECE | PP_DIAPIECE;
          Bitboard batteryPiece = position->piecesOfColor[activeColor] &
             squaresBehind[from][opponentKing] &
@@ -1712,20 +1497,15 @@ void generateChecks(Movelist * movelist, bool allChecks)
 
          if (batteryPieceSquare != NO_SQUARE &&
              (int) (position->piece[batteryPieceSquare] & pieceProperties) !=
-             pieceProperties)
-         {
+             pieceProperties) {
             batteryPieceSquare = NO_SQUARE;
          }
       }
 
-      if (batteryPieceSquare != NO_SQUARE)
-      {
+      if (batteryPieceSquare != NO_SQUARE) {
          checks = moves & ~squaresBetween[opponentKing][batteryPieceSquare];
-      }
-      else
-      {
-         switch (piece)
-         {
+      } else {
+         switch (piece) {
          case QUEEN:
             checks = moves & (orthoChecks | diaChecks);
             break;
@@ -1751,14 +1531,12 @@ void generateChecks(Movelist * movelist, bool allChecks)
          }
       }
 
-      if (piece == KING)
-      {
+      if (piece == KING) {
          Bitboard castlingMoves = moves &
             ~getKingMoves(position->king[activeColor]);
          Square kingSquare;
 
-         ITERATE_BITBOARD(&castlingMoves, kingSquare)
-         {
+         ITERATE_BITBOARD(&castlingMoves, kingSquare) {
             const Bitboard obstacles = position->allPieces &
                maxValue[position->king[activeColor]];
             Bitboard rookMoves;
@@ -1767,60 +1545,50 @@ void generateChecks(Movelist * movelist, bool allChecks)
 
             rookMoves = getMagicRookMoves(rookSquare, obstacles);
 
-            if (testSquare(rookMoves, opponentKing))
-            {
+            if (testSquare(rookMoves, opponentKing)) {
                setSquare(checks, kingSquare);
             }
          }
       }
 
-      if (checks != EMPTY_BITBOARD)
-      {
-         if (from == getFromSquare(movelist->hashMove))
-         {
+      if (checks != EMPTY_BITBOARD) {
+         if (from == getFromSquare(movelist->hashMove)) {
             clearSquare(checks, getToSquare(movelist->hashMove));
          }
 
          if (movelist->killer1Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove1))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove1)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove1));
          }
 
          if (movelist->killer2Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove2))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove2)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove2));
          }
 
          if (movelist->killer3Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove3))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove3)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove3));
          }
 
          if (movelist->killer4Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove4))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove4)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove4));
          }
 
          if (movelist->killer5Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove5))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove5)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove5));
          }
 
          if (movelist->killer6Executed &&
-             from == getFromSquare(movelist->plyInfo->killerMove6))
-         {
+             from == getFromSquare(movelist->plyInfo->killerMove6)) {
             clearSquare(checks, getToSquare(movelist->plyInfo->killerMove6));
          }
 
          movelist->movesOfPiece[i].moves &= ~checks;
 
-         ITERATE_BITBOARD(&checks, to)
-         {
+         ITERATE_BITBOARD(&checks, to) {
             Move move = getPackedMove(from, to, NO_PIECE);
 
             setMoveValue(&move,
@@ -1831,8 +1599,7 @@ void generateChecks(Movelist * movelist, bool allChecks)
    }
 }
 
-void generateEscapes(Movelist * movelist)
-{
+void generateEscapes(Movelist * movelist) {
    Move move;
    Square from, to;
    Piece newPiece;
@@ -1854,19 +1621,14 @@ void generateEscapes(Movelist * movelist)
    from = kingsquare;
    newPiece = NO_PIECE;
 
-   ITERATE_BITBOARD(&kingmoves, to)
-   {
+   ITERATE_BITBOARD(&kingmoves, to) {
       if (getDirectAttackers(position, to, passiveColor, obstacles) ==
-          EMPTY_BITBOARD)
-      {
+          EMPTY_BITBOARD) {
          move = getPackedMove(from, to, newPiece);
 
-         if (position->piece[to] == NO_PIECE)
-         {
+         if (position->piece[to] == NO_PIECE) {
             value = historyMoveSortValue(position, movelist, move);
-         }
-         else
-         {
+         } else {
             value = captureMoveSortValue(position, from, to);
          }
 
@@ -1875,8 +1637,7 @@ void generateEscapes(Movelist * movelist)
       }
    }
 
-   if (getNumberOfSetSquares(attackers) > 1)
-   {
+   if (getNumberOfSetSquares(attackers) > 1) {
       goto sortMoves;
    }
 
@@ -1887,11 +1648,9 @@ void generateEscapes(Movelist * movelist)
    clearSquare(defenders, kingsquare);
    to = attackerSquare;
 
-   ITERATE_BITBOARD(&defenders, from)
-   {
+   ITERATE_BITBOARD(&defenders, from) {
       if (pieceType(position->piece[from]) == PAWN &&
-          testSquare(promotionCandidates[activeColor], from))
-      {
+          testSquare(promotionCandidates[activeColor], from)) {
          INT16 value;
 
          value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN);
@@ -1909,15 +1668,12 @@ void generateEscapes(Movelist * movelist)
          value = promotionMoveSortValue(movelist->position, to, WHITE_KNIGHT);
          movelist->moves[movelist->numberOfMoves++] =
             getMove(from, to, WHITE_KNIGHT, value);
-      }
-      else
-      {
+      } else {
          value = captureMoveSortValue(position, from, to);
          move = getMove(from, to, NO_PIECE, value);
 
          if (basicValue[position->piece[from]] >
-             basicValue[position->piece[to]] && seeMove(position, move) < 0)
-         {
+             basicValue[position->piece[to]] && seeMove(position, move) < 0) {
             setMoveValue(&move, value - VALUEOFFSET_BAD_MOVE);
          }
 
@@ -1925,8 +1681,7 @@ void generateEscapes(Movelist * movelist)
       }
    }
 
-   if (position->enPassantSquare != NO_SQUARE && attackerType == PAWN)
-   {
+   if (position->enPassantSquare != NO_SQUARE && attackerType == PAWN) {
       defenders = getPawnCaptures((Piece) (PAWN | opponent(activeColor)),
                                   position->enPassantSquare,
                                   position->piecesOfType[PAWN | activeColor]);
@@ -1935,8 +1690,7 @@ void generateEscapes(Movelist * movelist)
       newPiece = NO_PIECE;
       value = (INT16) basicValue[PAWN | opponent(activeColor)];
 
-      ITERATE_BITBOARD(&defenders, from)
-      {
+      ITERATE_BITBOARD(&defenders, from) {
          movelist->moves[movelist->numberOfMoves++] =
             getMove(from, to, newPiece, value);
       }
@@ -1944,30 +1698,25 @@ void generateEscapes(Movelist * movelist)
       goto sortMoves;
    }
 
-   if ((attackerType & PP_SLIDING_PIECE) == 0)
-   {
+   if ((attackerType & PP_SLIDING_PIECE) == 0) {
       goto sortMoves;
    }
 
    corridor = squaresBetween[attackerSquare][kingsquare];
 
-   ITERATE_BITBOARD(&corridor, to)
-   {
+   ITERATE_BITBOARD(&corridor, to) {
       defenders = getInterestedPieces(position, to, activeColor);
       clearSquare(defenders, kingsquare);
 
-      ITERATE_BITBOARD(&defenders, from)
-      {
+      ITERATE_BITBOARD(&defenders, from) {
          if (pieceType(position->piece[from]) == PAWN &&
-             testSquare(promotionCandidates[activeColor], from))
-         {
+             testSquare(promotionCandidates[activeColor], from)) {
             INT16 value;
 
             value = promotionMoveSortValue(movelist->position,
                                            to, WHITE_QUEEN);
 
-            if (seeMove(position, getPackedMove(from, to, WHITE_QUEEN)) < 0)
-            {
+            if (seeMove(position, getPackedMove(from, to, WHITE_QUEEN)) < 0) {
                value = (INT16) (value - (VALUEOFFSET_BAD_MOVE +
                                          VALUEOFFSET_PROMOTION_TO_QUEEN));
             }
@@ -1989,17 +1738,12 @@ void generateEscapes(Movelist * movelist)
                                            to, WHITE_KNIGHT);
             movelist->moves[movelist->numberOfMoves++] =
                getMove(from, to, WHITE_KNIGHT, value);
-         }
-         else
-         {
+         } else {
             move = getPackedMove(from, to, NO_PIECE);
 
-            if (seeMove(position, move) >= 0)
-            {
+            if (seeMove(position, move) >= 0) {
                value = historyMoveSortValue(position, movelist, move);
-            }
-            else
-            {
+            } else {
                value = (INT16) (captureMoveSortValue(position, from, to) -
                                 VALUEOFFSET_BAD_MOVE);
             }
@@ -2012,8 +1756,7 @@ void generateEscapes(Movelist * movelist)
 
  sortMoves:
 
-   if (movelist->hashMove != NO_MOVE && movelist->numberOfMoves > 1)
-   {
+   if (movelist->hashMove != NO_MOVE && movelist->numberOfMoves > 1) {
       move = movelist->hashMove;
       setMoveValue(&move, 32000);
       setMoveValueInList(movelist, move);
@@ -2025,8 +1768,7 @@ void generateEscapes(Movelist * movelist)
           movesAreEqual(movelist->moves[0], movelist->hashMove));
 }
 
-bool simpleMoveIsCheck(const Position * position, const Move move)
-{
+bool simpleMoveIsCheck(const Position * position, const Move move) {
    const Color attackingColor = position->activeColor;
    const Color defendingColor = opponent(attackingColor);
    const Square from = getFromSquare(move);
@@ -2037,46 +1779,39 @@ bool simpleMoveIsCheck(const Position * position, const Move move)
    const Bitboard moves =
       getMoves(to, position->piece[from], position->allPieces);
 
-   if (testSquare(moves, target) && movingPieceType != KING)
-   {
+   if (testSquare(moves, target) && movingPieceType != KING) {
       return TRUE;
    }
 
-   if (testSquare(getMagicRookMoves(target, position->allPieces), from))
-   {
+   if (testSquare(getMagicRookMoves(target, position->allPieces), from)) {
       Bitboard batteryPieces =
          (position->piecesOfType[ROOK | attackingColor] |
           position->piecesOfType[QUEEN | attackingColor]) &
          squaresBehind[from][target];
       Square square;
 
-      ITERATE_BITBOARD(&batteryPieces, square)
-      {
+      ITERATE_BITBOARD(&batteryPieces, square) {
          Bitboard blockingPieces = (position->allPieces | minValue[to]) &
             squaresBetween[target][square] & maxValue[from];
 
-         if (blockingPieces == EMPTY_BITBOARD)
-         {
+         if (blockingPieces == EMPTY_BITBOARD) {
             return TRUE;
          }
       }
    }
 
-   if (testSquare(getMagicBishopMoves(target, position->allPieces), from))
-   {
+   if (testSquare(getMagicBishopMoves(target, position->allPieces), from)) {
       Bitboard batteryPieces =
          (position->piecesOfType[BISHOP | attackingColor] |
           position->piecesOfType[QUEEN | attackingColor]) &
          squaresBehind[from][target];
       Square square;
 
-      ITERATE_BITBOARD(&batteryPieces, square)
-      {
+      ITERATE_BITBOARD(&batteryPieces, square) {
          Bitboard blockingPieces = (position->allPieces | minValue[to]) &
             squaresBetween[target][square] & maxValue[from];
 
-         if (blockingPieces == EMPTY_BITBOARD)
-         {
+         if (blockingPieces == EMPTY_BITBOARD) {
             return TRUE;
          }
       }
@@ -2085,8 +1820,7 @@ bool simpleMoveIsCheck(const Position * position, const Move move)
    return FALSE;
 }
 
-bool kingCanEscape(Position * position)
-{
+bool kingCanEscape(Position * position) {
    Square square;
    PieceType attackerType;
    const Color activeColor = position->activeColor;
@@ -2100,17 +1834,14 @@ bool kingCanEscape(Position * position)
    const Bitboard unpinnedPieces = ~getPinnedPieces(position, passiveColor);
    const Bitboard obstacles = position->allPieces & maxValue[kingsquare];
 
-   ITERATE_BITBOARD(&kingmoves, square)
-   {
+   ITERATE_BITBOARD(&kingmoves, square) {
       if (getDirectAttackers(position, square, passiveColor, obstacles) ==
-          EMPTY_BITBOARD)
-      {
+          EMPTY_BITBOARD) {
          return TRUE;
       }
    }
 
-   if (getNumberOfSetSquares(attackers) > 1)
-   {
+   if (getNumberOfSetSquares(attackers) > 1) {
       return FALSE;
    }
 
@@ -2120,37 +1851,31 @@ bool kingCanEscape(Position * position)
                                   position->allPieces);
    clearSquare(defenders, kingsquare);
 
-   if ((defenders & unpinnedPieces) != EMPTY_BITBOARD)
-   {
+   if ((defenders & unpinnedPieces) != EMPTY_BITBOARD) {
       return TRUE;
    }
 
-   if (position->enPassantSquare != NO_SQUARE && attackerType == PAWN)
-   {
+   if (position->enPassantSquare != NO_SQUARE && attackerType == PAWN) {
       defenders = getPawnCaptures((Piece) (PAWN | opponent(activeColor)),
                                   position->enPassantSquare,
                                   position->piecesOfType[PAWN | activeColor]);
 
-      if ((defenders & unpinnedPieces) != EMPTY_BITBOARD)
-      {
+      if ((defenders & unpinnedPieces) != EMPTY_BITBOARD) {
          return TRUE;
       }
    }
 
-   if ((attackerType & PP_SLIDING_PIECE) == 0)
-   {
+   if ((attackerType & PP_SLIDING_PIECE) == 0) {
       return FALSE;
    }
 
    corridor = squaresBetween[attackerSquare][kingsquare];
 
-   ITERATE_BITBOARD(&corridor, square)
-   {
+   ITERATE_BITBOARD(&corridor, square) {
       defenders = getInterestedPieces(position, square, activeColor);
       clearSquare(defenders, kingsquare);
 
-      if ((defenders & unpinnedPieces) != EMPTY_BITBOARD)
-      {
+      if ((defenders & unpinnedPieces) != EMPTY_BITBOARD) {
          return TRUE;
       }
    }
@@ -2158,8 +1883,7 @@ bool kingCanEscape(Position * position)
    return FALSE;
 }
 
-int initializeModuleMovegeneration(void)
-{
+int initializeModuleMovegeneration(void) {
    int i = 0;
 
    MG_SCHEME_STANDARD = i;
@@ -2219,8 +1943,7 @@ int initializeModuleMovegeneration(void)
 
 #ifndef NDEBUG
 
-static int testPseudoLegalMoves(void)
-{
+static int testPseudoLegalMoves(void) {
    Variation variation;
    Bitboard attackers, interested;
 
@@ -2349,8 +2072,7 @@ static int testPseudoLegalMoves(void)
    return 0;
 }
 
-static int testLegalMoves(void)
-{
+static int testLegalMoves(void) {
    Variation variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -2381,8 +2103,7 @@ static int testLegalMoves(void)
    return 0;
 }
 
-static int testStaticExchangeEvaluation(void)
-{
+static int testStaticExchangeEvaluation(void) {
    Variation variation;
    Move move;
 
@@ -2508,8 +2229,7 @@ static int testStaticExchangeEvaluation(void)
    return 0;
 }
 
-static int testStaticExchangeEvaluationWithKing(void)
-{
+static int testStaticExchangeEvaluationWithKing(void) {
    Variation variation;
    Move move;
 
@@ -2538,8 +2258,7 @@ static int testStaticExchangeEvaluationWithKing(void)
    return 0;
 }
 
-static int testStaticExchangeEvaluationWithEnPassantCapture(void)
-{
+static int testStaticExchangeEvaluationWithEnPassantCapture(void) {
    Variation variation;
    Move move;
 
@@ -2562,8 +2281,7 @@ static int testStaticExchangeEvaluationWithEnPassantCapture(void)
 
 #define P1 "2b3k1/1p1n1pP1/5P2/2r2q2/4Q3/3N1p2/5Pp1/1R1B2K1 w - - 0 1"
 
-static int testAttackCalculations(void)
-{
+static int testAttackCalculations(void) {
    Variation variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -2590,8 +2308,7 @@ static int testAttackCalculations(void)
    return 0;
 }
 
-static int testLegalMoveGeneration(void)
-{
+static int testLegalMoveGeneration(void) {
    Variation variation;
    Movelist movelist;
 
@@ -2605,8 +2322,7 @@ static int testLegalMoveGeneration(void)
    return 0;
 }
 
-static int testPinCheck(void)
-{
+static int testPinCheck(void) {
    static const char *fen1 =
       "r1b1k2r/ppp2ppp/2n2n2/1B6/1b2qp2/2NP1N2/PPP1QPPP/R3K2R w KQkq - 0 9";
    Variation variation;
@@ -2627,50 +2343,41 @@ static int testPinCheck(void)
 
 #endif
 
-int testModuleMovegeneration(void)
-{
+int testModuleMovegeneration(void) {
 
 #ifndef NDEBUG
 
    int result;
 
-   if ((result = testPseudoLegalMoves()) != 0)
-   {
+   if ((result = testPseudoLegalMoves()) != 0) {
       return result;
    }
 
-   if ((result = testLegalMoves()) != 0)
-   {
+   if ((result = testLegalMoves()) != 0) {
       return result;
    }
 
-   if ((result = testStaticExchangeEvaluation()) != 0)
-   {
+   if ((result = testStaticExchangeEvaluation()) != 0) {
       return result;
    }
 
-   if ((result = testStaticExchangeEvaluationWithKing()) != 0)
-   {
+   if ((result = testStaticExchangeEvaluationWithKing()) != 0) {
       return result;
    }
 
-   if ((result = testStaticExchangeEvaluationWithEnPassantCapture()) != 0)
-   {
+   if ((result = testStaticExchangeEvaluationWithEnPassantCapture()) != 0) {
       return result;
    }
 
-   if ((result = testAttackCalculations()) != 0)
-   {
+   if ((result = testAttackCalculations()) != 0) {
       return result;
    }
 
-   if ((result = testLegalMoveGeneration()) != 0)
-   {
+   if ((result = testLegalMoveGeneration()) != 0) {
       return result;
    }
 
-   if ((result = testPinCheck()) != 0)
-   {
+   if ((result = testPinCheck()) != 0) {
       return result;
    }
 

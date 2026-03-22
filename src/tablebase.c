@@ -28,30 +28,24 @@
 
 bool tbAvailable = false;
 
-int initializeModuleTablebase(void)
-{
+int initializeModuleTablebase(void) {
    return 0;
 }
 
-int testModuleTablebase(void)
-{
+int testModuleTablebase(void) {
    return 0;
 }
 
-int initializeTablebase(const char *path)
-{
+int initializeTablebase(const char *path) {
    tbAvailable = tb_init(path);
    return tbAvailable ? 0 : -1;
 }
 
-void closeTablebaseFiles(void)
-{
+void closeTablebaseFiles(void) {
    // tb_init handles cleanup if called with NULL or implicitly on exit
 }
 
-
-int probeTablebaseWDL(const Position * position)
-{
+int probeTablebaseWDL(const Position * position) {
    if (!tbAvailable) return TABLEBASE_ERROR;
 
    if (position->castlingRights != 0) return TABLEBASE_ERROR;
@@ -77,8 +71,7 @@ int probeTablebaseWDL(const Position * position)
 
    if (res == TB_RESULT_FAILED) return TABLEBASE_ERROR;
 
-   switch (res)
-   {
+   switch (res) {
       case TB_WIN: return 2;
       case TB_CURSED_WIN: return 1;
       case TB_DRAW: return 0;
@@ -88,13 +81,11 @@ int probeTablebaseWDL(const Position * position)
    }
 }
 
-int probeTablebase(const Position * position)
-{
+int probeTablebase(const Position * position) {
    int res = probeTablebaseWDL(position);
    if (res == TABLEBASE_ERROR) return TABLEBASE_ERROR;
 
-   switch (res)
-   {
+   switch (res) {
       case 2: return -VALUE_MATED - MAX_DEPTH - 1;
       case 1: return 1; // Slight advantage for cursed win
       case 0: return 0;
@@ -104,8 +95,7 @@ int probeTablebase(const Position * position)
    }
 }
 
-int probeTablebaseDTZ(const Position * position, Move * move)
-{
+int probeTablebaseDTZ(const Position * position, Move * move) {
    if (!tbAvailable) return TABLEBASE_ERROR;
 
    if (position->castlingRights != 0) return TABLEBASE_ERROR;
@@ -132,22 +122,16 @@ int probeTablebaseDTZ(const Position * position, Move * move)
 
    if (res == TB_RESULT_FAILED) return TABLEBASE_ERROR;
 
-   if (move != NULL)
-   {
-      if (res == TB_RESULT_STALEMATE || res == TB_RESULT_CHECKMATE)
-      {
+   if (move != NULL) {
+      if (res == TB_RESULT_STALEMATE || res == TB_RESULT_CHECKMATE) {
          *move = NO_MOVE;
-      }
-      else
-      {
+      } else {
          Square from = TB_GET_FROM(res);
          Square to = TB_GET_TO(res);
          unsigned promotes = TB_GET_PROMOTES(res);
          Piece pieceType = NO_PIECE;
-         if (promotes != TB_PROMOTES_NONE)
-         {
-            switch (promotes)
-            {
+         if (promotes != TB_PROMOTES_NONE) {
+            switch (promotes) {
                case TB_PROMOTES_QUEEN: pieceType = (Piece)QUEEN; break;
                case TB_PROMOTES_ROOK: pieceType = (Piece)ROOK; break;
                case TB_PROMOTES_BISHOP: pieceType = (Piece)BISHOP; break;

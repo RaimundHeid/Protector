@@ -53,14 +53,11 @@ CommandlineOptions commandlineOptions;
 UINT64 statCount1, statCount2;
 int debugOutput = FALSE;
 
-static int initializeModuleProtector(void)
-{
+static int initializeModuleProtector(void) {
    int sq1, sq2;
 
-   ITERATE(sq1)
-   {
-      ITERATE(sq2)
-      {
+   ITERATE(sq1) {
+      ITERATE(sq2) {
          _horizontalDistance[sq1][sq2] =
             max(file(sq1), file(sq2)) - min(file(sq1), file(sq2));
          _verticalDistance[sq1][sq2] =
@@ -95,159 +92,109 @@ static int initializeModuleProtector(void)
    return 0;
 }
 
-static void reportSuccess(const char *moduleName)
-{
+static void reportSuccess(const char *moduleName) {
    logDebug("Module %s tested successfully.\n", moduleName);
 }
 
-static int testModuleProtector(void)
-{
+static int testModuleProtector(void) {
    assert(_horizontalDistance[C2][E6] == 2);
    assert(_verticalDistance[C2][E6] == 4);
    assert(_distance[C3][H8] == 5);
    assert(_taxiDistance[B2][F7] == 9);
 
-   if (testModuleIo() != 0)
-   {
+   if (testModuleIo() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Io");
    }
 
-   if (testModuleTools() != 0)
-   {
+   if (testModuleTools() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Tools");
    }
 
-   if (testModuleCoordination() != 0)
-   {
+   if (testModuleCoordination() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Coordination");
    }
 
-   if (testModuleBitboard() != 0)
-   {
+   if (testModuleBitboard() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Bitboard");
    }
 
-   if (testModulePosition() != 0)
-   {
+   if (testModulePosition() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Position");
    }
 
-   if (testModuleFen() != 0)
-   {
+   if (testModuleFen() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Fen");
    }
 
-   if (testModuleMovegeneration() != 0)
-   {
+   if (testModuleMovegeneration() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Movegeneration");
    }
 
-   if (testModuleHash() != 0)
-   {
+   if (testModuleHash() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Hash");
    }
 
-   if (testModuleMatesearch() != 0)
-   {
+   if (testModuleMatesearch() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Matesearch");
    }
 
-   if (testModuleSearch() != 0)
-   {
+   if (testModuleSearch() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Search");
    }
 
-   if (testModulePgn() != 0)
-   {
+   if (testModulePgn() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Pgn");
    }
 
-   if (testModuleEvaluation() != 0)
-   {
+   if (testModuleEvaluation() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Evaluation");
    }
 
-   if (testModuleUci() != 0)
-   {
+   if (testModuleUci() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Uci");
    }
 
-   if (testModuleTablebase() != 0)
-   {
+   if (testModuleTablebase() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Tablebase");
    }
 
-   if (testModuleNnue() != 0)
-   {
+   if (testModuleNnue() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Nnue");
    }
 
-   if (testModuleTest() != 0)
-   {
+   if (testModuleTest() != 0) {
       return -1;
-   }
-   else
-   {
+   } else {
       reportSuccess("Test");
    }
 
@@ -256,8 +203,7 @@ static int testModuleProtector(void)
    return 0;
 }
 
-static void parseOptions(int argc, char **argv, CommandlineOptions * options)
-{
+static void parseOptions(int argc, char **argv, CommandlineOptions * options) {
    int i;
 
    options->processModuleTest = FALSE;
@@ -267,60 +213,47 @@ static void parseOptions(int argc, char **argv, CommandlineOptions * options)
    options->tablebasePath = NULL;
    getDirectory(argv[0], options->engineDirectory, sizeof(options->engineDirectory));
 
-   for (i = 0; i < argc; i++)
-
-   {
+   for (i = 0; i < argc; i++) {
       const char *currentArg = argv[i];
 
-      if (strcmp(currentArg, "-m") == 0)
-      {
+      if (strcmp(currentArg, "-m") == 0) {
          options->processModuleTest = TRUE;
          options->uciMode = FALSE;
       }
 
-      if (strcmp(currentArg, "-d") == 0)
-      {
+      if (strcmp(currentArg, "-d") == 0) {
          options->dumpEvaluation = TRUE;
       }
 
-      if (strcmp(currentArg, "-t") == 0 && i < argc - 1)
-      {
+      if (strcmp(currentArg, "-t") == 0 && i < argc - 1) {
          options->testfile = argv[++i];
          options->uciMode = FALSE;
       }
 
-      if (strcmp(currentArg, "-e") == 0 && i < argc - 1)
-      {
+      if (strcmp(currentArg, "-e") == 0 && i < argc - 1) {
          options->tablebasePath = argv[++i];
       }
 
-      if (strcmp(currentArg, "-v") == 0)
-      {
+      if (strcmp(currentArg, "-v") == 0) {
          printf("Protector %s\n", programVersionNumber);
       }
    }
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
    parseOptions(argc, argv, &commandlineOptions);
 
-   if (initializeModuleProtector() != 0)
-   {
+   if (initializeModuleProtector() != 0) {
       logDebug("Initialization failed. Terminating.\n");
       finalizeModuleCoordination();
 
       return -1;
    }
 
-   if (commandlineOptions.uciMode)
-   {
+   if (commandlineOptions.uciMode) {
       acceptGuiCommands();
-   }
-   else if (commandlineOptions.processModuleTest)
-   {
-      if (testModuleProtector() != 0)
-      {
+   } else if (commandlineOptions.processModuleTest) {
+      if (testModuleProtector() != 0) {
          logDebug("\n##### Moduletest failed! #####\n");
 
          finalizeModuleCoordination();
@@ -329,10 +262,8 @@ int main(int argc, char **argv)
       }
    }
 
-   if (commandlineOptions.testfile != NULL)
-   {
-      if (processTestsuite(commandlineOptions.testfile) != 0)
-      {
+   if (commandlineOptions.testfile != NULL) {
+      if (processTestsuite(commandlineOptions.testfile) != 0) {
          finalizeModuleCoordination();
 
          return -1;

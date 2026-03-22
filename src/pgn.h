@@ -23,8 +23,7 @@
 
 #include <stdio.h>
 
-typedef struct
-{
+typedef struct {
    long *index;
    long indexSize;
    long numGames;
@@ -34,8 +33,7 @@ PGNFile;
 
 #define PGN_ROASTERLINE_SIZE 256
 
-typedef struct
-{
+typedef struct {
    Square from, to;
    Piece newPiece;
    Position position;
@@ -47,8 +45,7 @@ typedef struct
 }
 Gamemove;
 
-typedef struct
-{
+typedef struct {
    char event[PGN_ROASTERLINE_SIZE];
    char site[PGN_ROASTERLINE_SIZE];
    char date[PGN_ROASTERLINE_SIZE];

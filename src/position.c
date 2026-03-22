@@ -29,7 +29,6 @@
 #include "hash.h"
 #include "evaluation.h"
 
-
 const int VALUE_FACTOR = 26;
 const int VALUE_QUEEN = VALUE_FACTOR * 2538 / 100;
 const int VALUE_ROOK = VALUE_FACTOR * 1278 / 100;
@@ -41,31 +40,26 @@ int basicValue[16];
 BYTE remainingCastlings[_64_];
 Square rookOrigin[_64_];
 
-Square relativeSquare(const Square square, const Color color)
-{
+Square relativeSquare(const Square square, const Color color) {
    return (color == WHITE ? square : getFlippedSquare(square));
 }
 
-INT32 evalBonus(INT32 openingBonus, INT32 endgameBonus)
-{
+INT32 evalBonus(INT32 openingBonus, INT32 endgameBonus) {
    return V(openingBonus, endgameBonus);
 }
 
-int getOpeningValue(INT32 value)
-{
+int getOpeningValue(INT32 value) {
    return (int) ((INT16) (value & 0xFFFF));
 }
 
-int getEndgameValue(INT32 value)
-{
+int getEndgameValue(INT32 value) {
    return (int) ((value + 0x8000) >> 16);
 }
 
 /**
  * Pack the specified move into a 16-bit-uint.
  */
-UINT16 packedMove(const Move move)
-{
+UINT16 packedMove(const Move move) {
    return (UINT16) (move & 0xFFFF);
 }
 
@@ -73,72 +67,63 @@ UINT16 packedMove(const Move move)
  * Construct the specified move.
  */
 Move getMove(const Square from, const Square to,
-             const Piece newPiece, const INT16 value)
-{
+             const Piece newPiece, const INT16 value) {
    return (value << 16) | (newPiece << 12) | (to << 6) | from;
 }
 
 /**
  * Construct the specified ordinary move.
  */
-Move getOrdinaryMove(const Square from, const Square to)
-{
+Move getOrdinaryMove(const Square from, const Square to) {
    return (to << 6) | from;
 }
 
 /**
  * Construct the specified packed move.
  */
-Move getPackedMove(const Square from, const Square to, const Piece newPiece)
-{
+Move getPackedMove(const Square from, const Square to, const Piece newPiece) {
    return (newPiece << 12) | (to << 6) | from;
 }
 
 /**
  * Get the from square of the specified move.
  */
-Square getFromSquare(const Move move)
-{
+Square getFromSquare(const Move move) {
    return (Square) (move & 0x3F);
 }
 
 /**
  * Get the to square of the specified move.
  */
-Square getToSquare(const Move move)
-{
+Square getToSquare(const Move move) {
    return (Square) ((move >> 6) & 0x3F);
 }
 
 /**
  * Get the new piece of the specified move.
  */
-Piece getNewPiece(const Move move)
-{
+Piece getNewPiece(const Move move) {
    return (Piece) ((move >> 12) & 0x0F);
 }
 
 /**
  * Get the value of the specified move.
  */
-INT16 getMoveValue(const Move move)
-{
+INT16 getMoveValue(const Move move) {
    return (INT16) (move >> 16);
 }
 
 /**
  * Set the value of the specified move.
  */
-void setMoveValue(Move * move, const int value)
-{
+void setMoveValue(Move * move, const int value) {
    *move = (*move & 0xFFFF) | (value << 16);
 }
 
 /**
  * Get the opponent color of the specified color.
  */
-Color opponent(Color color)
-{
+Color opponent(Color color) {
    return (Color) (1 - color);
 }
 
@@ -148,8 +133,7 @@ Color opponent(Color color)
 Bitboard getDirectAttackers(const Position * position,
                             const Square square,
                             const Color attackerColor,
-                            const Bitboard obstacles)
-{
+                            const Bitboard obstacles) {
    const Bitboard king = getKingMoves(square) &
       minValue[position->king[attackerColor]];
    Bitboard dia = getMagicBishopMoves(square, obstacles);
@@ -173,8 +157,7 @@ Bitboard getDirectAttackers(const Position * position,
  */
 Bitboard getDiaSquaresBehind(const Position * position,
                              const Square targetSquare,
-                             const Square viewPoint)
-{
+                             const Square viewPoint) {
    return squaresBehind[targetSquare][viewPoint] &
       getMagicBishopMoves(targetSquare, position->allPieces);
 }
@@ -184,8 +167,7 @@ Bitboard getDiaSquaresBehind(const Position * position,
  */
 Bitboard getOrthoSquaresBehind(const Position * position,
                                const Square targetSquare,
-                               const Square viewPoint)
-{
+                               const Square viewPoint) {
    return squaresBehind[targetSquare][viewPoint] &
       getMagicRookMoves(targetSquare, position->allPieces);
 }
@@ -193,8 +175,7 @@ Bitboard getOrthoSquaresBehind(const Position * position,
 /**
  * Initialize the current plyInfo data structure.
  */
-void initializePlyInfo(Variation * variation)
-{
+void initializePlyInfo(Variation * variation) {
    const Position *position = &variation->singlePosition;
    PlyInfo *plyInfo = &variation->plyInfo[variation->ply];
    const Color activeColor = position->activeColor;
@@ -211,16 +192,14 @@ void initializePlyInfo(Variation * variation)
 /**
  * Initialize the current pv.
  */
-void initializePv(PrincipalVariation * pv)
-{
+void initializePv(PrincipalVariation * pv) {
    int i;
 
    pv->length = 0;
    pv->score = VALUE_MATED;
    pv->scoreType = HASHVALUE_LOWER_LIMIT;
 
-   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++)
-   {
+   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++) {
       pv->move[i] = (UINT16) NO_MOVE;
    }
 }
@@ -228,14 +207,12 @@ void initializePv(PrincipalVariation * pv)
 /**
  * Initialize the pvs of the current variation.
  */
-void initializePvsOfVariation(Variation * variation)
-{
+void initializePvsOfVariation(Variation * variation) {
    int i;
 
    initializePv(&variation->completePv);
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
+   for (i = 0; i < MAX_NUM_PV; i++) {
       initializePv(&variation->pv[i]);
    }
 
@@ -245,12 +222,10 @@ void initializePvsOfVariation(Variation * variation)
 /**
  * Initialize the pvs of the current variation.
  */
-void resetPvsOfVariation(Variation * variation)
-{
+void resetPvsOfVariation(Variation * variation) {
    int i;
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
+   for (i = 0; i < MAX_NUM_PV; i++) {
       variation->pv[i].score = VALUE_MATED;
       variation->pv[i].scoreType = HASHVALUE_LOWER_LIMIT;
    }
@@ -258,14 +233,11 @@ void resetPvsOfVariation(Variation * variation)
    variation->pvId = 0;
 }
 
-int getPvlistMoveCount(Variation * variation, PrincipalVariation * pv)
-{
+int getPvlistMoveCount(Variation * variation, PrincipalVariation * pv) {
    int i, count = 0;
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
-      if (movesAreEqual(pv->move[0], variation->pv[i].move[0]))
-      {
+   for (i = 0; i < MAX_NUM_PV; i++) {
+      if (movesAreEqual(pv->move[0], variation->pv[i].move[0])) {
          count++;
       }
    }
@@ -273,14 +245,11 @@ int getPvlistMoveCount(Variation * variation, PrincipalVariation * pv)
    return count;
 }
 
-bool pvListContainsMove(Variation * variation, PrincipalVariation * pv)
-{
+bool pvListContainsMove(Variation * variation, PrincipalVariation * pv) {
    int i;
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
-      if (movesAreEqual(pv->move[0], variation->pv[i].move[0]))
-      {
+   for (i = 0; i < MAX_NUM_PV; i++) {
+      if (movesAreEqual(pv->move[0], variation->pv[i].move[0])) {
          return TRUE;
       }
    }
@@ -288,18 +257,14 @@ bool pvListContainsMove(Variation * variation, PrincipalVariation * pv)
    return FALSE;
 }
 
-void clearPvList(Variation * variation, PrincipalVariation * pv)
-{
+void clearPvList(Variation * variation, PrincipalVariation * pv) {
    int i;
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
-      if (movesAreEqual(pv->move[0], variation->pv[i].move[0]))
-      {
+   for (i = 0; i < MAX_NUM_PV; i++) {
+      if (movesAreEqual(pv->move[0], variation->pv[i].move[0])) {
          int j;
 
-         for (j = i; j < MAX_NUM_PV - 1; j++)
-         {
+         for (j = i; j < MAX_NUM_PV - 1; j++) {
             variation->pv[j] = variation->pv[j + 1];
          }
 
@@ -308,24 +273,19 @@ void clearPvList(Variation * variation, PrincipalVariation * pv)
    }
 }
 
-void addPvByScore(Variation * variation, PrincipalVariation * pv)
-{
+void addPvByScore(Variation * variation, PrincipalVariation * pv) {
    int i;
 
    /* Delete previous pv entries for the same root move */
-   while (pvListContainsMove(variation, pv))
-   {
+   while (pvListContainsMove(variation, pv)) {
       clearPvList(variation, pv);
    }
 
-   for (i = 0; i < MAX_NUM_PV; i++)
-   {
-      if (pv->score > variation->pv[i].score)
-      {
+   for (i = 0; i < MAX_NUM_PV; i++) {
+      if (pv->score > variation->pv[i].score) {
          int j;
 
-         for (j = MAX_NUM_PV - 1; j > i; j--)
-         {
+         for (j = MAX_NUM_PV - 1; j > i; j--) {
             variation->pv[j] = variation->pv[j - 1];
          }
 
@@ -336,12 +296,10 @@ void addPvByScore(Variation * variation, PrincipalVariation * pv)
 
 }
 
-void resetPlyInfo(Variation * variation)
-{
+void resetPlyInfo(Variation * variation) {
    int i;
 
-   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++)
-   {
+   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++) {
       variation->plyInfo[i].staticValueAvailable =
          variation->plyInfo[i].gainsUpdated = FALSE;
       variation->plyInfo[i].pv.length = 0;
@@ -352,16 +310,14 @@ void resetPlyInfo(Variation * variation)
 /**
  * Get the number of non-pawn pieces for the specified color.
  */
-int numberOfNonPawnPieces(const Position * position, const Color color)
-{
+int numberOfNonPawnPieces(const Position * position, const Color color) {
    return position->numberOfPieces[color] - position->numberOfPawns[color];
 }
 
 /**
  * Check if the specified color has a rook or a queen.
  */
-bool hasOrthoPieces(const Position * position, const Color color)
-{
+bool hasOrthoPieces(const Position * position, const Color color) {
    return (bool) (position->piecesOfType[ROOK | color] != EMPTY_BITBOARD ||
                   position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD);
 }
@@ -369,8 +325,7 @@ bool hasOrthoPieces(const Position * position, const Color color)
 /**
  * Check if the specified color has a queen.
  */
-bool hasQueen(const Position * position, const Color color)
-{
+bool hasQueen(const Position * position, const Color color) {
    return (bool) (position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD);
 }
 
@@ -378,15 +333,13 @@ bool hasQueen(const Position * position, const Color color)
  * Append the given move to the old pv and copy the new pv to 'new'.
  */
 void appendMoveToPv(const PrincipalVariation * oldPv,
-                    PrincipalVariation * newPv, const Move move)
-{
+                    PrincipalVariation * newPv, const Move move) {
    newPv->move[0] = packedMove(move);
    newPv->length = min(oldPv->length + 1, MAX_DEPTH_ARRAY_SIZE - 1);
 
    const int movesToCopy = min(oldPv->length, MAX_DEPTH_ARRAY_SIZE - 1);
 
-   if (movesToCopy > 0)
-   {
+   if (movesToCopy > 0) {
       memmove((void *) &newPv->move[1], (void *) &oldPv->move[0],
               movesToCopy * sizeof(UINT16));
    }
@@ -395,14 +348,10 @@ void appendMoveToPv(const PrincipalVariation * oldPv,
 /**
  * Calculate the value to be stored in the hashtable.
  */
-INT16 calcHashtableValue(const int value, const int ply)
-{
-   if (value >= -VALUE_ALMOST_MATED)
-   {
+INT16 calcHashtableValue(const int value, const int ply) {
+   if (value >= -VALUE_ALMOST_MATED) {
       return (INT16) (value + ply);
-   }
-   else if (value <= VALUE_ALMOST_MATED)
-   {
+   } else if (value <= VALUE_ALMOST_MATED) {
       return (INT16) (value - ply);
    }
 
@@ -412,14 +361,10 @@ INT16 calcHashtableValue(const int value, const int ply)
 /**
  * Calculate the effective value from the specified hashtable value.
  */
-int calcEffectiveValue(const int value, const int ply)
-{
-   if (value >= -VALUE_ALMOST_MATED)
-   {
+int calcEffectiveValue(const int value, const int ply) {
+   if (value >= -VALUE_ALMOST_MATED) {
       return value - ply;
-   }
-   else if (value <= VALUE_ALMOST_MATED)
-   {
+   } else if (value <= VALUE_ALMOST_MATED) {
       return value + ply;
    }
 
@@ -430,8 +375,7 @@ int calcEffectiveValue(const int value, const int ply)
  * Get all ordinary pieces (queens, rooks, bishops, knights)
  * of the specified color.
  */
-Bitboard getOrdinaryPieces(const Position * position, const Color color)
-{
+Bitboard getOrdinaryPieces(const Position * position, const Color color) {
    return position->piecesOfColor[color] &
       ~(position->piecesOfType[PAWN | color] |
         minValue[position->king[color]]);
@@ -440,8 +384,7 @@ Bitboard getOrdinaryPieces(const Position * position, const Color color)
 /**
  * Get all non pawn pieces of the specified color.
  */
-Bitboard getNonPawnPieces(const Position * position, const Color color)
-{
+Bitboard getNonPawnPieces(const Position * position, const Color color) {
    return position->piecesOfColor[color] &
       ~position->piecesOfType[PAWN | color];
 }
@@ -450,8 +393,7 @@ Bitboard getNonPawnPieces(const Position * position, const Color color)
  * Get all ortho pieces (queens, rooks)
  * of the specified color.
  */
-Bitboard getOrthoPieces(const Position * position, const Color color)
-{
+Bitboard getOrthoPieces(const Position * position, const Color color) {
    return position->piecesOfType[ROOK | color] |
       position->piecesOfType[QUEEN | color];
 }
@@ -459,24 +401,21 @@ Bitboard getOrthoPieces(const Position * position, const Color color)
 /**
  * Check if the given moves are equal by ignoring their respective values.
  */
-bool movesAreEqual(const Move m1, const Move m2)
-{
+bool movesAreEqual(const Move m1, const Move m2) {
    return (bool) ((m1 & 0xFFFF) == (m2 & 0xFFFF));
 }
 
 /**
  * Check if the specified piece is present in the specified position.
  */
-bool pieceIsPresent(const Position * position, const Piece piece)
-{
+bool pieceIsPresent(const Position * position, const Piece piece) {
    return (bool) (position->piecesOfType[piece] != EMPTY_BITBOARD);
 }
 
 /**
  * Get the history index of the specified move.
  */
-int historyIndex(const Move move, const Position * position)
-{
+int historyIndex(const Move move, const Position * position) {
    return (position->piece[getFromSquare(move)] << 6) + getToSquare(move);
 }
 
@@ -486,15 +425,12 @@ int historyIndex(const Move move, const Position * position)
  * @return the distance or 8 if no piece was found
  */
 int getMinimalDistance(const Position * position,
-                       const Square origin, const Piece piece)
-{
+                       const Square origin, const Piece piece) {
    int distance;
 
-   for (distance = 1; distance <= 7; distance++)
-   {
+   for (distance = 1; distance <= 7; distance++) {
       if ((squaresInDistance[distance][origin] &
-           position->piecesOfType[piece]) != EMPTY_BITBOARD)
-      {
+           position->piecesOfType[piece]) != EMPTY_BITBOARD) {
          return distance;
       }
    }
@@ -508,15 +444,12 @@ int getMinimalDistance(const Position * position,
  * @return the taxidistance or 15 if no piece was found
  */
 int getMinimalTaxiDistance(const Position * position,
-                           const Square origin, const Piece piece)
-{
+                           const Square origin, const Piece piece) {
    int distance;
 
-   for (distance = 1; distance <= 14; distance++)
-   {
+   for (distance = 1; distance <= 14; distance++) {
       if ((squaresInTaxiDistance[distance][origin] &
-           position->piecesOfType[piece]) != EMPTY_BITBOARD)
-      {
+           position->piecesOfType[piece]) != EMPTY_BITBOARD) {
          return distance;
       }
    }
@@ -527,43 +460,36 @@ int getMinimalTaxiDistance(const Position * position,
 /**
  * Get the piece counters from a material signature.
  */
-static UINT64 calculateHashKey(const Position * position)
-{
+static UINT64 calculateHashKey(const Position * position) {
    UINT64 hashKey = ULONG_ZERO;
    Square square;
    Piece piece;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       piece = position->piece[square];
 
-      if (piece != NO_PIECE)
-      {
+      if (piece != NO_PIECE) {
          hashKey ^= GENERATED_KEYTABLE[piece][square];
       }
    }
 
-   if (position->activeColor == BLACK)
-   {
+   if (position->activeColor == BLACK) {
       hashKey = ~hashKey;
    }
 
    hashKey ^= GENERATED_KEYTABLE[0][position->castlingRights];
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       hashKey ^= GENERATED_KEYTABLE[0][position->enPassantSquare];
    }
 
    return hashKey;
 }
 
-void clearPosition(Position * position)
-{
+void clearPosition(Position * position) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       position->piece[square] = NO_PIECE;
    }
 
@@ -574,8 +500,7 @@ void clearPosition(Position * position)
    position->halfMoveClock = 0;
 }
 
-void initializePosition(Position * position)
-{
+void initializePosition(Position * position) {
    int i;
    Square square;
 
@@ -583,72 +508,58 @@ void initializePosition(Position * position)
    position->piecesOfColor[WHITE] = EMPTY_BITBOARD;
    position->piecesOfColor[BLACK] = EMPTY_BITBOARD;
 
-   for (i = 0x00; i <= 0x0F; i++)
-   {
+   for (i = 0x00; i <= 0x0F; i++) {
       position->piecesOfType[i] = EMPTY_BITBOARD;
    }
 
    if ((position->castlingRights & WHITE_00) &&
        (position->piece[E1] != WHITE_KING ||
-        position->piece[H1] != WHITE_ROOK))
-   {
+        position->piece[H1] != WHITE_ROOK)) {
       position->castlingRights -= WHITE_00;
    }
 
    if ((position->castlingRights & WHITE_000) &&
        (position->piece[E1] != WHITE_KING ||
-        position->piece[A1] != WHITE_ROOK))
-   {
+        position->piece[A1] != WHITE_ROOK)) {
       position->castlingRights -= WHITE_000;
    }
 
    if ((position->castlingRights & BLACK_00) &&
        (position->piece[E8] != BLACK_KING ||
-        position->piece[H8] != BLACK_ROOK))
-   {
+        position->piece[H8] != BLACK_ROOK)) {
       position->castlingRights -= BLACK_00;
    }
 
    if ((position->castlingRights & BLACK_000) &&
        (position->piece[E8] != BLACK_KING ||
-        position->piece[A8] != BLACK_ROOK))
-   {
+        position->piece[A8] != BLACK_ROOK)) {
       position->castlingRights -= BLACK_000;
    }
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
-      if (position->activeColor == WHITE)
-      {
+   if (position->enPassantSquare != NO_SQUARE) {
+      if (position->activeColor == WHITE) {
          if (rank(position->enPassantSquare) != RANK_6 ||
-             position->piece[position->enPassantSquare - 8] != BLACK_PAWN)
-         {
+             position->piece[position->enPassantSquare - 8] != BLACK_PAWN) {
             position->enPassantSquare = NO_SQUARE;
          }
-      }
-      else
-      {
+      } else {
          if (rank(position->enPassantSquare) != RANK_3 ||
-             position->piece[position->enPassantSquare + 8] != WHITE_PAWN)
-         {
+             position->piece[position->enPassantSquare + 8] != WHITE_PAWN) {
             position->enPassantSquare = NO_SQUARE;
          }
       }
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       Piece piece = position->piece[square];
       Color color = pieceColor(piece);
 
-      if (piece != NO_PIECE)
-      {
+      if (piece != NO_PIECE) {
          setSquare(position->allPieces, square);
          setSquare(position->piecesOfColor[color], square);
          setSquare(position->piecesOfType[piece], square);
 
-         if (pieceType(piece) == KING)
-         {
+         if (pieceType(piece) == KING) {
             position->king[color] = square;
          }
       }
@@ -666,42 +577,35 @@ void initializePosition(Position * position)
    position->hashKey = calculateHashKey(position);
 }
 
-void flipPosition(Position * position)
-{
+void flipPosition(Position * position) {
    Square square;
    BYTE castlingRights = 0;
 
    position->activeColor = opponent(position->activeColor);
 
-   if (position->castlingRights & WHITE_00)
-   {
+   if (position->castlingRights & WHITE_00) {
       castlingRights += BLACK_00;
    }
 
-   if (position->castlingRights & WHITE_000)
-   {
+   if (position->castlingRights & WHITE_000) {
       castlingRights += BLACK_000;
    }
 
-   if (position->castlingRights & BLACK_00)
-   {
+   if (position->castlingRights & BLACK_00) {
       castlingRights += WHITE_00;
    }
 
-   if (position->castlingRights & BLACK_000)
-   {
+   if (position->castlingRights & BLACK_000) {
       castlingRights += WHITE_000;
    }
 
    position->castlingRights = castlingRights;
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       position->enPassantSquare = getFlippedSquare(position->enPassantSquare);
    }
 
-   for (square = A1; square <= H4; square++)
-   {
+   for (square = A1; square <= H4; square++) {
       const Square flippedSquare = getFlippedSquare(square);
       const Piece piece = position->piece[square];
 
@@ -713,30 +617,25 @@ void flipPosition(Position * position)
    }
 }
 
-void resetHistoryValues(Variation * variation)
-{
+void resetHistoryValues(Variation * variation) {
    int i;
 
-   for (i = 0; i < HISTORY_SIZE; i++)
-   {
+   for (i = 0; i < HISTORY_SIZE; i++) {
       variation->historyValue[i] = 0;
       variation->counterMove1[i] = variation->counterMove2[i] = NO_MOVE;
       variation->followupMove1[i] = variation->followupMove2[i] = NO_MOVE;
    }
 }
 
-void resetGainValues(Variation * variation)
-{
+void resetGainValues(Variation * variation) {
    int i;
 
-   for (i = 0; i < HISTORY_SIZE; i++)
-   {
+   for (i = 0; i < HISTORY_SIZE; i++) {
       variation->positionalGain[i] = 0;
    }
 }
 
-void prepareSearch(Variation * variation)
-{
+void prepareSearch(Variation * variation) {
    int i;
 
    variation->nodes = variation->nodesAtTimeCheck = 0;
@@ -745,8 +644,7 @@ void prepareSearch(Variation * variation)
    variation->drawScore[WHITE] = variation->drawScore[BLACK] = 0;
    variation->bestMoveChangeCount = 0;
 
-   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++)
-   {
+   for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++) {
       PlyInfo *pi = &(variation->plyInfo[i]);
 
       pi->killerMove1 = pi->killerMove2 =
@@ -755,18 +653,15 @@ void prepareSearch(Variation * variation)
    }
 }
 
-void shrinkHistoryValues(Variation * variation)
-{
+void shrinkHistoryValues(Variation * variation) {
    int i;
 
-   for (i = 0; i < HISTORY_SIZE; i++)
-   {
+   for (i = 0; i < HISTORY_SIZE; i++) {
       variation->historyValue[i] = (variation->historyValue[i] + 1) / 2;
    }
 }
 
-void initializeVariation(Variation * variation, const char *fen)
-{
+void initializeVariation(Variation * variation, const char *fen) {
    variation->ply = 0;
    readFen(fen, &variation->singlePosition);
    prepareSearch(variation);
@@ -775,23 +670,20 @@ void initializeVariation(Variation * variation, const char *fen)
    initializePlyInfo(variation);
 }
 
-void setBasePosition(Variation * variation, const Position * position)
-{
+void setBasePosition(Variation * variation, const Position * position) {
    variation->ply = 0;
    variation->singlePosition = *position;
    variation->startPosition = variation->singlePosition;
    refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator);
 }
 
-void setDrawScore(Variation * variation, int score, Color color)
-{
+void setDrawScore(Variation * variation, int score, Color color) {
    variation->drawScore[color] = score;
    variation->drawScore[opponent(color)] = -score;
 }
 
 Bitboard getInterestedPieces(const Position * position, const Square square,
-                             const Color attackerColor)
-{
+                             const Color attackerColor) {
    Bitboard king = getKingMoves(square);
    Bitboard dia = getMagicBishopMoves(square, position->allPieces);
    Bitboard ortho = getMagicRookMoves(square, position->allPieces);
@@ -810,10 +702,8 @@ Bitboard getInterestedPieces(const Position * position, const Square square,
    return king | ortho | dia | knights | pawns;
 }
 
-int checkVariation(Variation * variation)
-{
-   if (checkConsistency(&variation->singlePosition) != 0)
-   {
+int checkVariation(Variation * variation) {
+   if (checkConsistency(&variation->singlePosition) != 0) {
       logDebug("consistency check failed!\n");
 
       dumpVariation(variation);
@@ -822,8 +712,7 @@ int checkVariation(Variation * variation)
    return 0;
 }
 
-int makeMove(Variation * variation, const Move move)
-{
+int makeMove(Variation * variation, const Move move) {
    Position *position = &variation->singlePosition;
    PlyInfo *plyInfo = &variation->plyInfo[variation->ply++];
    const Square from = getFromSquare(move);
@@ -844,8 +733,7 @@ int makeMove(Variation * variation, const Move move)
    plyInfo->currentMove = move;
    position->hashKey = ~position->hashKey;
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       position->hashKey ^= GENERATED_KEYTABLE[0][position->enPassantSquare];
    }
 
@@ -853,8 +741,7 @@ int makeMove(Variation * variation, const Move move)
    position->enPassantSquare = NO_SQUARE;
    position->activeColor = passiveColor;
 
-   if (to == from)
-   {
+   if (to == from) {
       variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
       variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
       variation->plyInfo[variation->ply].gainsUpdated = FALSE;
@@ -882,8 +769,7 @@ int makeMove(Variation * variation, const Move move)
    position->castlingRights &=
       remainingCastlings[to] & remainingCastlings[from];
 
-   if (position->castlingRights != plyInfo->castlingRights)
-   {
+   if (position->castlingRights != plyInfo->castlingRights) {
       position->hashKey ^=
          GENERATED_KEYTABLE[0][plyInfo->castlingRights] ^
          GENERATED_KEYTABLE[0][position->castlingRights];
@@ -893,33 +779,27 @@ int makeMove(Variation * variation, const Move move)
    position->piece[to] = movingPiece;
    position->piece[from] = NO_PIECE;
 
-   if (capturedPiece != NO_PIECE)
-   {
+   if (capturedPiece != NO_PIECE) {
       position->halfMoveClock = 0;
       position->piecesOfColor[passiveColor] &= ~minTo;
       position->piecesOfType[capturedPiece] &= ~minTo;
       position->numberOfPieces[passiveColor]--;
 
-      if (pieceType(capturedPiece) == PAWN)
-      {
+      if (pieceType(capturedPiece) == PAWN) {
          position->numberOfPawns[passiveColor]--;
       }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
    }
 
-   if (pieceType(movingPiece) == PAWN)
-   {
+   if (pieceType(movingPiece) == PAWN) {
       position->halfMoveClock = 0;
 
-      if (distance(from, to) == 2)
-      {
+      if (distance(from, to) == 2) {
          position->enPassantSquare = (Square) ((from + to) >> 1);
          position->hashKey ^=
             GENERATED_KEYTABLE[0][position->enPassantSquare];
-      }
-      else if (to == plyInfo->enPassantSquare)
-      {
+      } else if (to == plyInfo->enPassantSquare) {
          const Square captureSquare =
             (Square) (to + (rank(from) - rank(to)) * 8);
          const Piece capturedPawn = position->piece[captureSquare];
@@ -933,9 +813,7 @@ int makeMove(Variation * variation, const Move move)
          position->piece[captureSquare] = NO_PIECE;
          position->numberOfPieces[passiveColor]--;
          position->numberOfPawns[passiveColor]--;
-      }
-      else if (newPiece != NO_PIECE)
-      {
+      } else if (newPiece != NO_PIECE) {
          const Piece effectiveNewPiece = (Piece) (newPiece | activeColor);
 
          plyInfo->restoreSquare1 = from;
@@ -947,14 +825,10 @@ int makeMove(Variation * variation, const Move move)
             GENERATED_KEYTABLE[effectiveNewPiece][to];
          setSquare(position->piecesOfType[position->piece[to]], to);
       }
-   }
-
-   else if (pieceType(movingPiece) == KING)
-   {
+   } else if (pieceType(movingPiece) == KING) {
       position->king[activeColor] = to;
 
-      if (distance(from, to) == 2)
-      {
+      if (distance(from, to) == 2) {
          const Square rookFrom = rookOrigin[to];
          const Square rookTo = (Square) ((from + to) >> 1);
          const Piece movingRook = position->piece[rookFrom];
@@ -978,8 +852,7 @@ int makeMove(Variation * variation, const Move move)
          if (getDirectAttackers(position, from, passiveColor,
                                 position->allPieces) != EMPTY_BITBOARD ||
              getDirectAttackers(position, rookTo, passiveColor,
-                                position->allPieces) != EMPTY_BITBOARD)
-         {
+                                position->allPieces) != EMPTY_BITBOARD) {
             result = 1;         /* castling move was not legal */
          }
       }
@@ -1001,20 +874,15 @@ int makeMove(Variation * variation, const Move move)
 #undef PERSPECTIVE_WHITE
 #include "positionc.c"
 
-int makeMoveFast(Variation * variation, const Move move)
-{
-   if (variation->singlePosition.activeColor == WHITE)
-   {
+int makeMoveFast(Variation * variation, const Move move) {
+   if (variation->singlePosition.activeColor == WHITE) {
       return makeWhiteMove(variation, move);
-   }
-   else
-   {
+   } else {
       return makeBlackMove(variation, move);
    }
 }
 
-void unmakeLastMove(Variation * variation)
-{
+void unmakeLastMove(Variation * variation) {
    Position *position = &variation->singlePosition;
    const PlyInfo *plyInfo = &variation->plyInfo[--variation->ply];
    const Move move = plyInfo->currentMove;
@@ -1027,8 +895,7 @@ void unmakeLastMove(Variation * variation)
    position->enPassantSquare = plyInfo->enPassantSquare;
    position->hashKey = plyInfo->hashKey;
 
-   if (from == to)
-   {
+   if (from == to) {
       assert(checkVariation(variation) == 0);
 
       return;                   /* Nullmove */
@@ -1039,8 +906,7 @@ void unmakeLastMove(Variation * variation)
    position->piece[from] = position->piece[to];
    position->piece[to] = plyInfo->captured;
 
-   if (newPiece != NO_PIECE)
-   {
+   if (newPiece != NO_PIECE) {
       position->numberOfPawns[activeColor]++;
       position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
    }
@@ -1052,21 +918,17 @@ void unmakeLastMove(Variation * variation)
    position->piecesOfColor[BLACK] = plyInfo->blackPieces;
    position->allPieces = plyInfo->allPieces;
 
-   if (plyInfo->captured != NO_PIECE)
-   {
+   if (plyInfo->captured != NO_PIECE) {
       const Color passiveColor = opponent(activeColor);
 
       setSquare(position->piecesOfType[plyInfo->captured], to);
       position->numberOfPieces[passiveColor]++;
 
-      if (pieceType(plyInfo->captured) == PAWN)
-      {
+      if (pieceType(plyInfo->captured) == PAWN) {
          position->numberOfPawns[passiveColor]++;
       }
-   }
-   else if (to == plyInfo->enPassantSquare &&
-            pieceType(position->piece[from]) == PAWN)
-   {
+   } else if (to == plyInfo->enPassantSquare &&
+            pieceType(position->piece[from]) == PAWN) {
       const Color passiveColor = opponent(activeColor);
 
       position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
@@ -1074,10 +936,8 @@ void unmakeLastMove(Variation * variation)
                 plyInfo->restoreSquare1);
       position->numberOfPieces[passiveColor]++;
       position->numberOfPawns[passiveColor]++;
-   }
-   else if (distance(from, to) == 2 &&
-            pieceType(position->piece[from]) == KING)
-   {
+   } else if (distance(from, to) == 2 &&
+            pieceType(position->piece[from]) == KING) {
       position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
       position->piece[plyInfo->restoreSquare2] = plyInfo->restorePiece2;
       setSquare(position->piecesOfType[plyInfo->restorePiece1],
@@ -1089,8 +949,7 @@ void unmakeLastMove(Variation * variation)
    assert(checkVariation(variation) == 0);
 }
 
-bool moveIsCheck(const Move move, const Position * position)
-{
+bool moveIsCheck(const Move move, const Position * position) {
    const Square kingSquare = position->king[opponent(position->activeColor)];
    const Square from = getFromSquare(move);
    const Square to = getToSquare(move);
@@ -1100,32 +959,26 @@ bool moveIsCheck(const Move move, const Position * position)
        (position->allPieces & squaresBetween[kingSquare][from]) ==
        EMPTY_BITBOARD &&
        testSquare(squaresBetween[kingSquare][from], to) == FALSE &&
-       testSquare(squaresBehind[from][kingSquare], to) == FALSE)
-   {
+       testSquare(squaresBehind[from][kingSquare], to) == FALSE) {
       /* Detect undiscovered check: */
 
       const Color color = position->activeColor;
       Bitboard batteryPieces;
       Square square;
 
-      if (rank(from) == rank(kingSquare) || file(from) == file(kingSquare))
-      {
+      if (rank(from) == rank(kingSquare) || file(from) == file(kingSquare)) {
          batteryPieces = squaresBehind[from][kingSquare] &
             (position->piecesOfType[ROOK | color] |
              position->piecesOfType[QUEEN | color]);
-      }
-      else
-      {
+      } else {
          batteryPieces = squaresBehind[from][kingSquare] &
             (position->piecesOfType[BISHOP | color] |
              position->piecesOfType[QUEEN | color]);
       }
 
-      ITERATE_BITBOARD(&batteryPieces, square)
-      {
+      ITERATE_BITBOARD(&batteryPieces, square) {
          if ((squaresBetween[square][kingSquare] & position->allPieces) ==
-             minValue[from])
-         {
+             minValue[from]) {
             return TRUE;
          }
       }
@@ -1133,38 +986,29 @@ bool moveIsCheck(const Move move, const Position * position)
 
    /* No undiscovered check: */
 
-   if (piece & PP_SLIDING_PIECE)
-   {
+   if (piece & PP_SLIDING_PIECE) {
       return (bool)
          (testSquare(generalMoves[pieceType(piece)][to], kingSquare) &&
           (position->allPieces & squaresBetween[kingSquare][to]) ==
           EMPTY_BITBOARD);
-   }
-   else if (pieceType(piece) == KNIGHT)
-   {
+   } else if (pieceType(piece) == KNIGHT) {
       return (testSquare(generalMoves[KNIGHT][kingSquare], to) !=
               EMPTY_BITBOARD);
-   }
-   else if (pieceType(piece) == PAWN)
-   {
+   } else if (pieceType(piece) == PAWN) {
       const Piece newPiece = getNewPiece(move);
 
-      if (newPiece == NO_PIECE)
-      {
-         if (testSquare(generalMoves[piece][to], kingSquare) != FALSE)
-         {
+      if (newPiece == NO_PIECE) {
+         if (testSquare(generalMoves[piece][to], kingSquare) != FALSE) {
             return TRUE;
          }
 
-         if (to == position->enPassantSquare)
-         {
+         if (to == position->enPassantSquare) {
             const Square captureSquare =
                (Square) (to + (rank(from) - rank(to)) * 8);
 
             if (testSquare(generalMoves[QUEEN][kingSquare], captureSquare) &&
                 (squaresBetween[captureSquare][kingSquare] &
-                 position->allPieces) == EMPTY_BITBOARD)
-            {
+                 position->allPieces) == EMPTY_BITBOARD) {
                const Color color = position->activeColor;
                Bitboard batteryPieces;
                const Bitboard blockers = minValue[to] |
@@ -1173,52 +1017,40 @@ bool moveIsCheck(const Move move, const Position * position)
                Square square;
 
                if (rank(captureSquare) == rank(kingSquare) ||
-                   file(captureSquare) == file(kingSquare))
-               {
+                   file(captureSquare) == file(kingSquare)) {
                   batteryPieces = squaresBehind[captureSquare][kingSquare] &
                      (position->piecesOfType[ROOK | color] |
                       position->piecesOfType[QUEEN | color]);
-               }
-               else
-               {
+               } else {
                   batteryPieces = squaresBehind[captureSquare][kingSquare] &
                      (position->piecesOfType[BISHOP | color] |
                       position->piecesOfType[QUEEN | color]);
                }
 
-               ITERATE_BITBOARD(&batteryPieces, square)
-               {
+               ITERATE_BITBOARD(&batteryPieces, square) {
                   if ((squaresBetween[kingSquare][square] & blockers) ==
-                      EMPTY_BITBOARD)
-                  {
+                      EMPTY_BITBOARD) {
                      return TRUE;
                   }
                }
             }
          }
-      }
-      else
-      {
-         if (newPiece & PP_SLIDING_PIECE)
-         {
+      } else {
+         if (newPiece & PP_SLIDING_PIECE) {
             const Bitboard blockers = position->allPieces & maxValue[from];
 
             return (bool)
                (testSquare(generalMoves[newPiece][to], kingSquare) &&
                 (blockers & squaresBetween[kingSquare][to]) ==
                 EMPTY_BITBOARD);
-         }
-         else
-         {
+         } else {
             return (testSquare(generalMoves[KNIGHT][kingSquare], to) !=
                     EMPTY_BITBOARD);
          }
       }
-   }
-   else if (pieceType(piece) == KING &&
+   } else if (pieceType(piece) == KING &&
             (from == E1 || from == E8) &&
-            (to == G1 || to == C1 || to == G8 || to == C8))
-   {
+            (to == G1 || to == C1 || to == G8 || to == C8)) {
       const Bitboard blockers = position->allPieces & maxValue[from];
       const int rookSquare = (int) ((to + from) / 2);
 
@@ -1231,8 +1063,7 @@ bool moveIsCheck(const Move move, const Position * position)
    return FALSE;
 }
 
-int checkConsistency(const Position * position)
-{
+int checkConsistency(const Position * position) {
    Square square;
    int numPieces[2], numPawns[2], value[2], i;
    BYTE obstacles[NUM_LANES];
@@ -1246,26 +1077,22 @@ int checkConsistency(const Position * position)
 
    assert(position->activeColor == WHITE || position->activeColor == BLACK);
 
-   if (position->castlingRights & WHITE_00)
-   {
+   if (position->castlingRights & WHITE_00) {
       assert(position->piece[E1] == WHITE_KING);
       assert(position->piece[H1] == WHITE_ROOK);
    }
 
-   if (position->castlingRights & WHITE_000)
-   {
+   if (position->castlingRights & WHITE_000) {
       assert(position->piece[E1] == WHITE_KING);
       assert(position->piece[A1] == WHITE_ROOK);
    }
 
-   if (position->castlingRights & BLACK_00)
-   {
+   if (position->castlingRights & BLACK_00) {
       assert(position->piece[E8] == BLACK_KING);
       assert(position->piece[H8] == BLACK_ROOK);
    }
 
-   if (position->castlingRights & BLACK_000)
-   {
+   if (position->castlingRights & BLACK_000) {
       assert(position->piece[E8] == BLACK_KING);
       assert(position->piece[A8] == BLACK_ROOK);
    }
@@ -1273,15 +1100,11 @@ int checkConsistency(const Position * position)
    assert(position->enPassantSquare == NO_SQUARE ||
           squareIsValid(position->enPassantSquare));
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
-      if (position->activeColor == WHITE)
-      {
+   if (position->enPassantSquare != NO_SQUARE) {
+      if (position->activeColor == WHITE) {
          assert(rank(position->enPassantSquare) == RANK_6);
          assert(position->piece[position->enPassantSquare - 8] == BLACK_PAWN);
-      }
-      else
-      {
+      } else {
          assert(rank(position->enPassantSquare) == RANK_3);
          assert(position->piece[position->enPassantSquare + 8] == WHITE_PAWN);
       }
@@ -1292,8 +1115,7 @@ int checkConsistency(const Position * position)
 
    temp = EMPTY_BITBOARD;
 
-   for (i = 1; i <= 0x0F; i++)
-   {
+   for (i = 1; i <= 0x0F; i++) {
       temp ^= position->piecesOfType[i];
    }
 
@@ -1310,16 +1132,14 @@ int checkConsistency(const Position * position)
           (position->piecesOfType[BLACK_KING], position->king[BLACK]));
    assert(getNumberOfSetSquares(position->piecesOfType[BLACK_KING]) == 1);
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       Piece piece = position->piece[square];
       PieceType pieceType = pieceType(piece);
       Color color = pieceColor(piece);
 
       assert(piece >= 0 && piece <= 15);
 
-      if (piece != NO_PIECE)
-      {
+      if (piece != NO_PIECE) {
          numPieces[color]++;
          setObstacleSquare(square, obstacles);
 
@@ -1327,18 +1147,14 @@ int checkConsistency(const Position * position)
          assert(testSquare(position->piecesOfColor[color], square));
          assert(testSquare(position->piecesOfType[piece], square));
 
-         if (pieceType == PAWN)
-         {
+         if (pieceType == PAWN) {
             numPawns[color]++;
          }
 
-         if (pieceType != KING)
-         {
+         if (pieceType != KING) {
             value[color] += basicValue[piece];
          }
-      }
-      else
-      {
+      } else {
          assert(testSquare(position->allPieces, square) == FALSE);
          assert(testSquare(position->piecesOfColor[WHITE], square) == FALSE);
          assert(testSquare(position->piecesOfColor[BLACK], square) == FALSE);
@@ -1372,8 +1188,7 @@ int checkConsistency(const Position * position)
    return 0;
 }
 
-bool positionIsLegal(const Position * position)
-{
+bool positionIsLegal(const Position * position) {
    Square square;
    int numPieces[2], numPawns[2], value[2], i;
    Bitboard temp;
@@ -1384,106 +1199,82 @@ bool positionIsLegal(const Position * position)
    memset(obstacles, 0x00, NUM_LANES);
    value[WHITE] = value[BLACK] = 0;
 
-   if (position->activeColor != WHITE && position->activeColor != BLACK)
-   {
+   if (position->activeColor != WHITE && position->activeColor != BLACK) {
       return FALSE;
    }
 
-   if (position->castlingRights & WHITE_00)
-   {
-      if (position->piece[E1] != WHITE_KING)
-      {
+   if (position->castlingRights & WHITE_00) {
+      if (position->piece[E1] != WHITE_KING) {
          return FALSE;
       }
 
-      if (position->piece[H1] != WHITE_ROOK)
-      {
+      if (position->piece[H1] != WHITE_ROOK) {
          return FALSE;
       }
    }
 
-   if (position->castlingRights & WHITE_000)
-   {
-      if (position->piece[E1] != WHITE_KING)
-      {
+   if (position->castlingRights & WHITE_000) {
+      if (position->piece[E1] != WHITE_KING) {
          return FALSE;
       }
 
-      if (position->piece[A1] != WHITE_ROOK)
-      {
+      if (position->piece[A1] != WHITE_ROOK) {
          return FALSE;
       }
    }
 
-   if (position->castlingRights & BLACK_00)
-   {
-      if (position->piece[E8] != BLACK_KING)
-      {
+   if (position->castlingRights & BLACK_00) {
+      if (position->piece[E8] != BLACK_KING) {
          return FALSE;
       }
 
-      if (position->piece[H8] != BLACK_ROOK)
-      {
+      if (position->piece[H8] != BLACK_ROOK) {
          return FALSE;
       }
    }
 
-   if (position->castlingRights & BLACK_000)
-   {
-      if (position->piece[E8] != BLACK_KING)
-      {
+   if (position->castlingRights & BLACK_000) {
+      if (position->piece[E8] != BLACK_KING) {
          return FALSE;
       }
 
-      if (position->piece[A8] != BLACK_ROOK)
-      {
+      if (position->piece[A8] != BLACK_ROOK) {
          return FALSE;
       }
    }
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
-      if (squareIsValid(position->enPassantSquare) == FALSE)
-      {
+   if (position->enPassantSquare != NO_SQUARE) {
+      if (squareIsValid(position->enPassantSquare) == FALSE) {
          return FALSE;
       }
 
-      if (position->activeColor == WHITE)
-      {
-         if (rank(position->enPassantSquare) != RANK_6)
-         {
+      if (position->activeColor == WHITE) {
+         if (rank(position->enPassantSquare) != RANK_6) {
             return FALSE;
          }
 
-         if (position->piece[position->enPassantSquare - 8] != BLACK_PAWN)
-         {
+         if (position->piece[position->enPassantSquare - 8] != BLACK_PAWN) {
             return FALSE;
          }
-      }
-      else
-      {
-         if (rank(position->enPassantSquare) != RANK_3)
-         {
+      } else {
+         if (rank(position->enPassantSquare) != RANK_3) {
             return FALSE;
          }
 
-         if (position->piece[position->enPassantSquare + 8] != WHITE_PAWN)
-         {
+         if (position->piece[position->enPassantSquare + 8] != WHITE_PAWN) {
             return FALSE;
          }
       }
    }
 
    if ((position->piecesOfColor[WHITE] ^ position->piecesOfColor[BLACK]) !=
-       position->allPieces)
-   {
+       position->allPieces) {
       return FALSE;
    }
 
    temp = EMPTY_BITBOARD;
 
-   for (i = 1; i <= 0x0F; i++)
-   {
+   for (i = 1; i <= 0x0F; i++) {
       temp ^= position->piecesOfType[i];
    }
 
@@ -1492,155 +1283,124 @@ bool positionIsLegal(const Position * position)
       dumpBitboard(position->allPieces, "allPieces");
     */
 
-   if (temp != position->allPieces)
-   {
+   if (temp != position->allPieces) {
       return FALSE;
    }
 
-   if (squareIsValid(position->king[WHITE]) == FALSE)
-   {
+   if (squareIsValid(position->king[WHITE]) == FALSE) {
       return FALSE;
    }
 
-   if (position->piece[position->king[WHITE]] != WHITE_KING)
-   {
+   if (position->piece[position->king[WHITE]] != WHITE_KING) {
       return FALSE;
    }
 
-   if (squareIsValid(position->king[BLACK]) == FALSE)
-   {
+   if (squareIsValid(position->king[BLACK]) == FALSE) {
       return FALSE;
    }
 
-   if (position->piece[position->king[BLACK]] != BLACK_KING)
-   {
+   if (position->piece[position->king[BLACK]] != BLACK_KING) {
       return FALSE;
    }
 
-   if (distance(position->king[WHITE], position->king[BLACK]) < 2)
-   {
+   if (distance(position->king[WHITE], position->king[BLACK]) < 2) {
       return FALSE;
    }
 
    if (testSquare(position->piecesOfType[WHITE_KING],
-                  position->king[WHITE]) == FALSE)
-   {
+                  position->king[WHITE]) == FALSE) {
       return FALSE;
    }
 
-   if (getNumberOfSetSquares(position->piecesOfType[WHITE_KING]) != 1)
-   {
+   if (getNumberOfSetSquares(position->piecesOfType[WHITE_KING]) != 1) {
       return FALSE;
    }
 
    if (testSquare(position->piecesOfType[BLACK_KING],
-                  position->king[BLACK]) == FALSE)
-   {
+                  position->king[BLACK]) == FALSE) {
       return FALSE;
    }
 
-   if (getNumberOfSetSquares(position->piecesOfType[BLACK_KING]) != 1)
-   {
+   if (getNumberOfSetSquares(position->piecesOfType[BLACK_KING]) != 1) {
       return FALSE;
    }
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       Piece piece = position->piece[square];
       PieceType pieceType = pieceType(piece);
       Color color = pieceColor(piece);
 
-      if (piece < 0 || piece > 15)
-      {
+      if (piece < 0 || piece > 15) {
          return FALSE;
       }
 
-      if (piece != NO_PIECE)
-      {
+      if (piece != NO_PIECE) {
          numPieces[color]++;
          setObstacleSquare(square, obstacles);
 
-         if (testSquare(position->allPieces, square) == FALSE)
-         {
+         if (testSquare(position->allPieces, square) == FALSE) {
             return FALSE;
          }
 
-         if (testSquare(position->piecesOfColor[color], square) == FALSE)
-         {
+         if (testSquare(position->piecesOfColor[color], square) == FALSE) {
             return FALSE;
          }
 
-         if (testSquare(position->piecesOfType[piece], square) == FALSE)
-         {
+         if (testSquare(position->piecesOfType[piece], square) == FALSE) {
             return FALSE;
          }
 
-         if (pieceType == PAWN)
-         {
+         if (pieceType == PAWN) {
             numPawns[color]++;
          }
 
-         if (pieceType != KING)
-         {
+         if (pieceType != KING) {
             value[color] += basicValue[piece];
          }
-      }
-      else
-      {
-         if (testSquare(position->allPieces, square))
-         {
+      } else {
+         if (testSquare(position->allPieces, square)) {
             return FALSE;
          }
 
-         if (testSquare(position->piecesOfColor[WHITE], square))
-         {
+         if (testSquare(position->piecesOfColor[WHITE], square)) {
             return FALSE;
          }
 
-         if (testSquare(position->piecesOfColor[BLACK], square))
-         {
+         if (testSquare(position->piecesOfColor[BLACK], square)) {
             return FALSE;
          }
       }
    }
 
-   if (numPieces[WHITE] < 1)
-   {
+   if (numPieces[WHITE] < 1) {
       return FALSE;
    }
 
-   if (numPieces[WHITE] > 16)
-   {
+   if (numPieces[WHITE] > 16) {
       return FALSE;
    }
 
-   if (numPieces[BLACK] < 1)
-   {
+   if (numPieces[BLACK] < 1) {
       return FALSE;
    }
 
-   if (numPieces[BLACK] > 16)
-   {
+   if (numPieces[BLACK] > 16) {
       return FALSE;
    }
 
-   if (numPawns[WHITE] < 0)
-   {
+   if (numPawns[WHITE] < 0) {
       return FALSE;
    }
 
-   if (numPawns[WHITE] > 8)
-   {
+   if (numPawns[WHITE] > 8) {
       return FALSE;
    }
 
-   if (numPawns[BLACK] < 0)
-   {
+   if (numPawns[BLACK] < 0) {
       return FALSE;
    }
 
-   if (numPawns[BLACK] > 8)
-   {
+   if (numPawns[BLACK] > 8) {
       return FALSE;
    }
 
@@ -1648,14 +1408,12 @@ bool positionIsLegal(const Position * position)
 }
 
 bool positionsAreIdentical(const Position * position1,
-                           const Position * position2)
-{
+                           const Position * position2) {
    Square square;
 
    if (position1->activeColor != position2->activeColor ||
        position1->castlingRights != position2->castlingRights ||
-       position1->enPassantSquare != position2->enPassantSquare)
-   {
+       position1->enPassantSquare != position2->enPassantSquare) {
       logDebug("activeColor1=%d activeColor2=%d\n",
                position1->activeColor, position2->activeColor);
       logDebug("castlingRights1=%d castlingRights2=%d\n",
@@ -1667,8 +1425,7 @@ bool positionsAreIdentical(const Position * position1,
    }
 
    if (position1->halfMoveClock != position2->halfMoveClock ||
-       position1->moveNumber != position2->moveNumber)
-   {
+       position1->moveNumber != position2->moveNumber) {
       logDebug("halfMoveClock1=%d halfMoveClock2=%d\n",
                position1->halfMoveClock, position2->halfMoveClock);
       logDebug("moveNumber1=%d moveNumber2=%d\n",
@@ -1677,10 +1434,8 @@ bool positionsAreIdentical(const Position * position1,
       return FALSE;
    }
 
-   ITERATE(square)
-   {
-      if (position1->piece[square] != position2->piece[square])
-      {
+   ITERATE(square) {
+      if (position1->piece[square] != position2->piece[square]) {
          logDebug("piece diff!\n");
          dumpSquare(square);
 
@@ -1691,17 +1446,14 @@ bool positionsAreIdentical(const Position * position1,
    return (bool) (checkConsistency(position1) == 0);
 }
 
-int initializeModulePosition(void)
-{
+int initializeModulePosition(void) {
    Square square;
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       remainingCastlings[square] = (WHITE_00 | WHITE_000 |
                                     BLACK_00 | BLACK_000);
 
-      switch (square)
-      {
+      switch (square) {
       case A1:
          remainingCastlings[square] -= WHITE_000;
          break;
@@ -1750,8 +1502,7 @@ int initializeModulePosition(void)
 }
 
 static int checkMove(Square from, Square to, Piece newPiece,
-                     Variation * variation)
-{
+                     Variation * variation) {
    Move move = getPackedMove(from, to, newPiece);
 
    makeMove(variation, move);
@@ -1760,8 +1511,7 @@ static int checkMove(Square from, Square to, Piece newPiece,
    return 0;
 }
 
-static int testPawnMoves(void)
-{
+static int testPawnMoves(void) {
    Variation variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -1804,8 +1554,7 @@ static int testPawnMoves(void)
    return 0;
 }
 
-static int testShortCastlings(void)
-{
+static int testShortCastlings(void) {
    Variation variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -1828,8 +1577,7 @@ static int testShortCastlings(void)
    return 0;
 }
 
-static int testLongCastlings(void)
-{
+static int testLongCastlings(void) {
    Variation variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -1855,8 +1603,7 @@ static int testLongCastlings(void)
    return 0;
 }
 
-static int testCastlingLegality(void)
-{
+static int testCastlingLegality(void) {
    Variation variation, *p_variation = &variation;
 
    initializeVariation(&variation, FEN_GAMESTART);
@@ -1936,8 +1683,7 @@ static int testCastlingLegality(void)
    return 0;
 }
 
-static int testMove(void)
-{
+static int testMove(void) {
 #ifndef NDEBUG
    Move move;
 
@@ -1952,32 +1698,26 @@ static int testMove(void)
    return 0;
 }
 
-int testModulePosition(void)
-{
+int testModulePosition(void) {
    int result;
 
-   if ((result = testPawnMoves()) != 0)
-   {
+   if ((result = testPawnMoves()) != 0) {
       return result;
    }
 
-   if ((result = testShortCastlings()) != 0)
-   {
+   if ((result = testShortCastlings()) != 0) {
       return result;
    }
 
-   if ((result = testLongCastlings()) != 0)
-   {
+   if ((result = testLongCastlings()) != 0) {
       return result;
    }
 
-   if ((result = testCastlingLegality()) != 0)
-   {
+   if ((result = testCastlingLegality()) != 0) {
       return result;
    }
 
-   if ((result = testMove()) != 0)
-   {
+   if ((result = testMove()) != 0) {
       return result;
    }
 

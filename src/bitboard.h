@@ -30,37 +30,32 @@ typedef UINT64 Bitboard;
 #define IMAX_ROOK    4096
 #define IMAX_BISHOP  512
 
-typedef struct
-{
+typedef struct {
    int hLane, vLane, uLane, dLane;
    BYTE hLaneSetMask, vLaneSetMask, uLaneSetMask, dLaneSetMask;
    BYTE hLaneClearMask, vLaneClearMask, uLaneClearMask, dLaneClearMask;
 }
 SquareLaneInfo;
 
-typedef struct
-{
+typedef struct {
    int numSetSquares;
    UINT8 setSquares[16];
 }
 SetSquaresInfo;
 
-typedef struct
-{
+typedef struct {
    int hLaneNumber, vLaneNumber, uLaneNumber, dLaneNumber;
    Bitboard hLane[256], vLane[256], uLane[256], dLane[256];
 }
 ObstacleSquareInfo;
 
-typedef struct
-{
+typedef struct {
    Bitboard preMask, magicNumber;
    Bitboard moves[IMAX_ROOK];
 }
 MagicSquareInfoRook;
 
-typedef struct
-{
+typedef struct {
    Bitboard preMask, magicNumber;
    Bitboard moves[IMAX_BISHOP];
 }

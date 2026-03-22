@@ -29,14 +29,11 @@ static int initialized = 0;
 static Piece pieceCode[256];
 static char pieceToken[16];
 
-static void initialize(void)
-{
-   if (!initialized)
-   {
+static void initialize(void) {
+   if (!initialized) {
       int i;
 
-      for (i = 0; i < 256; i++)
-      {
+      for (i = 0; i < 256; i++) {
          pieceCode[i] = NO_PIECE;
       }
 
@@ -70,8 +67,7 @@ static void initialize(void)
    }
 }
 
-static int setPieces(const char *fen, Position * position)
-{
+static int setPieces(const char *fen, Position * position) {
    Square square;
    Rank rank = RANK_8;
    File file = FILE_A;
@@ -80,37 +76,27 @@ static int setPieces(const char *fen, Position * position)
    int imax = (int) (strlen(fen)) - 1;
    char current = '\0';
 
-   ITERATE(square)
-   {
+   ITERATE(square) {
       position->piece[square] = NO_PIECE;
    }
 
-   while (index <= imax && (current = fen[index]) != ' ')
-   {
-      if (current == '/')
-      {
+   while (index <= imax && (current = fen[index]) != ' ') {
+      if (current == '/') {
          if (rank == RANK_1) return -1;
          rank--;
          file = FILE_A;
-      }
-      else if (current >= '1' && current <= '8')
-      {
+      } else if (current >= '1' && current <= '8') {
          int emptySquares = current - '0';
          if (file + emptySquares > 8) return -1;
          file = (File) (file + emptySquares);
-      }
-      else
-      {
+      } else {
          p = pieceCode[(unsigned char) current];
 
-         if (p != NO_PIECE)
-         {
+         if (p != NO_PIECE) {
             if (file > FILE_H || rank < RANK_1) return -1;
             position->piece[getSquare(file, rank)] = p;
             file++;
-         }
-         else
-         {
+         } else {
             return -1;
          }
       }
@@ -121,12 +107,9 @@ static int setPieces(const char *fen, Position * position)
    return (rank == RANK_1 && index <= imax + 1) ? index : -1;
 }
 
-static int stringContainsChar(const char *string, char c)
-{
-   while (*string != '\0')
-   {
-      if (*(string++) == c)
-      {
+static int stringContainsChar(const char *string, char c) {
+   while (*string != '\0') {
+      if (*(string++) == c) {
          return 1;
       }
    }
@@ -134,8 +117,7 @@ static int stringContainsChar(const char *string, char c)
    return 0;
 }
 
-int readFen(const char *fen, Position * position)
-{
+int readFen(const char *fen, Position * position) {
    int index;
    int fenLength = (int) strlen(fen);
 
@@ -147,49 +129,38 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the piece positions.
     */
-   if ((index = setPieces(fen, position)) < 0)
-   {
+   if ((index = setPieces(fen, position)) < 0) {
       return -1;
    }
 
    /*
     * Get the active color.
     */
-   while (index < fenLength && fen[index] == ' ')
-   {
+   while (index < fenLength && fen[index] == ' ') {
       index++;
    }
 
-   if (index < fenLength && stringContainsChar("bw", fen[index]))
-   {
+   if (index < fenLength && stringContainsChar("bw", fen[index])) {
       position->activeColor = (fen[index] == 'w' ? WHITE : BLACK);
       index++;
-   }
-   else
-   {
+   } else {
       return -1;                /* fen format error */
    }
 
    /*
     * Get the castling rights.
     */
-   while (index < fenLength && fen[index] == ' ')
-   {
+   while (index < fenLength && fen[index] == ' ') {
       index++;
    }
 
    position->castlingRights = NO_CASTLINGS;
 
-   if (index < fenLength && fen[index] == '-')
-   {
+   if (index < fenLength && fen[index] == '-') {
       index++;
-   }
-   else
-   {
-      while (index < fenLength && fen[index] != ' ')
-      {
-         switch (fen[index++])
-         {
+   } else {
+      while (index < fenLength && fen[index] != ' ') {
+         switch (fen[index++]) {
          case 'K':
             position->castlingRights |= WHITE_00;
             break;
@@ -211,39 +182,31 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the en passant square.
     */
-   while (index < fenLength && fen[index] == ' ')
-   {
+   while (index < fenLength && fen[index] == ' ') {
       index++;
    }
 
-   if (index < fenLength && fen[index] == '-')
-   {
+   if (index < fenLength && fen[index] == '-') {
       position->enPassantSquare = NO_SQUARE;
       index++;
-   }
-   else if (index + 1 < fenLength && fen[index] >= 'a' && fen[index] <= 'h' &&
-            (fen[index + 1] == '3' || fen[index + 1] == '6'))
-   {
+   } else if (index + 1 < fenLength && fen[index] >= 'a' && fen[index] <= 'h' &&
+            (fen[index + 1] == '3' || fen[index + 1] == '6')) {
       File file = (File) (fen[index++] - 'a');
       Rank rank = (Rank) (fen[index++] - '1');
 
       position->enPassantSquare = getSquare(file, rank);
-   }
-   else
-   {
+   } else {
       return -1;                /* fen format error */
    }
 
    /*
     * Get the half move clock value.
     */
-   while (index < fenLength && fen[index] == ' ')
-   {
+   while (index < fenLength && fen[index] == ' ') {
       index++;
    }
 
-   if (index < fenLength)
-   {
+   if (index < fenLength) {
       char *endptr;
       position->halfMoveClock = (int)strtol(fen + index, &endptr, 10);
       index = (int)(endptr - fen);
@@ -252,13 +215,11 @@ int readFen(const char *fen, Position * position)
    /*
     * Get the move number value.
     */
-   while (index < fenLength && fen[index] == ' ')
-   {
+   while (index < fenLength && fen[index] == ' ') {
       index++;
    }
 
-   if (index < fenLength)
-   {
+   if (index < fenLength) {
       char *endptr;
       position->moveNumber = (int)strtol(fen + index, &endptr, 10);
    }
@@ -266,8 +227,7 @@ int readFen(const char *fen, Position * position)
    return 0;
 }
 
-void getFen(const Position * position, char *fen, size_t bufferSize)
-{
+void getFen(const Position * position, char *fen, size_t bufferSize) {
    int rank, file;
    size_t p = 0;
 
@@ -276,37 +236,29 @@ void getFen(const Position * position, char *fen, size_t bufferSize)
     */
    initialize();
 
-   for (rank = RANK_8; rank >= RANK_1; rank--)
-   {
+   for (rank = RANK_8; rank >= RANK_1; rank--) {
       int emptyCount = 0;
 
-      for (file = FILE_A; file <= FILE_H; file++)
-      {
+      for (file = FILE_A; file <= FILE_H; file++) {
          Square square = getSquare(file, rank);
 
-         if (position->piece[square] != NO_PIECE)
-         {
-            if (emptyCount > 0)
-            {
+         if (position->piece[square] != NO_PIECE) {
+            if (emptyCount > 0) {
                if (p < bufferSize - 1) fen[p++] = (char) ('0' + emptyCount);
                emptyCount = 0;
             }
 
             if (p < bufferSize - 1) fen[p++] = pieceToken[position->piece[square]];
-         }
-         else
-         {
+         } else {
             emptyCount++;
          }
       }
 
-      if (emptyCount > 0)
-      {
+      if (emptyCount > 0) {
          if (p < bufferSize - 1) fen[p++] = (char) ('0' + emptyCount);
       }
 
-      if (rank > RANK_1)
-      {
+      if (rank > RANK_1) {
          if (p < bufferSize - 1) fen[p++] = '/';
       }
    }
@@ -315,62 +267,50 @@ void getFen(const Position * position, char *fen, size_t bufferSize)
    if (p < bufferSize - 1) fen[p++] = (position->activeColor == WHITE ? 'w' : 'b');
    if (p < bufferSize - 1) fen[p++] = ' ';
 
-   if (position->castlingRights)
-   {
-      if (position->castlingRights & WHITE_00)
-      {
+   if (position->castlingRights) {
+      if (position->castlingRights & WHITE_00) {
          if (p < bufferSize - 1) fen[p++] = 'K';
       }
 
-      if (position->castlingRights & WHITE_000)
-      {
+      if (position->castlingRights & WHITE_000) {
          if (p < bufferSize - 1) fen[p++] = 'Q';
       }
 
-      if (position->castlingRights & BLACK_00)
-      {
+      if (position->castlingRights & BLACK_00) {
          if (p < bufferSize - 1) fen[p++] = 'k';
       }
 
-      if (position->castlingRights & BLACK_000)
-      {
+      if (position->castlingRights & BLACK_000) {
          if (p < bufferSize - 1) fen[p++] = 'q';
       }
-   }
-   else
-   {
+   } else {
       if (p < bufferSize - 1) fen[p++] = '-';
    }
 
    if (p < bufferSize - 1) fen[p++] = ' ';
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       char f = (char) (file(position->enPassantSquare) + 'a');
       char r = (char) (rank(position->enPassantSquare) + '1');
 
       if (p < bufferSize - 1) fen[p++] = f;
       if (p < bufferSize - 1) fen[p++] = r;
-   }
-   else
-   {
+   } else {
       if (p < bufferSize - 1) fen[p++] = '-';
    }
 
    fen[p] = '\0';
-   
+
    char buffer[32];
    snprintf(buffer, sizeof(buffer), " %i %i", position->halfMoveClock, position->moveNumber);
    strncat(fen, buffer, bufferSize - strlen(fen) - 1);
 }
 
-int initializeModuleFen(void)
-{
+int initializeModuleFen(void) {
    return 0;
 }
 
-int testModuleFen(void)
-{
+int testModuleFen(void) {
    char *fen1 = FEN_GAMESTART;
    char *fen2 =
       "rn3rk1/pbppq1pp/1p2pb2/4N2Q/3PN3/3B4/PPP2PPP/R3K2R w KQ - 4 11";
@@ -407,8 +347,7 @@ int testModuleFen(void)
    assert(position.piece[D8] == BLACK_QUEEN);
    assert(position.piece[E8] == BLACK_KING);
 
-   for (square = A2; square <= H2; square++)
-   {
+   for (square = A2; square <= H2; square++) {
       assert(position.piece[square] == WHITE_PAWN);
       assert(position.piece[square + 8] == NO_PIECE);
       assert(position.piece[square + 16] == NO_PIECE);

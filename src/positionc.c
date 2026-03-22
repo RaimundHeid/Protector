@@ -36,16 +36,14 @@ int makeBlackMove(Variation * variation, const Move move)
    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
    position->hashKey = ~position->hashKey;
 
-   if (position->enPassantSquare != NO_SQUARE)
-   {
+   if (position->enPassantSquare != NO_SQUARE) {
       position->hashKey ^= GENERATED_KEYTABLE[0][position->enPassantSquare];
    }
 
    position->enPassantSquare = NO_SQUARE;
    position->activeColor = OPPCOLOR;
 
-   if (to == from)
-   {
+   if (to == from) {
       variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
       variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
       variation->plyInfo[variation->ply].gainsUpdated = FALSE;
@@ -65,8 +63,7 @@ int makeBlackMove(Variation * variation, const Move move)
    position->castlingRights &=
       remainingCastlings[to] & remainingCastlings[from];
 
-   if (position->castlingRights != plyInfo->castlingRights)
-   {
+   if (position->castlingRights != plyInfo->castlingRights) {
       position->hashKey ^=
          GENERATED_KEYTABLE[0][plyInfo->castlingRights] ^
          GENERATED_KEYTABLE[0][position->castlingRights];
@@ -76,33 +73,27 @@ int makeBlackMove(Variation * variation, const Move move)
    position->piece[to] = movingPiece;
    position->piece[from] = NO_PIECE;
 
-   if (capturedPiece != NO_PIECE)
-   {
+   if (capturedPiece != NO_PIECE) {
       position->halfMoveClock = 0;
       position->piecesOfColor[OPPCOLOR] &= ~minTo;
       position->piecesOfType[capturedPiece] &= ~minTo;
       position->numberOfPieces[OPPCOLOR]--;
 
-      if (pieceType(capturedPiece) == PAWN)
-      {
+      if (pieceType(capturedPiece) == PAWN) {
          position->numberOfPawns[OPPCOLOR]--;
       }
 
       position->hashKey ^= GENERATED_KEYTABLE[capturedPiece][to];
    }
 
-   if (pieceType(movingPiece) == PAWN)
-   {
+   if (pieceType(movingPiece) == PAWN) {
       position->halfMoveClock = 0;
 
-      if (distance(from, to) == 2)
-      {
+      if (distance(from, to) == 2) {
          position->enPassantSquare = (Square) ((from + to) >> 1);
          position->hashKey ^=
             GENERATED_KEYTABLE[0][position->enPassantSquare];
-      }
-      else if (to == plyInfo->enPassantSquare)
-      {
+      } else if (to == plyInfo->enPassantSquare) {
          const Square captureSquare =
             (Square) (to + (rank(from) - rank(to)) * 8);
          const Piece capturedPawn = position->piece[captureSquare];
@@ -116,9 +107,7 @@ int makeBlackMove(Variation * variation, const Move move)
          position->piece[captureSquare] = NO_PIECE;
          position->numberOfPieces[OPPCOLOR]--;
          position->numberOfPawns[OPPCOLOR]--;
-      }
-      else if (newPiece != NO_PIECE)
-      {
+      } else if (newPiece != NO_PIECE) {
          const Piece effectiveNewPiece = (Piece) (newPiece | COLOR);
 
          plyInfo->restoreSquare1 = from;
@@ -130,14 +119,10 @@ int makeBlackMove(Variation * variation, const Move move)
             GENERATED_KEYTABLE[effectiveNewPiece][to];
          setSquare(position->piecesOfType[position->piece[to]], to);
       }
-   }
-
-   else if (pieceType(movingPiece) == KING)
-   {
+   } else if (pieceType(movingPiece) == KING) {
       position->king[COLOR] = to;
 
-      if (distance(from, to) == 2)
-      {
+      if (distance(from, to) == 2) {
          const Square rookFrom = rookOrigin[to];
          const Square rookTo = (Square) ((from + to) >> 1);
          const Piece movingRook = position->piece[rookFrom];
@@ -161,8 +146,7 @@ int makeBlackMove(Variation * variation, const Move move)
          if (getDirectAttackers(position, from, OPPCOLOR,
                                 position->allPieces) != EMPTY_BITBOARD ||
              getDirectAttackers(position, rookTo, OPPCOLOR,
-                                position->allPieces) != EMPTY_BITBOARD)
-         {
+                                position->allPieces) != EMPTY_BITBOARD) {
             result = 1;         /* castling move was not legal */
          }
       }
@@ -170,45 +154,31 @@ int makeBlackMove(Variation * variation, const Move move)
 
    setSquare(position->piecesOfType[position->piece[to]], to);
    position->allPieces =
-      position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
-
-   {
+      position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK]; {
       bool needsRefresh = FALSE;
 
-      if (pieceType(movingPiece) == KING)
-      {
-         if (distance(from, to) == 2)
-         {
+      if (pieceType(movingPiece) == KING) {
+         if (distance(from, to) == 2) {
             needsRefresh = TRUE;   /* castling */
-         }
-         else if (!kingStaysInSameBucket(from, to, COLOR))
-         {
+         } else if (!kingStaysInSameBucket(from, to, COLOR)) {
             needsRefresh = TRUE;   /* king moved to a different bucket/orientation */
          }
-      }
-      else if (to == plyInfo->enPassantSquare && pieceType(movingPiece) == PAWN)
-      {
+      } else if (to == plyInfo->enPassantSquare && pieceType(movingPiece) == PAWN) {
          needsRefresh = TRUE;      /* en-passant capture */
-      }
-      else if (newPiece != NO_PIECE)
-      {
+      } else if (newPiece != NO_PIECE) {
          needsRefresh = TRUE;      /* promotion */
       }
 
-      if (needsRefresh)
-      {
+      if (needsRefresh) {
          refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
-      }
-      else
-      {
+      } else {
          Square added_sq[2], removed_sq[3];
          Piece added_pc[2], removed_pc[3];
          int added_cnt = 0, removed_cnt = 0;
 
          removed_sq[removed_cnt] = from;
          removed_pc[removed_cnt++] = movingPiece;
-         if (capturedPiece != NO_PIECE)
-         {
+         if (capturedPiece != NO_PIECE) {
             removed_sq[removed_cnt] = to;
             removed_pc[removed_cnt++] = capturedPiece;
          }

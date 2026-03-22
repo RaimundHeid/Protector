@@ -30,7 +30,6 @@
 #include <pthread.h>
 #include <time.h>
 
-
 #define SEARCH_THREAD_STACK_SIZE (4 * 1024 * 1024)
 #define INITIAL_HASHTABLE_SIZE_MB 16
 #define BYTES_PER_MB (1024ULL * 1024ULL)
@@ -47,31 +46,26 @@ static SearchTask *currentTask = &dummyTask;
 static Variation *variations[MAX_THREADS];
 static Hashtable sharedHashtable;
 
-Hashtable *getSharedHashtable(void)
-{
+Hashtable *getSharedHashtable(void) {
    return &sharedHashtable;
 }
 
-int setNumberOfThreads(int _numThreads)
-{
+int setNumberOfThreads(int _numThreads) {
    numThreads = max(1, min(MAX_THREADS, _numThreads));
 
    return numThreads;
 }
 
-int getNumberOfThreads(void)
-{
+int getNumberOfThreads(void) {
    return numThreads;
 }
 
-UINT64 getNodeCount(void)
-{
+UINT64 getNodeCount(void) {
    int threadCount;
    UINT64 totalNodes = 0;
 
    /* numThreads is only changed between searches, so reading it here is safe */
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
       if (variations[threadCount] != NULL)
          totalNodes += variations[threadCount]->nodes;
    }
@@ -79,25 +73,20 @@ UINT64 getNodeCount(void)
    return totalNodes;
 }
 
-Variation *getCurrentVariation(void)
-{
+Variation *getCurrentVariation(void) {
    return variations[0];
 }
 
-void getGuiSearchMutex(void)
-{
+void getGuiSearchMutex(void) {
    pthread_mutex_lock(&guiSearchMutex);
 }
 
-void releaseGuiSearchMutex(void)
-{
+void releaseGuiSearchMutex(void) {
    pthread_mutex_unlock(&guiSearchMutex);
 }
 
-static void performTaskSpecificSearch(Variation * currentVariation)
-{
-   switch (currentTask->type)
-   {
+static void performTaskSpecificSearch(Variation * currentVariation) {
+   switch (currentTask->type) {
    case TASKTYPE_BEST_MOVE:
       currentTask->bestMove = search(currentVariation, NULL);
       break;
@@ -125,28 +114,24 @@ static void performTaskSpecificSearch(Variation * currentVariation)
    }
 }
 
-static int startSearch(Variation * currentVariation)
-{
+static int startSearch(Variation * currentVariation) {
    currentVariation->searchStatus = SEARCH_STATUS_RUNNING;
 
    performTaskSpecificSearch(currentVariation);
 
    currentTask->nodes = getNodeCount();
 
-   if (currentVariation->threadNumber == 0)
-   {
+   if (currentVariation->threadNumber == 0) {
       int threadCount;
 
-      for (threadCount = 1; threadCount < numThreads; threadCount++)
-      {
+      for (threadCount = 1; threadCount < numThreads; threadCount++) {
          if (variations[threadCount] != NULL)
             variations[threadCount]->terminate = TRUE;
       }
 
       /* Timer cancellation is kept for immediate response, 
          but the thread is properly joined in waitForSearchTermination to avoid leaks. */
-      if (timerStarted)
-      {
+      if (timerStarted) {
          pthread_cancel(timer);
       }
    }
@@ -156,13 +141,11 @@ static int startSearch(Variation * currentVariation)
    return 0;
 }
 
-long getElapsedTime(void)
-{
+long getElapsedTime(void) {
    return getTimestamp() - variations[0]->startTime;
 }
 
-static void *executeSearch(void *arg)
-{
+static void *executeSearch(void *arg) {
    Variation *currentVariation = arg;
 
    startSearch(currentVariation);
@@ -170,8 +153,7 @@ static void *executeSearch(void *arg)
    return 0;
 }
 
-static void *watchTime(void *arg)
-{
+static void *watchTime(void *arg) {
    const Variation *currentVariation = arg;
    const long timeLimit = currentVariation->timeLimit;
    struct timespec requested, remaining;
@@ -179,8 +161,7 @@ static void *watchTime(void *arg)
    requested.tv_sec = timeLimit / 1000;
    requested.tv_nsec = 1000000 * (timeLimit - 1000 * requested.tv_sec);
 
-   if (nanosleep(&requested, &remaining) != -1)
-   {
+   if (nanosleep(&requested, &remaining) != -1) {
       getGuiSearchMutex();
       prepareSearchAbort();
       releaseGuiSearchMutex();
@@ -189,16 +170,11 @@ static void *watchTime(void *arg)
    return 0;
 }
 
-int startTimerThread(const SearchTask * task)
-{
-   if (task->variation->timeLimit > 0 && task->variation->ponderMode == FALSE)
-   {
-      if (pthread_create(&timer, NULL, &watchTime, task->variation) == 0)
-      {
+int startTimerThread(const SearchTask * task) {
+   if (task->variation->timeLimit > 0 && task->variation->ponderMode == FALSE) {
+      if (pthread_create(&timer, NULL, &watchTime, task->variation) == 0) {
          timerStarted = TRUE;
-      }
-      else
-      {
+      } else {
          logDebug("### Timer thread could not be started. ###\n");
          return -1;
       }
@@ -206,8 +182,7 @@ int startTimerThread(const SearchTask * task)
    return 0;
 }
 
-int scheduleTask(SearchTask * task)
-{
+int scheduleTask(SearchTask * task) {
    const unsigned long startTime = getTimestamp();
    int threadCount;
    pthread_attr_t attr;
@@ -218,16 +193,14 @@ int scheduleTask(SearchTask * task)
    pthread_attr_init(&attr);
    pthread_attr_setstacksize(&attr, SEARCH_THREAD_STACK_SIZE);
 
-   if (startTimerThread(task) != 0)
-   {
+   if (startTimerThread(task) != 0) {
       pthread_attr_destroy(&attr);
       return -1;
    }
 
    currentTask = task;
 
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
       Variation *currentVariation = variations[threadCount];
 
       *currentVariation = *(currentTask->variation);
@@ -238,12 +211,9 @@ int scheduleTask(SearchTask * task)
       currentVariation->startTime = startTime;
 
       if (pthread_create(&searchThread[threadCount], &attr,
-                         &executeSearch, currentVariation) == 0)
-      {
+                         &executeSearch, currentVariation) == 0) {
          searchThreadStarted[threadCount] = TRUE;
-      }
-      else
-      {
+      } else {
          logDebug("### Search thread #%d could not be started. ###\n",
                   threadCount);
          result = -1;
@@ -255,64 +225,52 @@ int scheduleTask(SearchTask * task)
    return result;
 }
 
-void waitForSearchTermination(void)
-{
+void waitForSearchTermination(void) {
    int threadCount;
 
    /* Join search threads */
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
-      if (searchThreadStarted[threadCount])
-      {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
+      if (searchThreadStarted[threadCount]) {
          pthread_join(searchThread[threadCount], NULL);
          searchThreadStarted[threadCount] = FALSE;
       }
    }
 
    /* Join timer thread */
-   if (timerStarted)
-   {
+   if (timerStarted) {
       pthread_join(timer, NULL);
       timerStarted = FALSE;
    }
 }
 
-void completeTask(SearchTask * task)
-{
-   if (scheduleTask(task) == 0)
-   {
+void completeTask(SearchTask * task) {
+   if (scheduleTask(task) == 0) {
       waitForSearchTermination();
    }
 }
 
-void prepareSearchAbort(void)
-{
+void prepareSearchAbort(void) {
    int threadCount;
 
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
       if (variations[threadCount] != NULL)
          variations[threadCount]->terminate = TRUE;
    }
 }
 
-void unsetPonderMode(void)
-{
+void unsetPonderMode(void) {
    int threadCount;
 
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
       if (variations[threadCount] != NULL)
          variations[threadCount]->ponderMode = FALSE;
    }
 }
 
-void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit)
-{
+void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit) {
    int threadCount;
 
-   for (threadCount = 0; threadCount < numThreads; threadCount++)
-   {
+   for (threadCount = 0; threadCount < numThreads; threadCount++) {
       Variation *currentVariation = variations[threadCount];
 
       if (currentVariation != NULL) {
@@ -322,12 +280,10 @@ void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit)
    }
 }
 
-bool setHashtableSizeInMb(unsigned int size)
-{
+bool setHashtableSizeInMb(unsigned int size) {
    const UINT64 tablesize = (UINT64)size * BYTES_PER_MB;
 
-   if (setHashtableSize(&sharedHashtable, tablesize))
-   {
+   if (setHashtableSize(&sharedHashtable, tablesize)) {
       resetHashtable(&sharedHashtable);
 
       return TRUE;
@@ -336,21 +292,18 @@ bool setHashtableSizeInMb(unsigned int size)
    return FALSE;
 }
 
-int initializeModuleCoordination(void)
-{
+int initializeModuleCoordination(void) {
    int threadCount;
 
    initializeHashtable(&sharedHashtable);
 
-   if (!setHashtableSize(&sharedHashtable, INITIAL_HASHTABLE_SIZE_MB * BYTES_PER_MB))
-   {
+   if (!setHashtableSize(&sharedHashtable, INITIAL_HASHTABLE_SIZE_MB * BYTES_PER_MB)) {
       return -1;
    }
 
    resetHashtable(&sharedHashtable);
 
-   for (threadCount = 0; threadCount < MAX_THREADS; threadCount++)
-   {
+   for (threadCount = 0; threadCount < MAX_THREADS; threadCount++) {
       variations[threadCount] = malloc(sizeof(Variation));
       variations[threadCount]->searchStatus = SEARCH_STATUS_FINISHED;
       searchThreadStarted[threadCount] = FALSE;
@@ -359,19 +312,16 @@ int initializeModuleCoordination(void)
    return 0;
 }
 
-void finalizeModuleCoordination(void)
-{
+void finalizeModuleCoordination(void) {
    int threadCount;
    pthread_mutex_destroy(&guiSearchMutex);
    finalizeHashtable(&sharedHashtable);
-   for (threadCount = 0; threadCount < MAX_THREADS; threadCount++)
-   {
+   for (threadCount = 0; threadCount < MAX_THREADS; threadCount++) {
       free(variations[threadCount]);
       variations[threadCount] = NULL;
    }
 }
 
-int testModuleCoordination(void)
-{
+int testModuleCoordination(void) {
    return 0;
 }

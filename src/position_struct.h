@@ -5,8 +5,7 @@
 #include "protector.h"
 #include "bitboard.h"
 
-typedef struct
-{
+typedef struct {
    Piece piece[_64_];
    Color activeColor;
    BYTE castlingRights;

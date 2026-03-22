@@ -24,16 +24,14 @@
 #include "position.h"
 #include "movegeneration.h"
 
-typedef enum
-{
+typedef enum {
    TASKTYPE_BEST_MOVE,
    TASKTYPE_TEST_BEST_MOVE,
    TASKTYPE_MATE_IN_N,
    TASKTYPE_TEST_MATE_IN_N
 } TaskType;
 
-typedef struct
-{
+typedef struct {
    TaskType type;               /* the type of task to be performed */
    Variation *variation;        /* the variation to be examined */
    int numberOfMoves;           /* mateproblems: the number of moves */

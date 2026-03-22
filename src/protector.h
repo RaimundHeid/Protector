@@ -87,26 +87,22 @@ void logSevere(const char *fmt, ...);
 #define ASSERT_SEVERE(cond)
 #endif
 
-typedef enum
-{
+typedef enum {
    WHITE, BLACK
 }
 Color;
 
-typedef enum
-{
+typedef enum {
    DARK, LIGHT, ALL
 }
 SquareColor;
 
-typedef enum
-{
+typedef enum {
    RESULT_UNKNOWN, RESULT_WHITE_WINS, RESULT_DRAW, RESULT_BLACK_WINS
 }
 GameResult;
 
-typedef enum
-{
+typedef enum {
    TS_FALSE = 0, TS_UNKNOWN = 1, TS_TRUE = 2
 }
 TriStateType;
@@ -130,8 +126,7 @@ TriStateType;
 #define GAMERESULT_50_MOVE_RULE          "Draw by 50 move rule"
 #define GAMERESULT_INSUFFICIENT_MATERIAL "Insufficient material"
 
-typedef struct
-{
+typedef struct {
    char result[10];
    char reason[128];
 }
@@ -144,8 +139,7 @@ Gameresult;
 #define PP_DIAPIECE      0x08
 #define PP_NONKINGPIECE  0x08
 
-typedef enum
-{
+typedef enum {
    NO_PIECETYPE = 0x00,
    KING = PP_SPECIALPIECE,
    QUEEN = PP_SLIDING_PIECE | PP_ORTHOPIECE | PP_DIAPIECE,
@@ -156,8 +150,7 @@ typedef enum
 }
 PieceType;
 
-typedef enum
-{
+typedef enum {
    NO_PIECE = 0x00,
    WHITE_KING = KING,
    WHITE_QUEEN = QUEEN,
@@ -174,8 +167,7 @@ typedef enum
 }
 Piece;
 
-typedef enum
-{
+typedef enum {
    WHITE_BISHOP_DARK = 2,
    WHITE_BISHOP_LIGHT = WHITE_BISHOP,
    BLACK_BISHOP_DARK = 3,
@@ -183,8 +175,7 @@ typedef enum
 }
 BishopPiece;
 
-typedef enum
-{
+typedef enum {
    NO_SQUARE = -1,
    A1, B1, C1, D1, E1, F1, G1, H1,
    A2, B2, C2, D2, E2, F2, G2, H2,
@@ -197,20 +188,17 @@ typedef enum
 }
 Square;
 
-typedef enum
-{
+typedef enum {
    FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
 }
 File;
 
-typedef enum
-{
+typedef enum {
    RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
 }
 Rank;
 
-typedef enum
-{
+typedef enum {
    NO_CASTLINGS = 0,
    WHITE_00 = 1, WHITE_000 = 2,
    BLACK_00 = 4, BLACK_000 = 8
@@ -251,8 +239,7 @@ Castlings;
  */
 #define ITERATE(sq) for ( sq = A1; sq <= H8; sq++ )
 
-typedef struct
-{
+typedef struct {
    bool processModuleTest;
    bool uciMode;
    bool dumpEvaluation;

@@ -55,7 +55,6 @@ int initializeTablebase(const char *path);
  */
 void closeTablebaseFiles(void);
 
-
 /**
  * Probe the tablebase for the specified position.
  */

@@ -29,8 +29,7 @@
 #include <sys/timeb.h>
 #include "tools.h"
 
-unsigned long getTimestamp(void)
-{
+unsigned long getTimestamp(void) {
    struct timeb t_current;
 
    ftime(&t_current);
@@ -38,31 +37,25 @@ unsigned long getTimestamp(void)
    return 1000 * (long) t_current.time + (long) t_current.millitm;
 }
 
-long getProcessTimestamp(void)
-{
+long getProcessTimestamp(void) {
    clock_t ts = clock();
 
-   while (ts < 0)
-   {
+   while (ts < 0) {
       ts = clock();
    }
 
    return ts / (CLOCKS_PER_SEC / 1000);
 }
 
-String getEmptyString(void)
-{
+String getEmptyString(void) {
    String s;
 
    s.bufferSize = 256;
    s.buffer = s.tail = (char *) malloc(s.bufferSize);
 
-   if (s.buffer != NULL)
-   {
+   if (s.buffer != NULL) {
       *s.tail = '\0';
-   }
-   else
-   {
+   } else {
       s.bufferSize = 0;
       s.tail = NULL;
    }
@@ -70,21 +63,17 @@ String getEmptyString(void)
    return s;
 }
 
-String getString(const char *buffer, const char *lastChar)
-{
+String getString(const char *buffer, const char *lastChar) {
    String s;
 
    s.bufferSize = (unsigned int) (lastChar - buffer + 2);
    s.buffer = (char *) malloc(s.bufferSize);
 
-   if (s.buffer != NULL)
-   {
+   if (s.buffer != NULL) {
       s.tail = s.buffer + s.bufferSize - 1;
       strncpy(s.buffer, buffer, s.bufferSize - 1);
       *s.tail = '\0';
-   }
-   else
-   {
+   } else {
       s.bufferSize = 0;
       s.tail = NULL;
    }
@@ -92,10 +81,8 @@ String getString(const char *buffer, const char *lastChar)
    return s;
 }
 
-void deleteString(String * string)
-{
-   if (string != NULL)
-   {
+void deleteString(String * string) {
+   if (string != NULL) {
       free(string->buffer);
       string->buffer = NULL;
       string->tail = NULL;
@@ -103,21 +90,18 @@ void deleteString(String * string)
    }
 }
 
-static String *appendBufferToString(String * string, const char *buffer)
-{
+static String *appendBufferToString(String * string, const char *buffer) {
    size_t appendedLength = strlen(buffer);
    size_t newLength = string->tail - string->buffer + appendedLength + 1;
 
-   if (newLength > string->bufferSize)
-   {
+   if (newLength > string->bufferSize) {
       size_t delta = string->tail - string->buffer;
       char *newBuffer;
 
       string->bufferSize = (unsigned int) (2 * newLength);
       newBuffer = (char *) realloc(string->buffer, string->bufferSize);
 
-      if (newBuffer == NULL)
-      {
+      if (newBuffer == NULL) {
          return NULL;
       }
 
@@ -133,8 +117,7 @@ static String *appendBufferToString(String * string, const char *buffer)
 
 #define BUFFER_SIZE 8192
 
-String *appendToString(String * string, const char *fmt, ...)
-{
+String *appendToString(String * string, const char *fmt, ...) {
    va_list args;
 
    char buffer[BUFFER_SIZE];
@@ -146,36 +129,26 @@ String *appendToString(String * string, const char *fmt, ...)
    return (appendBufferToString(string, buffer));
 }
 
-void breakLines(char *buffer, unsigned int maxLineLength)
-{
+void breakLines(char *buffer, unsigned int maxLineLength) {
    char *lastChar;
 
-   while (strlen(buffer) > maxLineLength)
-   {
+   while (strlen(buffer) > maxLineLength) {
       lastChar = buffer + maxLineLength;
 
-      while (isspace((unsigned char) *lastChar) == 0 && lastChar > buffer)
-      {
+      while (isspace((unsigned char) *lastChar) == 0 && lastChar > buffer) {
          lastChar--;
       }
 
-      if (isspace((unsigned char) *lastChar))
-      {
+      if (isspace((unsigned char) *lastChar)) {
          *lastChar = '\n';
          buffer = lastChar + 1;
-      }
-      else
-      {
-         while (*buffer != '\0')
-         {
-            if (isspace((unsigned char) *buffer))
-            {
+      } else {
+         while (*buffer != '\0') {
+            if (isspace((unsigned char) *buffer)) {
                *buffer++ = '\n';
 
                break;
-            }
-            else
-            {
+            } else {
                buffer++;
             }
          }
@@ -183,49 +156,41 @@ void breakLines(char *buffer, unsigned int maxLineLength)
    }
 }
 
-void trim(char *buffer)
-{
+void trim(char *buffer) {
    char *p = buffer;
    size_t length = strlen(buffer);
 
-   if (length == 0)
-   {
+   if (length == 0) {
       return;
    }
 
-   while (isspace((unsigned char) *p))
-   {
+   while (isspace((unsigned char) *p)) {
       p++;
    }
 
-   if (p > buffer)
-   {
+   if (p > buffer) {
       length -= p - buffer;
       memmove(buffer, p, length + 1);
    }
 
    p = buffer + length - 1;
 
-   while (p >= buffer && isspace((unsigned char) *p))
-   {
+   while (p >= buffer && isspace((unsigned char) *p)) {
       *(p--) = '\0';
    }
 }
 
-char *getToken(const char *token, const char *tokenDelimiters)
-{
+char *getToken(const char *token, const char *tokenDelimiters) {
    unsigned int i = 0;
    char *buffer;
 
-   while (token[i] != '\0' && strchr(tokenDelimiters, token[i]) == NULL)
-   {
+   while (token[i] != '\0' && strchr(tokenDelimiters, token[i]) == NULL) {
       i++;
    }
 
    buffer = (char *) malloc(i + 1);
 
-   if (buffer != NULL)
-   {
+   if (buffer != NULL) {
       strncpy(buffer, token, i);
       buffer[i] = '\0';
 
@@ -235,26 +200,21 @@ char *getToken(const char *token, const char *tokenDelimiters)
    return buffer;
 }
 
-int isPrime(unsigned long candidate)
-{
+int isPrime(unsigned long candidate) {
    long limit, i;
 
-   if (candidate == 2 || candidate == 3)
-   {
+   if (candidate == 2 || candidate == 3) {
       return 1;
    }
 
-   if (candidate < 2 || candidate % 2 == 0)
-   {
+   if (candidate < 2 || candidate % 2 == 0) {
       return 0;
    }
 
    limit = (unsigned long) sqrt((double) candidate) + 1;
 
-   for (i = 3; i <= limit; i += 2)
-   {
-      if (candidate % i == 0)
-      {
+   for (i = 3; i <= limit; i += 2) {
+      if (candidate % i == 0) {
          return 0;
       }
    }
@@ -263,8 +223,7 @@ int isPrime(unsigned long candidate)
 }
 
 int logIntValue(const double zeroPoint, const int maxPoint,
-                const double maxValue, const int x)
-{
+                const double maxValue, const int x) {
    const double xScaleFactor = 1.0 / (zeroPoint);
    const double yScaleFactor = maxValue /
       log(((double) maxPoint) * xScaleFactor);
@@ -273,27 +232,23 @@ int logIntValue(const double zeroPoint, const int maxPoint,
    return (int) (floor(y + 0.5));
 }
 
-int applyWeight(double value, double weight)
-{
+int applyWeight(double value, double weight) {
    double weightedValue = (value * weight) / 256.0;
 
    return (int) (floor(weightedValue + 0.5));
 }
 
-int getLimitedValue(const int minValue, const int maxValue, const int value)
-{
+int getLimitedValue(const int minValue, const int maxValue, const int value) {
    return min(maxValue, max(minValue, value));
 }
 
-unsigned long long getUnsignedLongLongFromHexString(const char *str)
-{
+unsigned long long getUnsignedLongLongFromHexString(const char *str) {
    unsigned long long number = strtoull(str, 0, 16);
 
    return number;
 }
 
-void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value)
-{
+void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value) {
 #if defined(_WIN32) || defined(_WIN64)
    const char *fmt = "%I64x";
 #else
@@ -303,13 +258,11 @@ void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned 
    snprintf(buffer, bufferSize, fmt, value);
 }
 
-int initializeModuleTools(void)
-{
+int initializeModuleTools(void) {
    return 0;
 }
 
-static int testStringOperations(void)
-{
+static int testStringOperations(void) {
    const char *testString = "Pascal";
    String string = getEmptyString();
    String string2;
@@ -329,8 +282,7 @@ static int testStringOperations(void)
    return (string2.bufferSize == 5 ? 0 : -1);
 }
 
-static int testLineBreaking(void)
-{
+static int testLineBreaking(void) {
    char ts1[] = "abcd efgh", ts2[] = "abcdefgh";
    char buffer[1024];
 
@@ -353,8 +305,7 @@ static int testLineBreaking(void)
    return 0;
 }
 
-static int testTrimming(void)
-{
+static int testTrimming(void) {
    char buffer1[] = "   abcd efgh\n  ", buffer2[] = " ";
 
    trim(buffer1);
@@ -366,8 +317,7 @@ static int testTrimming(void)
    return 0;
 }
 
-static int testTokenizer(void)
-{
+static int testTokenizer(void) {
    char *result;
 
    result = getToken("123456", "6");
@@ -381,8 +331,7 @@ static int testTokenizer(void)
    return 0;
 }
 
-static int testPrimechecker(void)
-{
+static int testPrimechecker(void) {
    assert(isPrime(159) == 0);
    assert(isPrime(221) == 0);
    assert(isPrime(3337) == 0);
@@ -394,8 +343,7 @@ static int testPrimechecker(void)
    return 0;
 }
 
-static int testMiscFunctions(void)
-{
+static int testMiscFunctions(void) {
    unsigned long long testValue = 18446744073709551564llu;
    char buffer[256];
 
@@ -413,57 +361,46 @@ static int testMiscFunctions(void)
    return 0;
 }
 
-int testModuleTools(void)
-{
+int testModuleTools(void) {
    int result;
 
-   if ((result = testStringOperations()) != 0)
-   {
+   if ((result = testStringOperations()) != 0) {
       return result;
    }
 
-   if ((result = testLineBreaking()) != 0)
-   {
+   if ((result = testLineBreaking()) != 0) {
       return result;
    }
 
-   if ((result = testTrimming()) != 0)
-   {
+   if ((result = testTrimming()) != 0) {
       return result;
    }
 
-   if ((result = testTokenizer()) != 0)
-   {
+   if ((result = testTokenizer()) != 0) {
       return result;
    }
 
-   if ((result = testPrimechecker()) != 0)
-   {
+   if ((result = testPrimechecker()) != 0) {
       return result;
    }
 
-   if ((result = testMiscFunctions()) != 0)
-   {
+   if ((result = testMiscFunctions()) != 0) {
       return result;
    }
 
    return 0;
 }
 
-void getDirectory(const char *path, char *directory, size_t bufferSize)
-{
+void getDirectory(const char *path, char *directory, size_t bufferSize) {
    const char *lastSlash = strrchr(path, '/');
 #if defined(_WIN32) || defined(_WIN64)
    const char *lastBackslash = strrchr(path, '\\');
    if (lastBackslash > lastSlash) lastSlash = lastBackslash;
 #endif
 
-   if (lastSlash == NULL)
-   {
+   if (lastSlash == NULL) {
       strncpy(directory, "", bufferSize);
-   }
-   else
-   {
+   } else {
       size_t length = (size_t) (lastSlash - path);
       if (length >= bufferSize) length = bufferSize - 1;
       strncpy(directory, path, length);

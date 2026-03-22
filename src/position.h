@@ -52,15 +52,13 @@ extern int basicValue[16];
 
 typedef UINT32 Move;
 
-typedef struct
-{
+typedef struct {
    Square square;
    Bitboard moves;
 }
 MovesOfPiece;
 
-typedef struct
-{
+typedef struct {
    Bitboard diaAttackers, orthoAttackers, knightAttackers, pawnAttackers[2];
    Square attackedByDia[_64_], attackedByOrtho[_64_];
 }
@@ -71,15 +69,13 @@ KingAttacks;
 #define HASHVALUE_LOWER_LIMIT 2
 #define HASHVALUE_EVAL 3
 
-typedef struct
-{
+typedef struct {
    UINT16 move[MAX_DEPTH_ARRAY_SIZE];
    int length, score, scoreType;
 }
 PrincipalVariation;
 
-typedef struct
-{
+typedef struct {
    Move killerMove1, killerMove2, killerMove3, killerMove4, killerMove5,
       killerMove6;
    Move currentMove;
@@ -98,8 +94,7 @@ typedef struct
 }
 PlyInfo;
 
-typedef struct
-{
+typedef struct {
    Position *position;
    PlyInfo *plyInfo;
    Move hashMove;
@@ -115,30 +110,26 @@ typedef struct
 }
 Movelist;
 
-typedef struct
-{
+typedef struct {
    UINT64 key;
    UINT64 data;
 }
 Hashentry;
 
-typedef struct
-{
+typedef struct {
    UINT64 key;
    UINT8 depth;
 }
 Nodeentry;
 
-typedef struct
-{
+typedef struct {
    Hashentry *table;
    UINT64 tableSize, entriesUsed;
    UINT8 date;
 }
 Hashtable;
 
-typedef enum
-{
+typedef enum {
    SEARCH_STATUS_RUNNING,
    SEARCH_STATUS_TERMINATE,
    SEARCH_STATUS_ABORT,
@@ -150,11 +141,9 @@ SearchStatus;
 #define HISTORY_MAX  16384
 #define HISTORY_LIMIT 60        /* (60%) */
 
-
 #define BONUS_HIDDEN_PASSER
 
-typedef struct
-{
+typedef struct {
    int ply, iteration, selDepth;
    int numberOfBaseMoves, numberOfCurrentBaseMove;
    Move currentBaseMove, bestBaseMove;
