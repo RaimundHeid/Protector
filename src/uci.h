@@ -24,10 +24,6 @@
 #include "protector.h"
 #include "position.h"
 
-extern int minPvHashEntrySendDepth;
-extern int minPvHashEntrySendTime;
-extern int maxPvHashEntrySendHeight;
-extern int pvHashEntriesSendInterval;
 
 typedef struct
 {
@@ -60,10 +56,6 @@ UciStatus;
  */
 void acceptGuiCommands(void);
 
-/*
- * Send a hash entry via UCI.
- */
-void sendHashentry(Hashentry * entry);
 
 /**
  * Initialize this module.

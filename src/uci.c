@@ -44,25 +44,11 @@ int drawScore = 0;
 int numPvs = 1;
 const int DRAW_SCORE_MAX = 10000;
 
-#define MIN_SEND_DEPTH_DEFAULT 12
-#define MIN_SEND_TIME_DEFAULT 1000
-#define MAX_SEND_HEIGHT_DEFAULT 24
-#define MAX_ENTRIES_PS_DEFAULT 4
-
-int minPvHashEntrySendDepth = MIN_SEND_DEPTH_DEFAULT;
-int minPvHashEntrySendTime = MIN_SEND_TIME_DEFAULT;
-int maxPvHashEntrySendHeight = MAX_SEND_HEIGHT_DEFAULT;
-int maxPvHashEntriesSendPerSecond = MAX_ENTRIES_PS_DEFAULT;
-int pvHashEntriesSendInterval = 1000 / MAX_ENTRIES_PS_DEFAULT;
 
 const char *USN_NT = "Threads";
 const char *USN_DS = "Draw Score";
 const char *USN_PV = "MultiPV";
 
-const char *USN_SD = "Min PVHashEntry Send Depth";
-const char *USN_ST = "Min PVHashEntry Send Time";
-const char *USN_SH = "Max PVHashEntry Send Height";
-const char *USN_PS = "Max PVHashEntries Send Per Second";
 
 /* #define DEBUG_GUI_PROTOCOL */
 /* #define DEBUG_GUI_PROTOCOL_BRIEF */
@@ -676,25 +662,6 @@ static void sendBestmoveInfo(Variation * var)
    status.bestMoveWasSent = TRUE;
 }
 
-/******************************************************************************
- *
- * Send a hash entry via UCI.
- *
- ******************************************************************************/
-void sendHashentry(Hashentry * entry)
-{
-   /* const char *fmt = "info transkey %llx transdata %llx"; */
-   /* kh 2015-09-21 %llx prints only 32 bits on some windows systems */
-#if defined(_WIN32) || defined(_WIN64)
-   const char *fmt = "info transkey %I64x transdata %I64x";
-#else
-   const char *fmt = "info transkey %llx transdata %llx";
-#endif
-
-   getGuiSearchMutex();
-   sendToUci(fmt, entry->key, entry->data);
-   releaseGuiSearchMutex();
-}
 
 /******************************************************************************
  *
@@ -808,13 +775,6 @@ static int processUciCommand(const char *command)
       sendUciSpinOption(USN_DS, 0, -DRAW_SCORE_MAX, DRAW_SCORE_MAX);
       sendUciSpinOption(USN_PV, 1, 1, MAX_NUM_PV);
 
-#ifdef SEND_HASH_ENTRIES
-      sendUciSpinOption(USN_SD, MIN_SEND_DEPTH_DEFAULT, 8, 16);
-      sendUciSpinOption(USN_ST, MIN_SEND_TIME_DEFAULT, 100, 5000);
-      sendUciSpinOption(USN_SH, MAX_SEND_HEIGHT_DEFAULT, 16, 64);
-      sendUciSpinOption(USN_PS, MAX_ENTRIES_PS_DEFAULT, 1, 20);
-#endif
-
       sendToUciNonDebug("uciok");
       releaseGuiSearchMutex();
 
@@ -886,42 +846,6 @@ static int processUciCommand(const char *command)
 
          return TRUE;
       }
-
-#ifdef SEND_HASH_ENTRIES
-      if (strcmp(name, USN_SD) == 0)
-      {
-         minPvHashEntrySendDepth =
-            getIntValue(value, 0, MIN_SEND_DEPTH_DEFAULT, 1000000);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_ST) == 0)
-      {
-         minPvHashEntrySendTime =
-            getIntValue(value, 0, MIN_SEND_TIME_DEFAULT, 1000000);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_SH) == 0)
-      {
-         maxPvHashEntrySendHeight =
-            getIntValue(value, 0, MAX_SEND_HEIGHT_DEFAULT, 1000000);
-
-         return TRUE;
-      }
-
-      if (strcmp(name, USN_PS) == 0)
-      {
-         maxPvHashEntriesSendPerSecond =
-            getIntValue(value, 1, MAX_ENTRIES_PS_DEFAULT, 1000000);
-
-         pvHashEntriesSendInterval = 1000 / maxPvHashEntriesSendPerSecond;
-
-         return TRUE;
-      }
-#endif
    }
 
    if (strcmp(buffer, "position") == 0)

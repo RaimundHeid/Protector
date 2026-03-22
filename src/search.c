@@ -1016,7 +1016,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
    if (hashmove == NO_MOVE &&
        restDepth >= (pvNode ? 3 : 7) * DEPTH_RESOLUTION &&
        (pvNode || (inCheck == FALSE &&
-                   getRefinedStaticValue(variation, ply) >= beta - 54)))
+                   getRefinedStaticValue(variation, ply) >= beta - 49)))
    {
       const Move excludeHere =
          (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
@@ -1267,7 +1267,7 @@ static int searchBest(Variation * variation, int alpha, int beta,
           extension < DEPTH_RESOLUTION &&
           movesAreEqual(currentMove, hashmove))
       {
-         const int limitValue = hashEntryValue - (144 * restDepth) / 256;
+         const int limitValue = hashEntryValue - (149 * restDepth) / 256;
 
          assert(excludeMove == NO_MOVE);
 
@@ -1489,29 +1489,6 @@ static int searchBest(Variation * variation, int alpha, int beta,
                    packedMove(*bestMove), hashentryFlag,
                    (INT16) getStaticValue(variation, ply));
 
-#ifdef SEND_HASH_ENTRIES
-      if (hashentryFlag == HASHVALUE_EXACT &&
-          restDepth >= minPvHashEntrySendDepth &&
-          ply <= maxPvHashEntrySendHeight)
-      {
-         const long timestamp = getTimestamp();
-         const long elapsedTime = timestamp - variation->startTime;
-         const long intervalTime = timestamp - variation->hashSendTimestamp;
-
-         if (elapsedTime >= minPvHashEntrySendTime &&
-             intervalTime >= pvHashEntriesSendInterval)
-         {
-            Hashentry entry =
-               constructHashEntry(hashKey, calcHashtableValue(best, ply),
-                                  (INT16) getStaticValue(variation, ply),
-                                  (UINT8) (restDepth + HASH_DEPTH_OFFSET),
-                                  packedMove(*bestMove), 0, hashentryFlag);
-
-            sendHashentry(&entry);
-            variation->hashSendTimestamp = timestamp;
-         }
-      }
-#endif
    }
 
    return best;
@@ -1919,7 +1896,6 @@ static void exploreBaseMoves(Variation * variation, Movelist * basemoves,
    sendPvInfo(variation, SEARCHEVENT_PLY_FINISHED);
 }
 
-
 Move search(Variation * variation, Movelist * acceptableSolutions)
 {
    Movelist movelist;
@@ -2188,8 +2164,8 @@ static void initializeArrays(void)
 
    for (i = 0; i < 32; i++)
    {
-      quietMoveCountLimit[0][i] = (int) (2.4 + 0.231 * pow(i, 1.8));
-      quietMoveCountLimit[1][i] = (int) (3.1 + 0.344 * pow(i + 0.78, 1.8));
+      quietMoveCountLimit[0][i] = (int) (2.4 + 0.228 * pow(i, 1.7908));
+      quietMoveCountLimit[1][i] = (int) (3.1 + 0.344 * pow(i + 0.78, 1.7908));
 
 #ifdef DEBUG_FUT_VALUES
       logDebug("mcl[%d]=%d\n", i, quietMoveCountLimit[i]);
