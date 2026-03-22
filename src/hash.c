@@ -145,7 +145,6 @@ void resetHashtable(Hashtable * hashtable)
    hashtable->date = 0;
    hashtable->entriesUsed = 0;
 
-   /* logDebug("hashtable reset done.\n"); */
 }
 
 void resetNodetable(void)

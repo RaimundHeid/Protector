@@ -43,11 +43,6 @@ int initializeModuleIo(void);
 int testModuleIo(void);
 
 /**
- * Stop program execution until the user strikes a key.
- */
-int getKeyStroke(void);
-
-/**
  * Send a string representation of the specified bitboard to stdout.
  */
 void dumpBitboard(Bitboard bitboard, char *title);

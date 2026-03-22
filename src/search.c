@@ -35,7 +35,6 @@
 #include "tablebase.h"
 #include "nnue.h"
 
-/* #define DEBUG_THREAD_COORDINATION */
 
 extern bool resetSharedHashtable;
 const int HASH_DEPTH_OFFSET = 3;
@@ -1050,7 +1049,6 @@ static int searchBest(Variation * variation, int alpha, int beta,
    {
       const int singleMoveExtensionDepth =
          getSingleMoveExtensionDepth(pvNode);
-      /* const int singleMoveExtensionDepth = 8 * DEPTH_RESOLUTION; */
       const int importance =
          getHashentryImportance(bestTableHit) - HASH_DEPTH_OFFSET;
       const int flag = getHashentryFlag(bestTableHit);
@@ -1933,10 +1931,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    initializePlyInfo(variation);
    getLegalMoves(variation, &movelist);
 
-#ifdef TRACE_EVAL
-   getValue(&variation->singlePosition,
-            &variation->plyInfo[0].accumulator, 0);
-#endif
 
    variation->numberOfBaseMoves = movelist.numberOfMoves;
    setMoveValue(&variation->bestBaseMove, VALUE_MATED);
@@ -2014,28 +2008,13 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
           variation->iteration > 8 && variation->timeLimit != 0 &&
           calculationTime >= timeTarget)
       {
-#ifdef DEBUG_THREAD_COORDINATION
-         logDebug
-            ("Time target reached (%lu/%lu ms, %lu%%)).\n",
-             calculationTime, variation->timeTarget,
-             (calculationTime * 100) / variation->timeTarget);
-#endif
-
          if (variation->ponderMode)
          {
             variation->terminateSearchOnPonderhit = TRUE;
-
-#ifdef DEBUG_THREAD_COORDINATION
-            logDebug("Setting ponder termination flag.\n");
-#endif
          }
          else
          {
             variation->searchStatus = SEARCH_STATUS_TERMINATE;
-
-#ifdef DEBUG_THREAD_COORDINATION
-            logDebug("Terminating search.\n");
-#endif
          }
       }
 
@@ -2045,19 +2024,12 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
            getMoveValue(variation->bestBaseMove) >=
            -VALUE_MATED - variation->iteration))
       {
-#ifdef DEBUG_THREAD_COORDINATION
-         logDebug("Best value out of bounds (%d). Terminating search.\n",
-                  getMoveValue(variation->bestBaseMove));
-#endif
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
       if (variation->searchStatus == SEARCH_STATUS_RUNNING &&
           variation->iteration == MAX_DEPTH)
       {
-#ifdef DEBUG_THREAD_COORDINATION
-         logDebug("Max depth reached. Terminating search.\n");
-#endif
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
@@ -2067,10 +2039,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
             (getMoveValue(variation->bestBaseMove) >= 13 ||
              (getTimestamp() - variation->startTime) >= 3000))))
       {
-#ifdef DEBUG_THREAD_COORDINATION
-         logDebug("Solution found (value=%d). Terminating search.\n",
-                  getMoveValue(variation->bestBaseMove));
-#endif
          variation->searchStatus = SEARCH_STATUS_TERMINATE;
       }
 
@@ -2096,12 +2064,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
 
       if (variation->searchStatus != SEARCH_STATUS_RUNNING)
       {
-#ifdef DEBUG_THREAD_COORDINATION
-         logReport
-            ("search status != SEARCH_STATUS_RUNNING -> exiting search.\n",
-             getMoveValue(variation->bestBaseMove));
-#endif
-
          releaseGuiSearchMutex();
          break;
       }
@@ -2121,7 +2083,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions)
    return variation->bestBaseMove;
 }
 
-/* #define DEBUG_FUT_VALUES */
 
 static void initializeArrays(void)
 {
@@ -2167,27 +2128,13 @@ static void initializeArrays(void)
       quietMoveCountLimit[0][i] = (int) (2.4 + 0.228 * pow(i, 1.7908));
       quietMoveCountLimit[1][i] = (int) (3.1 + 0.344 * pow(i + 0.78, 1.7908));
 
-#ifdef DEBUG_FUT_VALUES
-      logDebug("mcl[%d]=%d\n", i, quietMoveCountLimit[i]);
-#endif
    }
 
    for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++)
    {
       futilityMargin[i] = (1960 * i) / 64 - 27;
 
-#ifdef DEBUG_FUT_VALUES
-      if (j <= 2)
-      {
-         logDebug("fm[%d][%d]=%d\n", i, j, futilityMargin[i][j]);
-      }
-#endif
    }
-
-
-#ifdef DEBUG_FUT_VALUES
-   getKeyStroke();
-#endif
 }
 
 int initializeModuleSearch(void)

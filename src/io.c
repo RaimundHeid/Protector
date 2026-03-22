@@ -32,13 +32,6 @@ char pieceName[16];
 
 static char *logfileName = "protector.log";
 
-int getKeyStroke(void)
-{
-   logDebug("\nProgram halted. Hit RETURN to continue.");
-
-   return getchar();
-}
-
 void getSquareName(Square square, char name[3])
 {
    name[0] = (char) fileName(file(square));

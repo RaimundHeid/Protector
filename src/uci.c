@@ -50,9 +50,6 @@ const char *USN_DS = "Draw Score";
 const char *USN_PV = "MultiPV";
 
 
-/* #define DEBUG_GUI_PROTOCOL */
-/* #define DEBUG_GUI_PROTOCOL_BRIEF */
-/* #define DEBUG_GUI_CONVERSATION */
 
 static Move readUciMove(const char *buffer)
 {
@@ -93,10 +90,6 @@ static const char *getUciToken(const char *uciString, const char *tokenName)
 {
    const size_t tokenNameLength = strlen(tokenName);
    const char *current = uciString;
-
-#ifdef   DEBUG_GUI_PROTOCOL
-   logDebug("find >%s< in >%s<\n", tokenName, uciString);
-#endif
 
    while (current != NULL && *current != '\0')
    {
@@ -174,10 +167,6 @@ static long getLongUciValue(const char *uciString, const char *name,
       value = atol(valueBuffer);
    }
 
-#ifdef   DEBUG_GUI_PROTOCOL
-   logDebug("get uci long value; %s = %ld\n", name, value);
-#endif
-
    return value;
 }
 
@@ -195,9 +184,6 @@ static void getStringUciValue(const char *uciString, const char *name,
       getNextUciToken(nameStart + strlen(name), stringValue, bufferSize);
    }
 
-#ifdef   DEBUG_GUI_PROTOCOL
-   logDebug("get uci string value; %s = %ld\n", name, stringValue);
-#endif
 }
 
 static void getUciNamedValue(const char *uciString, char *name, size_t nameSize, char *value, size_t valueSize)
@@ -220,7 +206,6 @@ static void getUciNamedValue(const char *uciString, char *name, size_t nameSize,
       trim(name);
       trim(value);
 
-      /* logDebug("name=<%s> value=<%s>\n", name, value); */
    }
 }
 
@@ -292,27 +277,6 @@ static void getTokenByNumber(const char *command, int paramNumber,
    trim(buffer);
 }
 
-/******************************************************************************
- *
- * Send the specified command via stdout to uci.
- *
- ******************************************************************************/
-static void sendToUci(const char *fmt, ...)
-{
-   va_list args;
-   char buffer[4096];
-
-   va_start(args, fmt);
-   vsnprintf(buffer, sizeof(buffer), fmt, args);
-   va_end(args);
-
-   fprintf(stdout, "%s\n", buffer);
-   fflush(stdout);
-
-#ifdef DEBUG_GUI_CONVERSATION
-   logDebug("### sent to uci: %s\n", buffer);
-#endif
-}
 
 /******************************************************************************
  *
@@ -331,9 +295,6 @@ static void sendToUciNonDebug(const char *fmt, ...)
    fprintf(stdout, "%s\n", buffer);
    fflush(stdout);
 
-#ifdef DEBUG_GUI_CONVERSATION
-   logDebug("### sent to uci: %s\n", buffer);
-#endif
 }
 
 /******************************************************************************
@@ -431,11 +392,6 @@ static void startCalculation(void)
    setDrawScore(variation_ptr, drawScore, status.engineColor);
    status.bestMoveWasSent = FALSE;
 
-#ifdef DEBUG_GUI_CONVERSATION
-   logDebug("Scheduling task. Timelimits: %d/%d\n", variation_ptr->timeTarget,
-            variation_ptr->timeLimit);
-#endif
-
    scheduleTask(&task);
 }
 
@@ -445,20 +401,8 @@ static void startPostPonderCalculation(void)
    const long nominalRestTime = variation_ptr->timeLimit - elapsedTime;
    const long minimalRestTime = max(1, variation_ptr->timeLimit / 4);
 
-   /* logDebug
-      ("Preparing post ponder calculation. timelimit: %d elapsed time: %d nomimalRestTime: %d minimal rest time: %d \n",
-      variation_ptr->timeLimit, elapsedTime, nominalRestTime, minimalRestTime); */
-
    variation_ptr->timeLimit = max(nominalRestTime, minimalRestTime);
    variation_ptr->ponderMode = FALSE;
-
-   /* logDebug("Starting post ponder calculation. Timelimits: %d/%d\n",
-      variation_ptr->timeTarget, variation_ptr->timeLimit); */
-
-#ifdef DEBUG_GUI_CONVERSATION
-   logDebug("Starting post ponder calculation. Timelimits: %d/%d\n",
-            variation_ptr->timeTarget, variation_ptr->timeLimit);
-#endif
 
    startTimerThread(&task);
 }
@@ -632,17 +576,11 @@ static void sendBestmoveInfo(Variation * var)
          getGuiMoveString(status.ponderingMove, ponderMoveBuffer, sizeof(ponderMoveBuffer));
          sendToUciNonDebug("bestmove %s ponder %s", moveBuffer,
                               ponderMoveBuffer);
-#ifdef DEBUG_GUI_PROTOCOL_BRIEF
-         logDebug("bestmove %s ponder %s\n", moveBuffer, ponderMoveBuffer);
-#endif
       }
       else
       {
          status.ponderingMove = NO_MOVE;
          sendToUciNonDebug("bestmove %s", moveBuffer);
-#ifdef DEBUG_GUI_PROTOCOL_BRIEF
-         logDebug("bestmove %s\n", moveBuffer);
-#endif
       }
 
       unmakeLastMove(&tmp);
@@ -650,11 +588,6 @@ static void sendBestmoveInfo(Variation * var)
    else
    {
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
-
-#ifdef DEBUG_GUI_CONVERSATION
-      logDebug("### Illegal best move %s ###\n", moveBuffer);
-      logDebug("### Sending bestmove 0000 ###\n");
-#endif
 
       sendToUciNonDebug("bestmove 0000");
    }
@@ -681,10 +614,6 @@ static void handleSearchEvent(int eventId, void *var)
       }
       else
       {
-#ifdef DEBUG_GUI_CONVERSATION
-         logDebug("Search finished. Engine was pondering.\n");
-         logDebug("No best move info sent.\n");
-#endif
          postPv(variation, TRUE);
       }
 
@@ -751,10 +680,6 @@ void addHashentry(Hashentry * entry)
 static int processUciCommand(const char *command)
 {
    char buffer[8192];
-
-#ifdef DEBUG_GUI_PROTOCOL_BRIEF
-   logDebug("%s", command);
-#endif
 
    getTokenByNumber(command, 0, buffer);
 
@@ -875,9 +800,6 @@ static int processUciCommand(const char *command)
          strncpy(game.setup, "1", sizeof(game.setup));
          game.setup[sizeof(game.setup) - 1] = '\0';
 
-#ifdef   DEBUG_GUI_PROTOCOL
-         logDebug("fen set: >%s<\n", game.fen);
-#endif
       }
 
       if (getUciToken(command, "moves") != 0)
@@ -894,10 +816,6 @@ static int processUciCommand(const char *command)
             if (strlen(moveBuffer) > 0)
             {
                Move move = readUciMove(moveBuffer);
-
-#ifdef   DEBUG_GUI_PROTOCOL
-               logDebug("move found: >%s<\n", moveBuffer);
-#endif
 
                if (appendMove(&game, move) == 0)
                {
@@ -935,9 +853,6 @@ static int processUciCommand(const char *command)
 
       if (status.engineIsActive)
       {
-#ifdef DEBUG_GUI_CONVERSATION
-         logDebug("stopping search...\n");
-#endif
          prepareSearchAbort();
          releaseGuiSearchMutex();
          waitForSearchTermination();
@@ -955,9 +870,6 @@ static int processUciCommand(const char *command)
       {
          if (status.bestMoveWasSent == FALSE)
          {
-#ifdef DEBUG_GUI_CONVERSATION
-            logDebug("sending best move info on stop ...\n");
-#endif
             sendBestmoveInfo(getCurrentVariation());
          }
       }
@@ -969,10 +881,6 @@ static int processUciCommand(const char *command)
 
    if (strcmp(buffer, "ponderhit") == 0)
    {
-#ifdef DEBUG_GUI_CONVERSATION
-      logDebug("handling ponderhit...\n");
-#endif
-
       getGuiSearchMutex();
 
       status.engineIsPondering = FALSE;
@@ -982,28 +890,16 @@ static int processUciCommand(const char *command)
          if (getCurrentVariation()->terminateSearchOnPonderhit &&
              getCurrentVariation()->failingLow == FALSE)
          {
-#ifdef DEBUG_GUI_CONVERSATION
-            logDebug("immediate termination of pondering.\n");
-#endif
-
             prepareSearchAbort();
          }
          else
          {
-#ifdef DEBUG_GUI_CONVERSATION
-            logDebug("unsetting pondering mode.\n");
-#endif
-
             unsetPonderMode();
             startPostPonderCalculation();
          }
       }
       else
       {
-#ifdef DEBUG_GUI_CONVERSATION
-         logDebug("Pondering finished prematurely. Sending best move info\n");
-#endif
-
          sendBestmoveInfo(getCurrentVariation());
       }
 
@@ -1035,9 +931,6 @@ static int processUciCommand(const char *command)
          task.numberOfMoves = getLongUciValue(command, "mate", 1);
          status.operationMode = UCI_OPERATIONMODE_ANALYSIS;
 
-#ifdef   DEBUG_GUI_PROTOCOL
-         logDebug("Searching mate in %d", task.numberOfMoves);
-#endif
       }
       else if (getUciToken(command, "movetime") != 0)
       {
@@ -1110,8 +1003,6 @@ static int processUciCommand(const char *command)
 
       if (strlen(value) > 0)
       {
-         /* printf("key value: %s\n",value); */
-
          entry.key = getUnsignedLongLongFromHexString(value);
       }
       else
@@ -1123,8 +1014,6 @@ static int processUciCommand(const char *command)
 
       if (strlen(value) > 0)
       {
-         /* printf("data value: %s\n",value); */
-
          entry.data = getUnsignedLongLongFromHexString(value);
       }
       else
@@ -1159,8 +1048,6 @@ void acceptGuiCommands(void)
    bool finished = FALSE;
    char command[8192];
 
-   /* signal(SIGINT, SIG_IGN); */
-
    while (finished == FALSE)
    {
       if (fgets(command, sizeof(command), stdin) == NULL)
@@ -1171,21 +1058,9 @@ void acceptGuiCommands(void)
       {
          trim(command);
 
-#ifdef DEBUG_GUI_CONVERSATION
-         logDebug("\n### gui command: >%s<\n", command);
-#endif
-
          finished = (bool) (processUciCommand(command) == FALSE);
-
-#ifdef DEBUG_GUI_CONVERSATION
-         logDebug(">%s< processed.\n\n", command);
-#endif
       }
    }
-
-#ifdef   DEBUG_GUI_PROTOCOL
-   logDebug("GUI command processing terminated.\n");
-#endif
 }
 
 /******************************************************************************

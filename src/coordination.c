@@ -30,7 +30,6 @@
 #include <pthread.h>
 #include <time.h>
 
-/* #define DEBUG_COORDINATION */
 
 #define SEARCH_THREAD_STACK_SIZE (4 * 1024 * 1024)
 #define INITIAL_HASHTABLE_SIZE_MB 16
@@ -87,24 +86,12 @@ Variation *getCurrentVariation(void)
 
 void getGuiSearchMutex(void)
 {
-#ifdef DEBUG_COORDINATION
-   logDebug("aquiring search lock...\n");
-#endif
-
    pthread_mutex_lock(&guiSearchMutex);
-
-#ifdef DEBUG_COORDINATION
-   logDebug("search lock aquired...\n");
-#endif
 }
 
 void releaseGuiSearchMutex(void)
 {
    pthread_mutex_unlock(&guiSearchMutex);
-
-#ifdef DEBUG_COORDINATION
-   logDebug("search lock released...\n");
-#endif
 }
 
 static void performTaskSpecificSearch(Variation * currentVariation)
@@ -142,11 +129,6 @@ static int startSearch(Variation * currentVariation)
 {
    currentVariation->searchStatus = SEARCH_STATUS_RUNNING;
 
-#ifdef DEBUG_COORDINATION
-   logDebug("Search with thread #%d started.\n",
-            currentVariation->threadNumber);
-#endif
-
    performTaskSpecificSearch(currentVariation);
 
    currentTask->nodes = getNodeCount();
@@ -168,11 +150,6 @@ static int startSearch(Variation * currentVariation)
          pthread_cancel(timer);
       }
    }
-
-#ifdef DEBUG_COORDINATION
-   logDebug("Search thread #%d terminated.\n",
-            currentVariation->threadNumber);
-#endif
 
    currentVariation->searchStatus = SEARCH_STATUS_FINISHED;
 
@@ -219,9 +196,6 @@ int startTimerThread(const SearchTask * task)
       if (pthread_create(&timer, NULL, &watchTime, task->variation) == 0)
       {
          timerStarted = TRUE;
-#ifdef DEBUG_COORDINATION
-         logDebug("Timer thread started.\n");
-#endif
       }
       else
       {
@@ -267,9 +241,6 @@ int scheduleTask(SearchTask * task)
                          &executeSearch, currentVariation) == 0)
       {
          searchThreadStarted[threadCount] = TRUE;
-#ifdef DEBUG_COORDINATION
-         logDebug("Search thread #%d created.\n", threadCount);
-#endif
       }
       else
       {
@@ -295,9 +266,6 @@ void waitForSearchTermination(void)
       {
          pthread_join(searchThread[threadCount], NULL);
          searchThreadStarted[threadCount] = FALSE;
-#ifdef DEBUG_COORDINATION
-         logDebug("Task %d joined.\n", threadCount);
-#endif
       }
    }
 
@@ -306,9 +274,6 @@ void waitForSearchTermination(void)
    {
       pthread_join(timer, NULL);
       timerStarted = FALSE;
-#ifdef DEBUG_COORDINATION
-      logDebug("Timer thread joined.\n");
-#endif
    }
 }
 
@@ -316,9 +281,6 @@ void completeTask(SearchTask * task)
 {
    if (scheduleTask(task) == 0)
    {
-#ifdef DEBUG_COORDINATION
-      logDebug("Task scheduled. Waiting for completion.\n");
-#endif
       waitForSearchTermination();
    }
 }

@@ -221,17 +221,5 @@ int makeBlackMove(Variation * variation, const Move move)
 
    assert(checkVariation(variation) == 0);
 
-#ifdef TRACE_POSITIONS
-   if (variation->nodes >= POSITION_TRACE_START &&
-       variation->nodes <= POSITION_TRACE_START + POSITION_TRACE_QUANTITY)
-   {
-      char buffer[128];
-
-      getMoveDump(move, buffer, sizeof(buffer));
-      logDebug("pos %llu after %s: %llu\n",
-               variation->nodes, buffer, variation->singlePosition.hashKey);
-   }
-#endif
-
    return result;
 }

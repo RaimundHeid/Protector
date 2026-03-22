@@ -29,12 +29,6 @@
 #include "hash.h"
 #include "evaluation.h"
 
-/* #define TRACE_POSITIONS 1 */
-
-#ifdef TRACE_POSITIONS
-const int POSITION_TRACE_START = 4711;
-const int POSITION_TRACE_QUANTITY = 100;
-#endif
 
 const int VALUE_FACTOR = 26;
 const int VALUE_QUEEN = VALUE_FACTOR * 2538 / 100;
@@ -340,7 +334,6 @@ void addPvByScore(Variation * variation, PrincipalVariation * pv)
       }
    }
 
-   /* logDebug("move count on exit = %d\n", getPvlistMoveCount(variation, pv)); */
 }
 
 void resetPlyInfo(Variation * variation)

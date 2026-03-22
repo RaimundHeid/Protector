@@ -677,8 +677,6 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
       {
          Move move;
 
-         /*dumpPosition(variation->currentPosition); */
-
          if (debugOutput)
          {
             logDebug("Move token: >%s<\n", token);
@@ -1386,7 +1384,6 @@ static int testLoading(void)
    initializePGNGame(&game2);
    parseRoasterValues(gameText, &game2);
    generatedGameText = generatePgn(&game2);
-   /* logDebug("\n>%s<\n", generatedGameText); */
    assert(strcmp(gameText, generatedGameText) == 0);
 
    free(generatedGameText);
