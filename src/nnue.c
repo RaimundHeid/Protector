@@ -340,6 +340,302 @@ static void computeThreatAccumulator(Position* pos, Accumulator* acc, int p) {
     }
 }
 
+/* ===== Incremental threat accumulator update ===== */
+
+#define MAX_DIRTY_THREATS 256
+
+typedef struct {
+    Piece attacker;
+    Piece attacked;
+    uint8_t from;
+    uint8_t to;
+    bool add;
+} ThreatDirty;
+
+typedef struct {
+    ThreatDirty entries[MAX_DIRTY_THREATS];
+    int count;
+} ThreatDirtyList;
+
+static inline void pushThreatDirty(ThreatDirtyList* dl, Piece attacker, Square from,
+                                    Piece attacked, Square to, bool add) {
+    if (attacker == NO_PIECE || pieceType(attacker) == KING) return;
+    if (attacked == NO_PIECE || pieceType(attacked) == KING) return;
+    if (dl->count < MAX_DIRTY_THREATS) {
+        ThreatDirty* e = &dl->entries[dl->count++];
+        e->attacker = attacker;
+        e->attacked = attacked;
+        e->from = (uint8_t)from;
+        e->to   = (uint8_t)to;
+        e->add  = add;
+    }
+}
+
+/* Piece lookup with up to 2 square overrides */
+static inline Piece pcAt(Position* pos, Square sq,
+                          Square ov1, Piece pc1, Square ov2, Piece pc2) {
+    if (ov1 != NO_SQUARE && sq == ov1) return pc1;
+    if (ov2 != NO_SQUARE && sq == ov2) return pc2;
+    return pos->piece[sq];
+}
+
+/* Enumerate outgoing threats from pc at sq, using occ; victim lookup via pcAt */
+static void enumOutgoing(ThreatDirtyList* dl, Piece pc, Square sq, Bitboard occ,
+                          Square ov1, Piece pov1, Square ov2, Piece pov2,
+                          bool add, Position* pos) {
+    if (pc == NO_PIECE || pieceType(pc) == KING) return;
+    Bitboard attacks;
+    if (pieceType(pc) == PAWN) {
+        Color c = pieceColor(pc);
+        attacks = (c == WHITE) ? generalMoves[WHITE_PAWN][sq] : generalMoves[BLACK_PAWN][sq];
+    } else {
+        attacks = getMoves(sq, pc, occ);
+    }
+    attacks &= occ;
+    while (attacks) {
+        Square t = getLastSquare(&attacks);
+        pushThreatDirty(dl, pc, sq, pcAt(pos, t, ov1, pov1, ov2, pov2), t, add);
+    }
+}
+
+/* Enumerate incoming threats to victim_pc at sq from all attackers in occ.
+   skip_sq: skip this attacker square to avoid double-counting. */
+static void enumIncoming(ThreatDirtyList* dl, Piece victim_pc, Square sq, Bitboard occ,
+                           Square ov1, Piece pov1, Square ov2, Piece pov2,
+                           Square skip_sq, bool add, Position* pos) {
+    if (victim_pc == NO_PIECE || pieceType(victim_pc) == KING) return;
+    Bitboard bb;
+    Square asq;
+    Piece apc;
+
+    /* Knight attackers */
+    bb = getKnightMoves(sq) & occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        if (asq == skip_sq) continue;
+        apc = pcAt(pos, asq, ov1, pov1, ov2, pov2);
+        if (pieceType(apc) == KNIGHT) pushThreatDirty(dl, apc, asq, victim_pc, sq, add);
+    }
+
+    /* Pawn attackers: generalMoves[BLACK_PAWN][sq] gives white pawn squares attacking sq */
+    bb = generalMoves[BLACK_PAWN][sq] & occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        if (asq == skip_sq) continue;
+        apc = pcAt(pos, asq, ov1, pov1, ov2, pov2);
+        if (apc == WHITE_PAWN) pushThreatDirty(dl, apc, asq, victim_pc, sq, add);
+    }
+    bb = generalMoves[WHITE_PAWN][sq] & occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        if (asq == skip_sq) continue;
+        apc = pcAt(pos, asq, ov1, pov1, ov2, pov2);
+        if (apc == BLACK_PAWN) pushThreatDirty(dl, apc, asq, victim_pc, sq, add);
+    }
+
+    /* Ortho slider attackers (rook / queen) */
+    bb = getMoves(sq, WHITE_ROOK, occ) & occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        if (asq == skip_sq) continue;
+        apc = pcAt(pos, asq, ov1, pov1, ov2, pov2);
+        if (pieceType(apc) == ROOK || pieceType(apc) == QUEEN)
+            pushThreatDirty(dl, apc, asq, victim_pc, sq, add);
+    }
+
+    /* Diag slider attackers (bishop / queen) */
+    bb = getMoves(sq, WHITE_BISHOP, occ) & occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        if (asq == skip_sq) continue;
+        apc = pcAt(pos, asq, ov1, pov1, ov2, pov2);
+        if (pieceType(apc) == BISHOP || pieceType(apc) == QUEEN)
+            pushThreatDirty(dl, apc, asq, victim_pc, sq, add);
+    }
+}
+
+/* Slider discovery: vac_sq was just vacated.  For each slider that was attacking
+   vac_sq in old_occ, ADD the threat to the first piece now visible beyond vac_sq.
+   skip_target: skip revealed squares equal to this (handled elsewhere). */
+static void enumDiscoveries(ThreatDirtyList* dl, Square vac_sq,
+                              Bitboard old_occ, Bitboard new_occ,
+                              Square ov1, Piece pov1, Square skip_target,
+                              Position* pos) {
+    Bitboard bb;
+    Square asq;
+    Piece apc;
+
+    /* Ortho sliders */
+    bb = getMoves(vac_sq, WHITE_ROOK, old_occ) & old_occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        apc = pcAt(pos, asq, ov1, pov1, NO_SQUARE, NO_PIECE);
+        if (pieceType(apc) != ROOK && pieceType(apc) != QUEEN) continue;
+        if (!(new_occ & minValue[asq])) continue;     /* slider captured */
+        if (pos->piece[asq] != apc) continue;         /* slider replaced */
+        Bitboard revealed = getMoves(asq, WHITE_ROOK, new_occ)
+                            & squaresBehind[vac_sq][asq] & new_occ;
+        while (revealed) {
+            Square vsq = getLastSquare(&revealed);
+            if (vsq == skip_target) continue;
+            pushThreatDirty(dl, apc, asq, pos->piece[vsq], vsq, TRUE);
+        }
+    }
+
+    /* Diag sliders */
+    bb = getMoves(vac_sq, WHITE_BISHOP, old_occ) & old_occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        apc = pcAt(pos, asq, ov1, pov1, NO_SQUARE, NO_PIECE);
+        if (pieceType(apc) != BISHOP && pieceType(apc) != QUEEN) continue;
+        if (!(new_occ & minValue[asq])) continue;
+        if (pos->piece[asq] != apc) continue;
+        Bitboard revealed = getMoves(asq, WHITE_BISHOP, new_occ)
+                            & squaresBehind[vac_sq][asq] & new_occ;
+        while (revealed) {
+            Square vsq = getLastSquare(&revealed);
+            if (vsq == skip_target) continue;
+            pushThreatDirty(dl, apc, asq, pos->piece[vsq], vsq, TRUE);
+        }
+    }
+}
+
+/* Slider blocking: new_sq was just occupied (quiet move only; new_sq was empty in old_occ).
+   For each slider that now attacks new_sq, REMOVE the threat it had to the piece it was
+   previously attacking through new_sq.
+   skip_target: skip pieces-beyond equal to this (handled elsewhere). */
+static void enumBlockings(ThreatDirtyList* dl, Square new_sq,
+                           Bitboard old_occ, Bitboard new_occ,
+                           Square skip_target, Position* pos) {
+    Bitboard bb;
+    Square asq;
+    Piece apc;
+
+    /* Ortho sliders */
+    bb = getMoves(new_sq, WHITE_ROOK, new_occ) & new_occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        apc = pos->piece[asq];
+        if (pieceType(apc) != ROOK && pieceType(apc) != QUEEN) continue;
+        Bitboard blocked = getMoves(asq, WHITE_ROOK, old_occ)
+                           & squaresBehind[new_sq][asq] & old_occ;
+        while (blocked) {
+            Square vsq = getLastSquare(&blocked);
+            if (vsq == skip_target) continue;
+            pushThreatDirty(dl, apc, asq, pos->piece[vsq], vsq, FALSE);
+        }
+    }
+
+    /* Diag sliders */
+    bb = getMoves(new_sq, WHITE_BISHOP, new_occ) & new_occ;
+    while (bb) {
+        asq = getLastSquare(&bb);
+        apc = pos->piece[asq];
+        if (pieceType(apc) != BISHOP && pieceType(apc) != QUEEN) continue;
+        Bitboard blocked = getMoves(asq, WHITE_BISHOP, old_occ)
+                           & squaresBehind[new_sq][asq] & old_occ;
+        while (blocked) {
+            Square vsq = getLastSquare(&blocked);
+            if (vsq == skip_target) continue;
+            pushThreatDirty(dl, apc, asq, pos->piece[vsq], vsq, FALSE);
+        }
+    }
+}
+
+static void buildThreatDirtyList(
+    ThreatDirtyList* dl, Position* pos,
+    int added_cnt, Square* added_sq, Piece* added_pc,
+    int removed_cnt, Square* removed_sq, Piece* removed_pc)
+{
+    dl->count = 0;
+
+    Square from_sq   = removed_sq[0];
+    Piece  from_pc   = removed_pc[0];
+    Square to_sq     = added_sq[0];
+    Piece  new_pc    = added_pc[0];
+    bool   is_cap    = (removed_cnt > 1);
+    Piece  cap_pc    = is_cap ? removed_pc[1] : NO_PIECE;
+
+    /* Reconstruct old occupancy */
+    Bitboard new_occ = pos->allPieces;
+    Bitboard old_occ = new_occ | minValue[from_sq];
+    if (!is_cap) old_occ &= ~minValue[to_sq]; /* to_sq was empty before quiet move */
+
+    /* --- OLD threats to REMOVE --- */
+
+    /* (A) Outgoing from from_pc @ from_sq */
+    enumOutgoing(dl, from_pc, from_sq, old_occ,
+                 to_sq, cap_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
+
+    /* (B) Incoming to from_pc @ from_sq; skip to_sq (covered by C for captures,
+       absent in old_occ for quiet moves) */
+    enumIncoming(dl, from_pc, from_sq, old_occ,
+                 to_sq, cap_pc, NO_SQUARE, NO_PIECE,
+                 to_sq, FALSE, pos);
+
+    /* (C) Outgoing from cap_pc @ to_sq (capture only) */
+    if (is_cap) {
+        enumOutgoing(dl, cap_pc, to_sq, old_occ,
+                     from_sq, from_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
+    }
+
+    /* (D) Incoming to cap_pc @ to_sq; skip from_sq (already in A) */
+    if (is_cap) {
+        enumIncoming(dl, cap_pc, to_sq, old_occ,
+                     from_sq, from_pc, NO_SQUARE, NO_PIECE,
+                     from_sq, FALSE, pos);
+    }
+
+    /* (E) Slider blocking (quiet move only): sliders that passed through to_sq */
+    if (!is_cap) {
+        enumBlockings(dl, to_sq, old_occ, new_occ,
+                      from_sq, /* skip if piece-beyond was at from_sq (covered by B) */
+                      pos);
+    }
+
+    /* --- NEW threats to ADD --- */
+
+    /* (F) Outgoing from new_pc @ to_sq */
+    enumOutgoing(dl, new_pc, to_sq, new_occ,
+                 NO_SQUARE, NO_PIECE, NO_SQUARE, NO_PIECE, TRUE, pos);
+
+    /* (G) Incoming to new_pc @ to_sq; from_sq is empty in new_occ, no skip needed */
+    enumIncoming(dl, new_pc, to_sq, new_occ,
+                 NO_SQUARE, NO_PIECE, NO_SQUARE, NO_PIECE,
+                 NO_SQUARE, TRUE, pos);
+
+    /* (H) Slider discovery: from_sq vacated, sliders now see beyond it.
+       Skip revealed pieces at to_sq (covered by G). */
+    enumDiscoveries(dl, from_sq, old_occ, new_occ,
+                    to_sq, cap_pc, to_sq, pos);
+}
+
+static void applyThreatDirtyList(
+    const ThreatDirtyList* dl, Accumulator* next, Position* pos)
+{
+    for (int i = 0; i < dl->count; i++) {
+        const ThreatDirty* e = &dl->entries[i];
+        for (int p = 0; p < 2; p++) {
+            uint32_t idx = make_threat_index((Color)p,
+                                              e->attacker, (Square)e->from,
+                                              (Square)e->to, e->attacked,
+                                              pos->king[p]);
+            if (idx >= THREAT_INPUT_DIMENSIONS) continue;
+            if (e->add) {
+                for (int j = 0; j < L1_BIG; j++)
+                    next->big_threat_v[p][j] += big_ft_threat_weights[idx * L1_BIG + j];
+                for (int j = 0; j < 8; j++)
+                    next->big_threat_psqtAccumulation[p][j] += big_ft_threat_psqt_weights[idx * 8 + j];
+            } else {
+                for (int j = 0; j < L1_BIG; j++)
+                    next->big_threat_v[p][j] -= big_ft_threat_weights[idx * L1_BIG + j];
+                for (int j = 0; j < 8; j++)
+                    next->big_threat_psqtAccumulation[p][j] -= big_ft_threat_psqt_weights[idx * 8 + j];
+            }
+        }
+    }
+}
+
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
         for (int i = 0; i < L1_SMALL; i++) acc->small_v[p][i] = small_ft_biases[i];
@@ -376,10 +672,10 @@ void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_cou
     for (int p = 0; p < 2; p++) {
         memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
         memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
-        memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+        memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
         memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
         memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
-        memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+        memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
 
         for (int j = 0; j < removed_count; j++) {
             int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
@@ -397,9 +693,11 @@ void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_cou
             for (int i = 0; i < L1_BIG; i++) next->big_v[p][i] += big_ft_weights[idx * L1_BIG + i];
             for (int i = 0; i < 8; i++) next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
         }
-
-        computeThreatAccumulator(pos, next, p);
     }
+
+    ThreatDirtyList dl;
+    buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
+    applyThreatDirtyList(&dl, next, pos);
 }
 
 static const uint8_t* read_data;
