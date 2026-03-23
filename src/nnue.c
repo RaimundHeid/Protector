@@ -93,6 +93,33 @@ static void transform_big(const int16_t* restrict bv0, const int16_t* restrict t
     }
 }
 
+// L2 forward pass helpers (AVX2): uint8 input × int8 weights → int32 output
+// Transformed values are in [0,127] so uint8 × int8 uses _mm256_maddubs_epi16 safely.
+// n must be a multiple of 32; input and weights must be 32-byte aligned.
+static inline int32_t dot_u8s8(const uint8_t* restrict a, const int8_t* restrict b, int n) {
+    const __m256i ones = _mm256_set1_epi16(1);
+    __m256i acc = _mm256_setzero_si256();
+    for (int i = 0; i < n; i += 32) {
+        __m256i va = _mm256_load_si256((const __m256i*)(a + i));
+        __m256i vb = _mm256_load_si256((const __m256i*)(b + i));
+        __m256i p  = _mm256_maddubs_epi16(va, vb);
+        acc = _mm256_add_epi32(acc, _mm256_madd_epi16(p, ones));
+    }
+    __m128i lo = _mm256_castsi256_si128(acc);
+    __m128i hi = _mm256_extracti128_si256(acc, 1);
+    __m128i s  = _mm_add_epi32(lo, hi);
+    s = _mm_add_epi32(s, _mm_shuffle_epi32(s, _MM_SHUFFLE(1, 0, 3, 2)));
+    s = _mm_add_epi32(s, _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 3, 0, 1)));
+    return _mm_cvtsi128_si32(s);
+}
+
+static void fc_u8s8(int32_t* restrict out, const int32_t* restrict bias,
+                    const uint8_t* restrict input, const int8_t* restrict weights,
+                    int n_in, int n_out) {
+    for (int i = 0; i < n_out; i++)
+        out[i] = bias[i] + dot_u8s8(input, weights + i * n_in, n_in);
+}
+
 #elif defined(__ARM_NEON)
 
 static inline void add_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
@@ -155,6 +182,30 @@ static void transform_big(const int16_t* restrict bv0, const int16_t* restrict t
     }
 }
 
+// L2 forward pass helpers (NEON): uint8 input × int8 weights → int32 output
+// Transformed values are in [0,127], so reinterpreting uint8 as int8 is safe.
+// n must be a multiple of 16.
+static inline int32_t dot_u8s8(const uint8_t* restrict a, const int8_t* restrict b, int n) {
+    int32x4_t acc = vdupq_n_s32(0);
+    for (int i = 0; i < n; i += 16) {
+        int8x8_t va_lo = vreinterpret_s8_u8(vld1_u8(a + i));
+        int8x8_t va_hi = vreinterpret_s8_u8(vld1_u8(a + i + 8));
+        int8x8_t vb_lo = vld1_s8(b + i);
+        int8x8_t vb_hi = vld1_s8(b + i + 8);
+        acc = vpadalq_s16(acc, vmull_s8(va_lo, vb_lo));
+        acc = vpadalq_s16(acc, vmull_s8(va_hi, vb_hi));
+    }
+    int32x2_t s2 = vadd_s32(vget_low_s32(acc), vget_high_s32(acc));
+    return vget_lane_s32(vpadd_s32(s2, s2), 0);
+}
+
+static void fc_u8s8(int32_t* restrict out, const int32_t* restrict bias,
+                    const uint8_t* restrict input, const int8_t* restrict weights,
+                    int n_in, int n_out) {
+    for (int i = 0; i < n_out; i++)
+        out[i] = bias[i] + dot_u8s8(input, weights + i * n_in, n_in);
+}
+
 #else
 
 static inline void add_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
@@ -200,6 +251,23 @@ static void transform_big(const int16_t* restrict bv0, const int16_t* restrict t
             int32_t c1 = max(0, min(255, v1));
             out[p * (L1_BIG / 2) + i] = (uint8_t)((c0 * c1) / 512);
         }
+    }
+}
+
+// L2 forward pass helpers (scalar fallback)
+static inline int32_t dot_u8s8(const uint8_t* restrict a, const int8_t* restrict b, int n) {
+    int32_t s = 0;
+    for (int i = 0; i < n; i++) s += (int32_t)a[i] * b[i];
+    return s;
+}
+
+static void fc_u8s8(int32_t* restrict out, const int32_t* restrict bias,
+                    const uint8_t* restrict input, const int8_t* restrict weights,
+                    int n_in, int n_out) {
+    for (int i = 0; i < n_out; i++) {
+        int32_t s = bias[i];
+        for (int j = 0; j < n_in; j++) s += (int32_t)input[j] * weights[i * n_in + j];
+        out[i] = s;
     }
 }
 
@@ -1086,40 +1154,26 @@ void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * ps
     transform_small(acc->small_v[side], acc->small_v[!side], transformed);
 
     int32_t fc0_out[L2_SMALL + 1];
-    for (int i = 0; i <= L2_SMALL; i++) {
-        fc0_out[i] = small_fc0_biases[bucket][i];
-    }
-    for (int j = 0; j < L1_SMALL; j++) {
-        int32_t val = transformed[j];
-        if (val == 0) continue;
-        for (int i = 0; i <= L2_SMALL; i++) {
-            fc0_out[i] += val * small_fc0_weights[bucket][i * L1_SMALL + j];
-        }
-    }
+    fc_u8s8(fc0_out, small_fc0_biases[bucket], transformed,
+            small_fc0_weights[bucket], L1_SMALL, L2_SMALL + 1);
 
-    int32_t ac0_out[32] = {0}; 
+    // Pack activations to uint8 (values bounded to [0,127]); zero-fill padding to 32.
+    uint8_t ac0_packed[32] __attribute__((aligned(64))) = {0};
     for (int i = 0; i < L2_SMALL; i++) {
-        ac0_out[i] = sqr_clipped_relu(fc0_out[i]);
-        ac0_out[L2_SMALL + i] = clipped_relu(fc0_out[i] >> 6);
+        ac0_packed[i]            = (uint8_t)sqr_clipped_relu(fc0_out[i]);
+        ac0_packed[L2_SMALL + i] = (uint8_t)clipped_relu(fc0_out[i] >> 6);
     }
 
     int32_t fc1_out[L3_SMALL];
-    for (int i = 0; i < L3_SMALL; i++) {
-        fc1_out[i] = small_fc1_biases[bucket][i];
-        for (int j = 0; j < 2 * L2_SMALL; j++) {
-            fc1_out[i] += ac0_out[j] * small_fc1_weights[bucket][i * 32 + j];
-        }
-    }
+    fc_u8s8(fc1_out, small_fc1_biases[bucket], ac0_packed,
+            small_fc1_weights[bucket], 32, L3_SMALL);
 
-    int32_t ac1_out[L3_SMALL];
-    for (int i = 0; i < L3_SMALL; i++) {
-        ac1_out[i] = clipped_relu(fc1_out[i] >> 6);
-    }
+    uint8_t ac1_packed[32] __attribute__((aligned(64)));
+    for (int i = 0; i < L3_SMALL; i++)
+        ac1_packed[i] = (uint8_t)clipped_relu(fc1_out[i] >> 6);
 
-    int32_t fc2_out = small_fc2_biases[bucket][0];
-    for (int i = 0; i < L3_SMALL; i++) {
-        fc2_out += ac1_out[i] * small_fc2_weights[bucket][i];
-    }
+    int32_t fc2_out = small_fc2_biases[bucket][0] +
+        dot_u8s8(ac1_packed, small_fc2_weights[bucket], L3_SMALL);
 
     int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_SMALL] * (600 * 16) / (127 * 64));
     if (positional_out) *positional_out = (fc2_out + fwdOut) / 16;
@@ -1157,40 +1211,26 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
                   acc->big_v[!side], acc->big_threat_v[!side], transformed);
 
     int32_t fc0_out[L2_BIG + 1];
-    for (int i = 0; i <= L2_BIG; i++) {
-        fc0_out[i] = big_fc0_biases[bucket][i];
-    }
-    for (int j = 0; j < L1_BIG; j++) {
-        int32_t val = transformed[j];
-        if (val == 0) continue;
-        for (int i = 0; i <= L2_BIG; i++) {
-            fc0_out[i] += val * big_fc0_weights[bucket][i * L1_BIG + j];
-        }
-    }
+    fc_u8s8(fc0_out, big_fc0_biases[bucket], transformed,
+            big_fc0_weights[bucket], L1_BIG, L2_BIG + 1);
 
-    int32_t ac0_out[64] = {0}; 
+    // Pack activations to uint8 (values bounded to [0,127]); zero-fill padding to 64.
+    uint8_t ac0_packed[64] __attribute__((aligned(64))) = {0};
     for (int i = 0; i < L2_BIG; i++) {
-        ac0_out[i] = sqr_clipped_relu(fc0_out[i]);
-        ac0_out[L2_BIG + i] = clipped_relu(fc0_out[i] >> 6);
+        ac0_packed[i]          = (uint8_t)sqr_clipped_relu(fc0_out[i]);
+        ac0_packed[L2_BIG + i] = (uint8_t)clipped_relu(fc0_out[i] >> 6);
     }
 
     int32_t fc1_out[L3_BIG];
-    for (int i = 0; i < L3_BIG; i++) {
-        fc1_out[i] = big_fc1_biases[bucket][i];
-        for (int j = 0; j < 2 * L2_BIG; j++) {
-            fc1_out[i] += (int32_t)ac0_out[j] * big_fc1_weights[bucket][i * 64 + j];
-        }
-    }
+    fc_u8s8(fc1_out, big_fc1_biases[bucket], ac0_packed,
+            big_fc1_weights[bucket], 64, L3_BIG);
 
-    int32_t ac1_out[L3_BIG];
-    for (int i = 0; i < L3_BIG; i++) {
-        ac1_out[i] = clipped_relu(fc1_out[i] >> 6);
-    }
+    uint8_t ac1_packed[32] __attribute__((aligned(64)));
+    for (int i = 0; i < L3_BIG; i++)
+        ac1_packed[i] = (uint8_t)clipped_relu(fc1_out[i] >> 6);
 
-    int32_t fc2_out = big_fc2_biases[bucket][0];
-    for (int i = 0; i < L3_BIG; i++) {
-        fc2_out += ac1_out[i] * big_fc2_weights[bucket][i];
-    }
+    int32_t fc2_out = big_fc2_biases[bucket][0] +
+        dot_u8s8(ac1_packed, big_fc2_weights[bucket], L3_BIG);
 
     int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_BIG] * (600 * 16) / (127 * 64));
     if (positional_out) *positional_out = (fc2_out + fwdOut) / 16;
