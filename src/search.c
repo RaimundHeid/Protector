@@ -1825,12 +1825,10 @@ static void initializeArrays(void) {
    for (i = 0; i < 32; i++) {
       quietMoveCountLimit[0][i] = (int) (2.4 + 0.228 * pow(i, 1.7908));
       quietMoveCountLimit[1][i] = (int) (3.1 + 0.344 * pow(i + 0.78, 1.7908));
-
    }
 
    for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++) {
-      futilityMargin[i] = (1960 * i) / 64 - 27;
-
+      futilityMargin[i] = (1957 * i) / 64 - 27;
    }
 }
 
