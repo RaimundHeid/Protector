@@ -6,11 +6,206 @@
 #if defined(__x86_64__)
 #include <immintrin.h>
 #endif
+#if defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
 
 #include "nnue.h"
 #include "tools.h"
 #include "position.h"
 #include "io.h"
+
+// ===== SIMD helpers for L1 accumulator operations =====
+
+#if defined(__AVX2__)
+
+static inline void add_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        __m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+        __m256i b = _mm256_load_si256((const __m256i*)(w + i));
+        _mm256_store_si256((__m256i*)(acc + i), _mm256_add_epi16(a, b));
+    }
+}
+
+static inline void sub_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        __m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+        __m256i b = _mm256_load_si256((const __m256i*)(w + i));
+        _mm256_store_si256((__m256i*)(acc + i), _mm256_sub_epi16(a, b));
+    }
+}
+
+static inline void add_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        __m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+        __m128i b8 = _mm_load_si128((const __m128i*)(w + i));
+        _mm256_store_si256((__m256i*)(acc + i), _mm256_add_epi16(a, _mm256_cvtepi8_epi16(b8)));
+    }
+}
+
+static inline void sub_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        __m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+        __m128i b8 = _mm_load_si128((const __m128i*)(w + i));
+        _mm256_store_si256((__m256i*)(acc + i), _mm256_sub_epi16(a, _mm256_cvtepi8_epi16(b8)));
+    }
+}
+
+static void transform_small(const int16_t* restrict acc0, const int16_t* restrict acc1, uint8_t* restrict out) {
+    const __m256i zero   = _mm256_setzero_si256();
+    const __m256i max255 = _mm256_set1_epi16(255);
+    const int16_t* sides[2] = {acc0, acc1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* acc = sides[p];
+        for (int i = 0; i < L1_SMALL / 2; i += 16) {
+            __m256i v0 = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256((const __m256i*)(acc + i)), zero), max255);
+            __m256i v1 = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256((const __m256i*)(acc + L1_SMALL / 2 + i)), zero), max255);
+            __m256i prod = _mm256_srli_epi16(_mm256_mullo_epi16(v0, v1), 9);
+            __m128i lo = _mm256_castsi256_si128(prod);
+            __m128i hi = _mm256_extracti128_si256(prod, 1);
+            _mm_store_si128((__m128i*)(out + p * (L1_SMALL / 2) + i), _mm_packus_epi16(lo, hi));
+        }
+    }
+}
+
+static void transform_big(const int16_t* restrict bv0, const int16_t* restrict tv0,
+                           const int16_t* restrict bv1, const int16_t* restrict tv1,
+                           uint8_t* restrict out) {
+    const __m256i zero   = _mm256_setzero_si256();
+    const __m256i max255 = _mm256_set1_epi16(255);
+    const int16_t* bvsides[2] = {bv0, bv1};
+    const int16_t* tvsides[2] = {tv0, tv1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* bv = bvsides[p];
+        const int16_t* tv = tvsides[p];
+        for (int i = 0; i < L1_BIG / 2; i += 16) {
+            __m256i v0 = _mm256_min_epi16(_mm256_max_epi16(
+                _mm256_add_epi16(_mm256_load_si256((const __m256i*)(bv + i)),
+                                 _mm256_load_si256((const __m256i*)(tv + i))), zero), max255);
+            __m256i v1 = _mm256_min_epi16(_mm256_max_epi16(
+                _mm256_add_epi16(_mm256_load_si256((const __m256i*)(bv + L1_BIG / 2 + i)),
+                                 _mm256_load_si256((const __m256i*)(tv + L1_BIG / 2 + i))), zero), max255);
+            __m256i prod = _mm256_srli_epi16(_mm256_mullo_epi16(v0, v1), 9);
+            __m128i lo = _mm256_castsi256_si128(prod);
+            __m128i hi = _mm256_extracti128_si256(prod, 1);
+            _mm_store_si128((__m128i*)(out + p * (L1_BIG / 2) + i), _mm_packus_epi16(lo, hi));
+        }
+    }
+}
+
+#elif defined(__ARM_NEON)
+
+static inline void add_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 8)
+        vst1q_s16(acc + i, vaddq_s16(vld1q_s16(acc + i), vld1q_s16(w + i)));
+}
+
+static inline void sub_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 8)
+        vst1q_s16(acc + i, vsubq_s16(vld1q_s16(acc + i), vld1q_s16(w + i)));
+}
+
+static inline void add_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        int8x16_t b = vld1q_s8(w + i);
+        vst1q_s16(acc + i,     vaddq_s16(vld1q_s16(acc + i),     vmovl_s8(vget_low_s8(b))));
+        vst1q_s16(acc + i + 8, vaddq_s16(vld1q_s16(acc + i + 8), vmovl_s8(vget_high_s8(b))));
+    }
+}
+
+static inline void sub_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i += 16) {
+        int8x16_t b = vld1q_s8(w + i);
+        vst1q_s16(acc + i,     vsubq_s16(vld1q_s16(acc + i),     vmovl_s8(vget_low_s8(b))));
+        vst1q_s16(acc + i + 8, vsubq_s16(vld1q_s16(acc + i + 8), vmovl_s8(vget_high_s8(b))));
+    }
+}
+
+static void transform_small(const int16_t* restrict acc0, const int16_t* restrict acc1, uint8_t* restrict out) {
+    const int16x8_t vmax  = vdupq_n_s16(255);
+    const int16x8_t vzero = vdupq_n_s16(0);
+    const int16_t* sides[2] = {acc0, acc1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* acc = sides[p];
+        for (int i = 0; i < L1_SMALL / 2; i += 8) {
+            int16x8_t v0 = vminq_s16(vmaxq_s16(vld1q_s16(acc + i), vzero), vmax);
+            int16x8_t v1 = vminq_s16(vmaxq_s16(vld1q_s16(acc + L1_SMALL / 2 + i), vzero), vmax);
+            uint16x8_t prod = vshrq_n_u16(vmulq_u16(vreinterpretq_u16_s16(v0), vreinterpretq_u16_s16(v1)), 9);
+            vst1_u8(out + p * (L1_SMALL / 2) + i, vmovn_u16(prod));
+        }
+    }
+}
+
+static void transform_big(const int16_t* restrict bv0, const int16_t* restrict tv0,
+                           const int16_t* restrict bv1, const int16_t* restrict tv1,
+                           uint8_t* restrict out) {
+    const int16x8_t vmax  = vdupq_n_s16(255);
+    const int16x8_t vzero = vdupq_n_s16(0);
+    const int16_t* bvsides[2] = {bv0, bv1};
+    const int16_t* tvsides[2] = {tv0, tv1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* bv = bvsides[p];
+        const int16_t* tv = tvsides[p];
+        for (int i = 0; i < L1_BIG / 2; i += 8) {
+            int16x8_t v0 = vminq_s16(vmaxq_s16(vaddq_s16(vld1q_s16(bv + i), vld1q_s16(tv + i)), vzero), vmax);
+            int16x8_t v1 = vminq_s16(vmaxq_s16(vaddq_s16(vld1q_s16(bv + L1_BIG / 2 + i), vld1q_s16(tv + L1_BIG / 2 + i)), vzero), vmax);
+            uint16x8_t prod = vshrq_n_u16(vmulq_u16(vreinterpretq_u16_s16(v0), vreinterpretq_u16_s16(v1)), 9);
+            vst1_u8(out + p * (L1_BIG / 2) + i, vmovn_u16(prod));
+        }
+    }
+}
+
+#else
+
+static inline void add_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i++) acc[i] += w[i];
+}
+
+static inline void sub_weights_int16(int16_t* restrict acc, const int16_t* restrict w, int n) {
+    for (int i = 0; i < n; i++) acc[i] -= w[i];
+}
+
+static inline void add_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i++) acc[i] += w[i];
+}
+
+static inline void sub_weights_int8_to_int16(int16_t* restrict acc, const int8_t* restrict w, int n) {
+    for (int i = 0; i < n; i++) acc[i] -= w[i];
+}
+
+static void transform_small(const int16_t* restrict acc0, const int16_t* restrict acc1, uint8_t* restrict out) {
+    const int16_t* sides[2] = {acc0, acc1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* acc = sides[p];
+        for (int i = 0; i < L1_SMALL / 2; i++) {
+            int32_t c0 = max(0, min(255, (int32_t)acc[i]));
+            int32_t c1 = max(0, min(255, (int32_t)acc[L1_SMALL / 2 + i]));
+            out[p * (L1_SMALL / 2) + i] = (uint8_t)((c0 * c1) / 512);
+        }
+    }
+}
+
+static void transform_big(const int16_t* restrict bv0, const int16_t* restrict tv0,
+                           const int16_t* restrict bv1, const int16_t* restrict tv1,
+                           uint8_t* restrict out) {
+    const int16_t* bvsides[2] = {bv0, bv1};
+    const int16_t* tvsides[2] = {tv0, tv1};
+    for (int p = 0; p < 2; p++) {
+        const int16_t* bv = bvsides[p];
+        const int16_t* tv = tvsides[p];
+        for (int i = 0; i < L1_BIG / 2; i++) {
+            int32_t v0 = (int32_t)bv[i] + tv[i];
+            int32_t v1 = (int32_t)bv[L1_BIG / 2 + i] + tv[L1_BIG / 2 + i];
+            int32_t c0 = max(0, min(255, v0));
+            int32_t c1 = max(0, min(255, v1));
+            out[p * (L1_BIG / 2) + i] = (uint8_t)((c0 * c1) / 512);
+        }
+    }
+}
+
+#endif
+
+// ===== End SIMD helpers =====
 
 // Constants from Stockfish
 static const uint32_t NNUE_VERSION = 0x7AF32F20u;
@@ -331,7 +526,7 @@ static void computeThreatAccumulator(Position* pos, Accumulator* acc, int p) {
                     Piece attacked = pos->piece[to];
                     uint32_t idx = make_threat_index(p, attacker, from, to, attacked, ksq);
                     if (idx < THREAT_INPUT_DIMENSIONS) {
-                        for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] += big_ft_threat_weights[idx * L1_BIG + i];
+                        add_weights_int8_to_int16(acc->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
                         for (int i = 0; i < 8; i++) acc->big_threat_psqtAccumulation[p][i] += big_ft_threat_psqt_weights[idx * 8 + i];
                     }
                 }
@@ -626,13 +821,11 @@ static void applyThreatDirtyList(
                                               pos->king[p]);
             if (idx >= THREAT_INPUT_DIMENSIONS) continue;
             if (e->add) {
-                for (int j = 0; j < L1_BIG; j++)
-                    next->big_threat_v[p][j] += big_ft_threat_weights[idx * L1_BIG + j];
+                add_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
                 for (int j = 0; j < 8; j++)
                     next->big_threat_psqtAccumulation[p][j] += big_ft_threat_psqt_weights[idx * 8 + j];
             } else {
-                for (int j = 0; j < L1_BIG; j++)
-                    next->big_threat_v[p][j] -= big_ft_threat_weights[idx * L1_BIG + j];
+                sub_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
                 for (int j = 0; j < 8; j++)
                     next->big_threat_psqtAccumulation[p][j] -= big_ft_threat_psqt_weights[idx * 8 + j];
             }
@@ -642,9 +835,9 @@ static void applyThreatDirtyList(
 
 void refreshAccumulator(Position* pos, Accumulator* acc) {
     for (int p = 0; p < 2; p++) {
-        for (int i = 0; i < L1_SMALL; i++) acc->small_v[p][i] = small_ft_biases[i];
-        for (int i = 0; i < L1_BIG; i++) acc->big_v[p][i] = big_ft_biases[i];
-        for (int i = 0; i < L1_BIG; i++) acc->big_threat_v[p][i] = 0;
+        memcpy(acc->small_v[p], small_ft_biases, sizeof(int16_t) * L1_SMALL);
+        memcpy(acc->big_v[p], big_ft_biases, sizeof(int16_t) * L1_BIG);
+        memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
         memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
@@ -655,9 +848,9 @@ void refreshAccumulator(Position* pos, Accumulator* acc) {
             if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
                 if (idx < 0) continue;
-                for (int i = 0; i < L1_SMALL; i++) acc->small_v[p][i] += small_ft_weights[idx * L1_SMALL + i];
+                add_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
                 for (int i = 0; i < 8; i++) acc->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
-                for (int i = 0; i < L1_BIG; i++) acc->big_v[p][i] += big_ft_weights[idx * L1_BIG + i];
+                add_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
                 for (int i = 0; i < 8; i++) acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
             }
         }
@@ -684,17 +877,17 @@ void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_cou
         for (int j = 0; j < removed_count; j++) {
             int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
             if (idx < 0) continue;
-            for (int i = 0; i < L1_SMALL; i++) next->small_v[p][i] -= small_ft_weights[idx * L1_SMALL + i];
+            sub_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
             for (int i = 0; i < 8; i++) next->small_psqtAccumulation[p][i] -= small_ft_psqt_weights[idx * 8 + i];
-            for (int i = 0; i < L1_BIG; i++) next->big_v[p][i] -= big_ft_weights[idx * L1_BIG + i];
+            sub_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
             for (int i = 0; i < 8; i++) next->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
         }
         for (int j = 0; j < added_count; j++) {
             int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
             if (idx < 0) continue;
-            for (int i = 0; i < L1_SMALL; i++) next->small_v[p][i] += small_ft_weights[idx * L1_SMALL + i];
+            add_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
             for (int i = 0; i < 8; i++) next->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
-            for (int i = 0; i < L1_BIG; i++) next->big_v[p][i] += big_ft_weights[idx * L1_BIG + i];
+            add_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
             for (int i = 0; i < 8; i++) next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
         }
     }
@@ -889,17 +1082,8 @@ void evaluateNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int * ps
     // PSQT part: (psqtAccumulation[side] - psqtAccumulation[!side]) / 2
     int32_t psqt = (acc->small_psqtAccumulation[side][bucket] - acc->small_psqtAccumulation[!side][bucket]) / 2;
 
-    uint8_t transformed[L1_SMALL] __attribute__((aligned(64))); 
-    for (int p = 0; p < 2; p++) {
-        Color perspective = (p == 0 ? side : !side);
-        for (int i = 0; i < L1_SMALL / 2; i++) {
-            int16_t v0 = acc->small_v[perspective][i];
-            int16_t v1 = acc->small_v[perspective][L1_SMALL / 2 + i];
-            int32_t c0 = max(0, min(255, v0));
-            int32_t c1 = max(0, min(255, v1));
-            transformed[p * (L1_SMALL / 2) + i] = (uint8_t)((c0 * c1) / 512);
-        }
-    }
+    uint8_t transformed[L1_SMALL] __attribute__((aligned(64)));
+    transform_small(acc->small_v[side], acc->small_v[!side], transformed);
 
     int32_t fc0_out[L2_SMALL + 1];
     for (int i = 0; i <= L2_SMALL; i++) {
@@ -968,17 +1152,9 @@ void evaluateBigNnueWithAccumulatorFull(Position * pos, Accumulator * acc, int *
     psqt += (acc->big_threat_psqtAccumulation[side][bucket] - acc->big_threat_psqtAccumulation[!side][bucket]);
     psqt /= 2;
 
-    uint8_t transformed[L1_BIG] __attribute__((aligned(64))); 
-    for (int p = 0; p < 2; p++) {
-        Color perspective = (p == 0 ? side : !side);
-        for (int i = 0; i < L1_BIG / 2; i++) {
-            int32_t v0 = acc->big_v[perspective][i] + acc->big_threat_v[perspective][i];
-            int32_t v1 = acc->big_v[perspective][L1_BIG / 2 + i] + acc->big_threat_v[perspective][L1_BIG / 2 + i];
-            int32_t c0 = max(0, min(255, v0));
-            int32_t c1 = max(0, min(255, v1));
-            transformed[p * (L1_BIG / 2) + i] = (uint8_t)((c0 * c1) / 512);
-        }
-    }
+    uint8_t transformed[L1_BIG] __attribute__((aligned(64)));
+    transform_big(acc->big_v[side], acc->big_threat_v[side],
+                  acc->big_v[!side], acc->big_threat_v[!side], transformed);
 
     int32_t fc0_out[L2_BIG + 1];
     for (int i = 0; i <= L2_BIG; i++) {
