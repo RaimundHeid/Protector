@@ -355,6 +355,7 @@ typedef struct {
 typedef struct {
     ThreatDirty entries[MAX_DIRTY_THREATS];
     int count;
+    bool overflow;
 } ThreatDirtyList;
 
 static inline void pushThreatDirty(ThreatDirtyList* dl, Piece attacker, Square from,
@@ -368,6 +369,8 @@ static inline void pushThreatDirty(ThreatDirtyList* dl, Piece attacker, Square f
         e->from = (uint8_t)from;
         e->to   = (uint8_t)to;
         e->add  = add;
+    } else {
+        dl->overflow = TRUE;
     }
 }
 
@@ -548,6 +551,7 @@ static void buildThreatDirtyList(
     int removed_cnt, Square* removed_sq, Piece* removed_pc)
 {
     dl->count = 0;
+    dl->overflow = FALSE;
 
     Square from_sq   = removed_sq[0];
     Piece  from_pc   = removed_pc[0];
@@ -697,7 +701,11 @@ void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_cou
 
     ThreatDirtyList dl;
     buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
-    applyThreatDirtyList(&dl, next, pos);
+    if (dl.overflow) {
+        refreshAccumulator(pos, next);
+    } else {
+        applyThreatDirtyList(&dl, next, pos);
+    }
 }
 
 static const uint8_t* read_data;
