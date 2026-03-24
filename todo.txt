@@ -2,29 +2,65 @@
 
 Listed in order of likely performance impact.
 
-1. **Weight Permutation & Implicit Clipping (High Impact)**
-   - Pre-permute Feature Transformer weights to match SIMD layout (especially `packus` order).
-   - Scale weights by 2 and use `mulhi` with pre-shifting to perform activation (CliSqrReLU) and scaling in fewer instructions.
-   - Leverage `packus` for implicit clipping to zero, avoiding `vec_max_16(v, zero)`.
+1. **Eliminate Large Memcpys (High Impact)**
+   - `updateAccumulator` currently issues 6 separate `memcpy` calls per move covering ~8.5 KB total
+     (small_v + big_v + big_threat_v, each 2 × their L1 size in int16_t, plus PSQT arrays).
+   - Use pointer swapping between stack frames where possible to avoid copying entirely.
+   - For the remaining copies, consider a single contiguous `memcpy` of the whole Accumulator struct
+     rather than six separate calls, to give the allocator/prefetcher a single large request.
 
-2. **Advanced SIMD & VNNI (High Impact)**
-   - Implement AVX-512 and AVX2-VNNI support.
-   - Use dot-product instructions (`_mm256_dpbusd_epi32` or `vdotq_s32` on NEON) for fully connected layers.
-   - Use template metaprogramming (if moving to C++) or more aggressive macro specialization to generate fused Add/Sub loops.
+2. **Accumulator Caching (Finny Tables) (High Impact)**
+   - Implement a per-thread cache for accumulators indexed by king bucket (not just king square;
+     the code already tracks buckets via `kingStaysInSameBucket()` and `LAYER_STACKS 8`).
+   - When a king move breaks the incremental update path, look up the cached accumulator for the
+     new bucket and update from there instead of doing a full refresh from scratch.
+   - Particularly valuable for the wide big/big_threat nets (L1 = 1024).
 
-3. **Accumulator Caching (Finny Tables) (Medium-High Impact)**
-   - Implement a per-thread cache for accumulators indexed by king square.
-   - This allows fast "refresh" when the incremental update path is broken or when returning to a previous king square.
+3. **Lazy Evaluation / Deferred NNUE (High Impact)**
+   - Before running the full NNUE forward pass, compute a fast PSQT-only score (the PSQT
+     accumulators are already maintained separately).
+   - If that score already falls outside the alpha-beta window by a sufficient margin, skip the
+     full forward pass entirely.
+   - Saves the entire L1→L2→L3 pipeline for the big net on positions that won't affect the search.
 
-4. **Eliminate Large Memcpys (Medium-High Impact)**
-   - Avoid `memcpy` of the entire Accumulator (4KB+) in `updateAccumulator`.
-   - Use a more granular update strategy or pointer swapping where possible.
+4. **Double Incremental Updates (Medium-High Impact)**
+   - Apply the add/sub feature lists for two consecutive moves in a single pass over the
+     accumulator, deferring the intermediate `memcpy` until the result is actually needed.
+   - This is distinct from computing two moves "at once"; the gain comes from eliminating one
+     full accumulator copy on the critical path.
 
-5. **Double Incremental Updates (Medium Impact)**
-   - Implement the ability to update the accumulator for two moves simultaneously (e.g., in search or when handling captures). This improves cache locality.
+5. **Advanced SIMD & VNNI (Medium-High Impact)**
+   - Add AVX-VNNI (`_mm256_dpbusd_epi32`) and AVX-512-VNNI support; detect them separately
+     at runtime since they have different CPUID bits.
+   - Use NEON dot-product (`vdotq_s32`) on ARM for the L2/L3 fully connected layers.
+   - Replace C++-style template specialization references with macro-based or `_Generic`
+     dispatch (this is a C project).
 
-6. **SIMD PSQT Updates (Medium Impact)**
-   - Integrate PSQT accumulation into the main Feature Transformer SIMD loops instead of using separate scalar loops.
+6. **Weight Permutation & Implicit Clipping (Medium Impact)**
+   - Pre-permute Feature Transformer weights to match the SIMD layout expected by `packus`.
+   - `_mm_packus_epi16` is already used at the narrow step in `transform_small`/`transform_big`,
+     but clipping is still done with explicit `_mm256_min_epi16` / `_mm256_max_epi16` pairs.
+     Restructure so that `packus` performs the clip implicitly, removing those two instructions
+     per loop iteration.
+   - The activation is SCReLU (Squared Clipped ReLU): clip to [0, 255], multiply the two
+     halves, shift right by 9. Use this consistent name throughout comments and documentation.
 
-7. **Tiling & Register Optimization (Low-Medium Impact)**
-   - Use architecture-specific tiling to ensure data fits in SIMD registers during accumulation, minimizing memory stalls.
+7. **Batched fc_u8s8 / Tiled Output (Medium Impact)**
+   - `fc_u8s8` currently computes each output neuron independently, re-loading the full input
+     vector for every output.
+   - Process 4–8 output neurons simultaneously so the input vector is reused while it is
+     still hot in SIMD registers, improving utilisation for the big net's L2 (31 outputs)
+     and L3 (32 outputs).
+
+8. **SIMD PSQT Updates (Low-Medium Impact)**
+   - Integrate PSQT accumulation into the main Feature Transformer SIMD loops instead of
+     using separate scalar loops, reducing loop-control overhead during incremental updates.
+
+9. **Prefetching in Search (Low-Medium Impact)**
+   - Insert `__builtin_prefetch` / `_mm_prefetch` hints before loading the next ply's
+     Accumulator during tree traversal to hide memory latency for the large (~8.5 KB)
+     accumulator structs.
+
+10. **Tiling & Register Optimization (Low Impact)**
+    - Use architecture-specific tiling in the L2/L3 loops to ensure working data fits in
+      SIMD registers, minimising cache-line spills during accumulation.
