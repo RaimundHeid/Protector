@@ -29,6 +29,14 @@
 extern Bitboard passedPawnCorridor[2][_64_];
 extern Bitboard candidateDefenders[2][_64_];
 
+/* Stockfish piece values used for NNUE material estimation */
+#define SFVAL_PAWN              208
+#define SFVAL_KNIGHT            781
+#define SFVAL_BISHOP            825
+#define SFVAL_ROOK             1276
+#define SFVAL_QUEEN            2538
+#define SFVAL_PAWN_MATERIAL     534  /* Pawn weight in the NNUE material blend formula */
+
 bool hasWinningPotential(Position * position, Color color);
 bool hasBishopPair(const Position * position, const Color color);
 

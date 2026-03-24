@@ -33,27 +33,17 @@
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
-static int simple_eval(const Position * pos) {
-    Color c = pos->activeColor;
-    Color opp = opponent(c);
-    int material = 208 * (getNumberOfSetSquares(pos->piecesOfType[PAWN | c]) - getNumberOfSetSquares(pos->piecesOfType[PAWN | opp]));
-
-    material += 781 * (getNumberOfSetSquares(pos->piecesOfType[KNIGHT | c]) - getNumberOfSetSquares(pos->piecesOfType[KNIGHT | opp]));
-    material += 825 * (getNumberOfSetSquares(pos->piecesOfType[BISHOP | c]) - getNumberOfSetSquares(pos->piecesOfType[BISHOP | opp]));
-    material += 1276 * (getNumberOfSetSquares(pos->piecesOfType[ROOK | c]) - getNumberOfSetSquares(pos->piecesOfType[ROOK | opp]));
-    material += 2538 * (getNumberOfSetSquares(pos->piecesOfType[QUEEN | c]) - getNumberOfSetSquares(pos->piecesOfType[QUEEN | opp]));
-
-    return material;
-}
-
-static bool use_smallnet(const Position * pos) {
-    return abs(simple_eval(pos)) > 962;
-}
 
 int getValue(const Position * position, Accumulator * acc, int optimism) {
     assert(acc != NULL);
 
-    bool smallNet = use_smallnet(position);
+    // Use precomputed materialBalance (white minus black, Stockfish values) for
+    // small-net selection, and materialCount (total material blend) for the formula.
+    int se = (position->activeColor == WHITE)
+             ? position->materialBalance
+             : -position->materialBalance;
+    bool smallNet = abs(se) > 962;
+
     int psqt, positional;
 
     if (smallNet) {
@@ -76,17 +66,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism) {
     optimism += optimism * nnueComplexity / 476;
     nnue -= nnue * nnueComplexity / 18236;
 
-    int pawn_count = getNumberOfSetSquares(position->piecesOfType[PAWN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[PAWN | BLACK]);
-
-    // Use Stockfish piece values for material calculation in the formula
-    // This is the sum of both sides, identical to pos.non_pawn_material() in evaluate.cpp
-    int non_pawn_material = 
-        781 * (getNumberOfSetSquares(position->piecesOfType[KNIGHT | WHITE]) + getNumberOfSetSquares(position->piecesOfType[KNIGHT | BLACK])) +
-        825 * (getNumberOfSetSquares(position->piecesOfType[BISHOP | WHITE]) + getNumberOfSetSquares(position->piecesOfType[BISHOP | BLACK])) +
-        1276 * (getNumberOfSetSquares(position->piecesOfType[ROOK | WHITE]) + getNumberOfSetSquares(position->piecesOfType[ROOK | BLACK])) +
-        2538 * (getNumberOfSetSquares(position->piecesOfType[QUEEN | WHITE]) + getNumberOfSetSquares(position->piecesOfType[QUEEN | BLACK]));
-
-    int material = 534 * pawn_count + non_pawn_material;
+    int material = position->materialCount;
 
     int v = (nnue * (77871 + material) + optimism * (7191 + material)) / 77871;
 

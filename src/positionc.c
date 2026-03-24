@@ -78,6 +78,8 @@ int makeBlackMove(Variation * variation, const Move move)
       position->piecesOfColor[OPPCOLOR] &= ~minTo;
       position->piecesOfType[capturedPiece] &= ~minTo;
       position->numberOfPieces[OPPCOLOR]--;
+      position->materialBalance -= sfBalanceValue[capturedPiece];
+      position->materialCount -= sfMaterialValue[capturedPiece];
 
       if (pieceType(capturedPiece) == PAWN) {
          position->numberOfPawns[OPPCOLOR]--;
@@ -107,6 +109,8 @@ int makeBlackMove(Variation * variation, const Move move)
          position->piece[captureSquare] = NO_PIECE;
          position->numberOfPieces[OPPCOLOR]--;
          position->numberOfPawns[OPPCOLOR]--;
+         position->materialBalance -= sfBalanceValue[capturedPawn];
+         position->materialCount -= sfMaterialValue[capturedPawn];
       } else if (newPiece != NO_PIECE) {
          const Piece effectiveNewPiece = (Piece) (newPiece | COLOR);
 
@@ -114,6 +118,10 @@ int makeBlackMove(Variation * variation, const Move move)
          plyInfo->restorePiece1 = movingPiece;
          position->piece[to] = effectiveNewPiece;
          position->numberOfPawns[COLOR]--;
+         position->materialBalance +=
+            sfBalanceValue[effectiveNewPiece] - sfBalanceValue[movingPiece];
+         position->materialCount +=
+            sfMaterialValue[effectiveNewPiece] - sfMaterialValue[movingPiece];
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];

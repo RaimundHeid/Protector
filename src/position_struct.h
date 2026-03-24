@@ -21,6 +21,8 @@ typedef struct {
    Square king[2];
    int numberOfPieces[2];
    int numberOfPawns[2];
+   int materialBalance;   /* White material minus black material (Stockfish values) */
+   int materialCount;     /* Total material for NNUE blend formula */
    UINT64 hashKey;
 }
 Position;

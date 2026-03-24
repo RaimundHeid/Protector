@@ -40,6 +40,28 @@ int basicValue[16];
 BYTE remainingCastlings[_64_];
 Square rookOrigin[_64_];
 
+/* Piece contribution to materialBalance: white pieces positive, black pieces negative */
+static const int sfBalanceValue[16] = {
+   [NO_PIECE]     = 0,
+   [WHITE_KING]   = 0,            [BLACK_KING]   = 0,
+   [WHITE_QUEEN]  = SFVAL_QUEEN,  [BLACK_QUEEN]  = -SFVAL_QUEEN,
+   [WHITE_ROOK]   = SFVAL_ROOK,   [BLACK_ROOK]   = -SFVAL_ROOK,
+   [WHITE_BISHOP] = SFVAL_BISHOP, [BLACK_BISHOP] = -SFVAL_BISHOP,
+   [WHITE_KNIGHT] = SFVAL_KNIGHT, [BLACK_KNIGHT] = -SFVAL_KNIGHT,
+   [WHITE_PAWN]   = SFVAL_PAWN,   [BLACK_PAWN]   = -SFVAL_PAWN,
+};
+
+/* Piece contribution to materialCount: always positive, pawns use blend weight */
+static const int sfMaterialValue[16] = {
+   [NO_PIECE]     = 0,
+   [WHITE_KING]   = 0,                     [BLACK_KING]   = 0,
+   [WHITE_QUEEN]  = SFVAL_QUEEN,           [BLACK_QUEEN]  = SFVAL_QUEEN,
+   [WHITE_ROOK]   = SFVAL_ROOK,            [BLACK_ROOK]   = SFVAL_ROOK,
+   [WHITE_BISHOP] = SFVAL_BISHOP,          [BLACK_BISHOP] = SFVAL_BISHOP,
+   [WHITE_KNIGHT] = SFVAL_KNIGHT,          [BLACK_KNIGHT] = SFVAL_KNIGHT,
+   [WHITE_PAWN]   = SFVAL_PAWN_MATERIAL,   [BLACK_PAWN]   = SFVAL_PAWN_MATERIAL,
+};
+
 Square relativeSquare(const Square square, const Color color) {
    return (color == WHITE ? square : getFlippedSquare(square));
 }
@@ -574,6 +596,28 @@ void initializePosition(Position * position) {
    position->numberOfPawns[BLACK] =
       getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]);
 
+   position->materialBalance =
+      SFVAL_PAWN   * (position->numberOfPawns[WHITE]  - position->numberOfPawns[BLACK])  +
+      SFVAL_KNIGHT * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) -
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+      SFVAL_BISHOP * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) -
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+      SFVAL_ROOK   * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK])   -
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK]))   +
+      SFVAL_QUEEN  * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN])  -
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+
+   position->materialCount =
+      SFVAL_PAWN_MATERIAL * (position->numberOfPawns[WHITE] + position->numberOfPawns[BLACK]) +
+      SFVAL_KNIGHT * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+      SFVAL_BISHOP * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+      SFVAL_ROOK   * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK])   +
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK]))   +
+      SFVAL_QUEEN  * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN])  +
+                      getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+
    position->hashKey = calculateHashKey(position);
 }
 
@@ -786,6 +830,8 @@ int makeMove(Variation * variation, const Move move) {
       position->piecesOfColor[passiveColor] &= ~minTo;
       position->piecesOfType[capturedPiece] &= ~minTo;
       position->numberOfPieces[passiveColor]--;
+      position->materialBalance -= sfBalanceValue[capturedPiece];
+      position->materialCount -= sfMaterialValue[capturedPiece];
 
       if (pieceType(capturedPiece) == PAWN) {
          position->numberOfPawns[passiveColor]--;
@@ -815,6 +861,8 @@ int makeMove(Variation * variation, const Move move) {
          position->piece[captureSquare] = NO_PIECE;
          position->numberOfPieces[passiveColor]--;
          position->numberOfPawns[passiveColor]--;
+         position->materialBalance -= sfBalanceValue[capturedPawn];
+         position->materialCount -= sfMaterialValue[capturedPawn];
       } else if (newPiece != NO_PIECE) {
          const Piece effectiveNewPiece = (Piece) (newPiece | activeColor);
 
@@ -822,6 +870,10 @@ int makeMove(Variation * variation, const Move move) {
          plyInfo->restorePiece1 = movingPiece;
          position->piece[to] = effectiveNewPiece;
          position->numberOfPawns[activeColor]--;
+         position->materialBalance +=
+            sfBalanceValue[effectiveNewPiece] - sfBalanceValue[movingPiece];
+         position->materialCount +=
+            sfMaterialValue[effectiveNewPiece] - sfMaterialValue[movingPiece];
          position->hashKey ^=
             GENERATED_KEYTABLE[movingPiece][to] ^
             GENERATED_KEYTABLE[effectiveNewPiece][to];
@@ -911,6 +963,14 @@ void unmakeLastMove(Variation * variation) {
    if (newPiece != NO_PIECE) {
       position->numberOfPawns[activeColor]++;
       position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
+      {
+         const Piece promotedPiece = (Piece)(newPiece | activeColor);
+         const Piece pawn = plyInfo->restorePiece1;
+         position->materialBalance -=
+            sfBalanceValue[promotedPiece] - sfBalanceValue[pawn];
+         position->materialCount -=
+            sfMaterialValue[promotedPiece] - sfMaterialValue[pawn];
+      }
    }
 
    setSquare(position->piecesOfType[position->piece[from]], from);
@@ -925,6 +985,8 @@ void unmakeLastMove(Variation * variation) {
 
       setSquare(position->piecesOfType[plyInfo->captured], to);
       position->numberOfPieces[passiveColor]++;
+      position->materialBalance += sfBalanceValue[plyInfo->captured];
+      position->materialCount += sfMaterialValue[plyInfo->captured];
 
       if (pieceType(plyInfo->captured) == PAWN) {
          position->numberOfPawns[passiveColor]++;
@@ -938,6 +1000,8 @@ void unmakeLastMove(Variation * variation) {
                 plyInfo->restoreSquare1);
       position->numberOfPieces[passiveColor]++;
       position->numberOfPawns[passiveColor]++;
+      position->materialBalance += sfBalanceValue[plyInfo->restorePiece1];
+      position->materialCount += sfMaterialValue[plyInfo->restorePiece1];
    } else if (distance(from, to) == 2 &&
             pieceType(position->piece[from]) == KING) {
       position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
@@ -1184,6 +1248,33 @@ int checkConsistency(const Position * position) {
    assert(numPawns[BLACK] <= 8);
    assert(numPawns[BLACK] ==
           getNumberOfSetSquares(position->piecesOfType[BLACK_PAWN]));
+
+#ifndef NDEBUG
+   {
+      const int expectedBalance =
+         SFVAL_PAWN   * (numPawns[WHITE]  - numPawns[BLACK])  +
+         SFVAL_KNIGHT * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) -
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+         SFVAL_BISHOP * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) -
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+         SFVAL_ROOK   * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK])   -
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK]))   +
+         SFVAL_QUEEN  * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN])  -
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+      const int expectedCount =
+         SFVAL_PAWN_MATERIAL * (numPawns[WHITE] + numPawns[BLACK]) +
+         SFVAL_KNIGHT * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+         SFVAL_BISHOP * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+         SFVAL_ROOK   * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK])   +
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK]))   +
+         SFVAL_QUEEN  * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN])  +
+                         getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+      assert(position->materialBalance == expectedBalance);
+      assert(position->materialCount == expectedCount);
+   }
+#endif
 
    assert(calculateHashKey(position) == position->hashKey);
 
@@ -1700,6 +1791,125 @@ static int testMove(void) {
    return 0;
 }
 
+static int computeExpectedMaterialBalance(const Position *pos) {
+   return
+      SFVAL_PAWN   * (getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN  ]) -
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN  ])) +
+      SFVAL_KNIGHT * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) -
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT])) +
+      SFVAL_BISHOP * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) -
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP])) +
+      SFVAL_ROOK   * (getNumberOfSetSquares(pos->piecesOfType[WHITE_ROOK  ]) -
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_ROOK  ])) +
+      SFVAL_QUEEN  * (getNumberOfSetSquares(pos->piecesOfType[WHITE_QUEEN ]) -
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN ]));
+}
+
+static int computeExpectedMaterialCount(const Position *pos) {
+   return
+      SFVAL_PAWN_MATERIAL * (getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN  ]) +
+                             getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN  ])) +
+      SFVAL_KNIGHT * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) +
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT])) +
+      SFVAL_BISHOP * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) +
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP])) +
+      SFVAL_ROOK   * (getNumberOfSetSquares(pos->piecesOfType[WHITE_ROOK  ]) +
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_ROOK  ])) +
+      SFVAL_QUEEN  * (getNumberOfSetSquares(pos->piecesOfType[WHITE_QUEEN ]) +
+                      getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN ]));
+}
+
+typedef int (*MoveFuncPos)(Variation *, Move);
+
+static int testMaterialCountersGeneric(MoveFuncPos moveFunc,
+                                       const char *moveTypeName) {
+   struct TestCase {
+      const char *fen;
+      Move move;
+      const char *desc;
+   } cases[] = {
+      /* Normal move */
+      {FEN_GAMESTART, getOrdinaryMove(E2, E4), "Normal move (E2E4)"},
+      /* White captures black */
+      {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+       getOrdinaryMove(B5, C6), "Capture Bxc6"},
+      /* En passant */
+      {"rnbqkbnr/pppp1ppp/8/4pP2/8/8/PPPPP1PP/RNBQKBNR w KQkq e6 0 1",
+       getOrdinaryMove(F5, E6), "En passant fxe6"},
+      /* Promotion */
+      {"8/4P3/8/8/8/8/8/k6K w - - 0 1",
+       getPackedMove(E7, E8, WHITE_QUEEN), "Promotion to queen"},
+      /* Black promotion */
+      {"k6K/8/8/8/8/8/4p3/8 b - - 0 1",
+       getPackedMove(E2, E1, BLACK_QUEEN), "Black promotion to queen"},
+      /* Castling (no material change) */
+      {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1",
+       getOrdinaryMove(E1, G1), "White O-O"},
+   };
+
+   int numCases = (int)(sizeof(cases) / sizeof(cases[0]));
+   Variation *variation = calloc(1, sizeof(Variation));
+   int failures = 0;
+
+   for (int i = 0; i < numCases; i++) {
+      initializeVariation(variation, cases[i].fen);
+
+      const int balanceBefore = variation->singlePosition.materialBalance;
+      const int countBefore   = variation->singlePosition.materialCount;
+      assert(balanceBefore == computeExpectedMaterialBalance(&variation->singlePosition));
+      assert(countBefore   == computeExpectedMaterialCount(&variation->singlePosition));
+
+      moveFunc(variation, cases[i].move);
+
+      const int expectedBalance =
+         computeExpectedMaterialBalance(&variation->singlePosition);
+      const int expectedCount =
+         computeExpectedMaterialCount(&variation->singlePosition);
+
+      if (variation->singlePosition.materialBalance != expectedBalance) {
+         logReport("%s materialBalance wrong after %s: got %d expected %d\n",
+                   moveTypeName, cases[i].desc,
+                   variation->singlePosition.materialBalance, expectedBalance);
+         failures++;
+      }
+      if (variation->singlePosition.materialCount != expectedCount) {
+         logReport("%s materialCount wrong after %s: got %d expected %d\n",
+                   moveTypeName, cases[i].desc,
+                   variation->singlePosition.materialCount, expectedCount);
+         failures++;
+      }
+
+      unmakeLastMove(variation);
+
+      if (variation->singlePosition.materialBalance != balanceBefore) {
+         logReport("%s materialBalance wrong after unmake %s: got %d expected %d\n",
+                   moveTypeName, cases[i].desc,
+                   variation->singlePosition.materialBalance, balanceBefore);
+         failures++;
+      }
+      if (variation->singlePosition.materialCount != countBefore) {
+         logReport("%s materialCount wrong after unmake %s: got %d expected %d\n",
+                   moveTypeName, cases[i].desc,
+                   variation->singlePosition.materialCount, countBefore);
+         failures++;
+      }
+   }
+
+   free(variation);
+   return failures;
+}
+
+static int testMaterialCounters(void) {
+   int failures = 0;
+   failures += testMaterialCountersGeneric(makeMove,     "makeMove");
+   failures += testMaterialCountersGeneric(makeMoveFast, "makeMoveFast");
+   if (failures > 0) {
+      logReport("testMaterialCounters: %d failure(s)\n", failures);
+      return -1;
+   }
+   return 0;
+}
+
 int testModulePosition(void) {
    int result;
 
@@ -1720,6 +1930,10 @@ int testModulePosition(void) {
    }
 
    if ((result = testMove()) != 0) {
+      return result;
+   }
+
+   if ((result = testMaterialCounters()) != 0) {
       return result;
    }
 
