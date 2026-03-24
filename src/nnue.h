@@ -33,6 +33,22 @@ typedef struct {
     int dummy;
 } NNUE;
 
+/* Finny table: one cached accumulator entry per (color, king_square) pair.
+   Caches the non-threat L1 vectors so refreshes can update incrementally
+   instead of recomputing from scratch. */
+typedef struct {
+    Piece      piece[64];          /* board state that produced this entry   */
+    int16_t    small_v[L1_SMALL];  /* small-net L1 for this perspective      */
+    int16_t    big_v[L1_BIG];      /* big-net L1 for this perspective        */
+    int32_t    small_psqt[8];
+    int32_t    big_psqt[8];
+    bool       valid;              /* false until first computed             */
+} FinnyEntry;
+
+typedef struct {
+    FinnyEntry entry[2][64]; /* [color][king_square] */
+} FinnyTable;
+
 int initializeModuleNnue(void);
 int loadNnue(const char* filename);
 int evaluateNnueWithAccumulator(Position* pos, Accumulator* acc);
@@ -42,8 +58,9 @@ void evaluateBigNnueWithAccumulatorFull(Position* pos, Accumulator* acc, int* ps
 
 int win_rate_scaling(Position* pos);
 
-void refreshAccumulator(Position* pos, Accumulator* acc);
-void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq, Position* pos);
+void resetFinnyTable(FinnyTable* finny);
+void refreshAccumulator(Position* pos, Accumulator* acc, FinnyTable* finny);
+void updateAccumulator(const Accumulator* prev, Accumulator* next, int added_count, Square* added_sq, Piece* added_pc, int removed_count, Square* removed_sq, Piece* removed_pc, Square* ksq, Position* pos, FinnyTable* finny);
 bool kingStaysInSameBucket(Square from, Square to, Color color);
 
 #endif

@@ -1655,7 +1655,8 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
    resetGainValues(variation);
 
    variation->ply = 0;
-   refreshAccumulator(&variation->singlePosition, &variation->plyInfo[0].accumulator);
+   resetFinnyTable(&variation->finnyTable);
+   refreshAccumulator(&variation->singlePosition, &variation->plyInfo[0].accumulator, &variation->finnyTable);
    variation->ownColor = variation->singlePosition.activeColor;
    variation->nodes = variation->nodesAtTimeCheck = 0;
    variation->startTimeProcess = getProcessTimestamp();

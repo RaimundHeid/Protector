@@ -211,7 +211,7 @@ static int testNnuePlausibility(void) {
     for (int i = 0; i < 10; i++) {
         Variation *variation = calloc(1, sizeof(Variation));
         initializeVariation(variation, cases[i].fen);
-        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &variation->finnyTable);
         int psqt, positional;
         evaluateNnueWithAccumulatorFull(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &psqt, &positional);
         logDebug("Nnue Test Case %d (%s): psqt %d (expected %d), positional %d (expected %d)\n", i, cases[i].description, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
@@ -249,7 +249,7 @@ static int testBigNnuePlausibility(void) {
     for (int i = 0; i < 10; i++) {
         Variation *variation = calloc(1, sizeof(Variation));
         initializeVariation(variation, cases[i].fen);
-        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &variation->finnyTable);
         int psqt, positional;
         evaluateBigNnueWithAccumulatorFull(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &psqt, &positional);
         logDebug("Big Nnue Test Case %d (%s): psqt %d (expected %d), positional %d (expected %d)\n", i, cases[i].description, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
@@ -266,11 +266,13 @@ static int testRefreshAccumulator(void) {
     logDebug("Testing refreshAccumulator...\n");
     Accumulator acc;
     Position pos;
+    FinnyTable finny;
 
     // Case 0: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
     readFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_0_0[] = {
         -675, -1080, 172, -10, 294, 68, 48, -68, 979, -100, -419, -29, 496, 94, 155, -18,
@@ -631,7 +633,8 @@ static int testRefreshAccumulator(void) {
     // Case 1: r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
     readFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_1_0[] = {
         -675, -761, 18, -148, 248, 66, 80, -8, 1017, -269, -581, -15, 538, 16, 155, 4,
@@ -992,7 +995,8 @@ static int testRefreshAccumulator(void) {
     // Case 2: r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
     readFen("r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_2_0[] = {
         -671, -763, 108, -146, 262, 70, 42, -34, 1003, -132, -591, 7, 526, 32, 155, 2,
@@ -1353,7 +1357,8 @@ static int testRefreshAccumulator(void) {
     // Case 3: r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9
     readFen("r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_3_0[] = {
         -686, -568, 736, -296, 204, 142, 114, 68, 761, -423, -720, -489, 94, 202, 127, -2,
@@ -1714,7 +1719,8 @@ static int testRefreshAccumulator(void) {
     // Case 4: r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12
     readFen("r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_4_0[] = {
         -1001, -564, 1337, 18, 180, 80, 110, 100, 1932, 255, -72, 1247, 123, 138, -8, 30,
@@ -2075,7 +2081,8 @@ static int testRefreshAccumulator(void) {
     // Case 5: r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1
     readFen("r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_5_0[] = {
         -597, -392, 176, 34, 78, 52, 14, -32, 1263, -325, -637, 25, 586, 142, -18, 40,
@@ -2436,7 +2443,8 @@ static int testRefreshAccumulator(void) {
     // Case 6: 2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1
     readFen("2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", &pos);
     initializePosition(&pos);
-    refreshAccumulator(&pos, &acc);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&pos, &acc, &finny);
 
     int16_t expected_small_v_6_0[] = {
         -855, -543, 1399, 64, 178, 90, 98, 122, 488, 227, -72, 327, 68, 66, 269, 92,
@@ -2866,10 +2874,11 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char * moveType
 
     for (int i = 0; i < numCases; i++) {
         initializeVariation(variation, cases[i].fen);
-        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, &variation->finnyTable);
 
         moveFunc(variation, cases[i].move);
-        refreshAccumulator(&variation->singlePosition, refreshed);
+        resetFinnyTable(&variation->finnyTable);
+        refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
 
         if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, cases[i].desc) != 0) {
             logReport("Failure in %s for case: %s\n", moveTypeName, cases[i].desc);
@@ -2877,7 +2886,8 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char * moveType
         }
 
         unmakeLastMove(variation);
-        refreshAccumulator(&variation->singlePosition, refreshed);
+        resetFinnyTable(&variation->finnyTable);
+        refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
         if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, "Unmake") != 0) {
             logReport("Failure in %s after unmake for case: %s\n", moveTypeName, cases[i].desc);
             failures++;
@@ -2930,7 +2940,8 @@ int testModuleNnue(void) {
        makeMove(variation, moves[i]);
 
        Accumulator *refreshed = calloc(1, sizeof(Accumulator));
-       refreshAccumulator(&variation->singlePosition, refreshed);
+       resetFinnyTable(&variation->finnyTable);
+       refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
        int eval = evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
        logDebug("Ply %d eval: %d\n", variation->ply, eval);
 
@@ -2978,7 +2989,8 @@ int testModuleNnue(void) {
    while (variation->ply > 0) {
        unmakeLastMove(variation);
        Accumulator *refreshed = calloc(1, sizeof(Accumulator));
-       refreshAccumulator(&variation->singlePosition, refreshed);
+       resetFinnyTable(&variation->finnyTable);
+       refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
        Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
        for (int p = 0; p < 2; p++) {
            for (int j = 0; j < L1_SMALL; j++) {
@@ -3074,7 +3086,8 @@ int testModuleNnue(void) {
        memcpy(flipped, &v->singlePosition, sizeof(Position));
        flipPosition(flipped);
        initializePosition(flipped); // Update redundant data after flip
-       refreshAccumulator(flipped, flippedAcc);
+       resetFinnyTable(&v->finnyTable);
+       refreshAccumulator(flipped, flippedAcc, &v->finnyTable);
        int evalFlipped = getValue(flipped, flippedAcc, 0);
        if (eval != evalFlipped) {
            logReport("Value Symmetry failed for case %d (%s): %d != %d\n", i, cases[i].description, eval, evalFlipped);

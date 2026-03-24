@@ -203,13 +203,16 @@ bool flipTest(Position * position) {
    int v1, v2;
    Position flippedPosition;
    Accumulator acc1, acc2;
+   FinnyTable finny;
 
-   refreshAccumulator(position, &acc1);
+   resetFinnyTable(&finny);
+   refreshAccumulator(position, &acc1, &finny);
    v1 = getValue(position, &acc1, 0);
 
    memcpy(&flippedPosition, position, sizeof(Position));
    flipPosition(&flippedPosition);
-   refreshAccumulator(&flippedPosition, &acc2);
+   resetFinnyTable(&finny);
+   refreshAccumulator(&flippedPosition, &acc2, &finny);
    v2 = getValue(&flippedPosition, &acc2, 0);
 
    return (bool) (v1 == v2);

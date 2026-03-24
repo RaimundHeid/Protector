@@ -170,7 +170,7 @@ int makeBlackMove(Variation * variation, const Move move)
       }
 
       if (needsRefresh) {
-         refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
+         refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator, &variation->finnyTable);
       } else {
          Square added_sq[2], removed_sq[3];
          Piece added_pc[2], removed_pc[3];
@@ -185,7 +185,7 @@ int makeBlackMove(Variation * variation, const Move move)
          added_sq[added_cnt] = to;
          added_pc[added_cnt++] = position->piece[to];
          updateAccumulator(&plyInfo->accumulator, &variation->plyInfo[variation->ply].accumulator,
-                           added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king, position);
+                           added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king, position, &variation->finnyTable);
       }
    }
 

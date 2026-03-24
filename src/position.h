@@ -149,6 +149,7 @@ typedef struct {
    Move currentBaseMove, bestBaseMove;
    Position singlePosition, startPosition;
    PlyInfo plyInfo[MAX_DEPTH_ARRAY_SIZE];
+   FinnyTable finnyTable;
    PrincipalVariation completePv;
    PrincipalVariation pv[MAX_NUM_PV];
    int pvId;

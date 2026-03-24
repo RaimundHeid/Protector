@@ -666,7 +666,8 @@ void initializeVariation(Variation * variation, const char *fen) {
    readFen(fen, &variation->singlePosition);
    prepareSearch(variation);
    variation->startPosition = variation->singlePosition;
-   refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator);
+   resetFinnyTable(&variation->finnyTable);
+   refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator, &variation->finnyTable);
    initializePlyInfo(variation);
 }
 
@@ -674,7 +675,8 @@ void setBasePosition(Variation * variation, const Position * position) {
    variation->ply = 0;
    variation->singlePosition = *position;
    variation->startPosition = variation->singlePosition;
-   refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator);
+   resetFinnyTable(&variation->finnyTable);
+   refreshAccumulator(&variation->startPosition, &variation->plyInfo[0].accumulator, &variation->finnyTable);
 }
 
 void setDrawScore(Variation * variation, int score, Color color) {
@@ -862,7 +864,7 @@ int makeMove(Variation * variation, const Move move) {
    position->allPieces =
       position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
 
-   refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator);
+   refreshAccumulator(position, &variation->plyInfo[variation->ply].accumulator, &variation->finnyTable);
 
    assert(checkVariation(variation) == 0);
 
