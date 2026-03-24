@@ -426,21 +426,25 @@ static Move parsePGNMove(const char *moveText, Position * position) {
 }
 
 Move interpretPGNMove(const char *moveText, PGNGame * game) {
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
+   Move move;
 
-   initializeVariationFromGame(&variation, game);
+   initializeVariationFromGame(variation, game);
 
-   return parsePGNMove(moveText, &variation.singlePosition);
+   move = parsePGNMove(moveText, &variation->singlePosition);
+   free(variation);
+
+   return move;
 }
 
 int appendMove(PGNGame * game, const Move move) {
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
-   initializeVariationFromGame(&variation, game);
+   initializeVariationFromGame(variation, game);
 
-   if (moveIsLegal(&variation.singlePosition, move)) {
+   if (moveIsLegal(&variation->singlePosition, move)) {
       Gamemove *newMove =
-         getGamemove(&variation.singlePosition, game->lastMove, game);
+         getGamemove(&variation->singlePosition, game->lastMove, game);
 
       newMove->from = getFromSquare(move);
       newMove->to = getToSquare(move);
@@ -453,8 +457,10 @@ int appendMove(PGNGame * game, const Move move) {
          game->lastMove = newMove;
       }
 
+      free(variation);
       return 0;
    } else {
+      free(variation);
       return -1;
    }
 }
@@ -483,13 +489,13 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
                                PGNGame * game) {
    bool variationTerminated = FALSE;
    Gamemove *baseMove = 0, *lastMove = 0;
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
    char currentChar;
    const char *token;
    const bool debugOutput = FALSE;
 
-   setBasePosition(&variation, position);
-   prepareSearch(&variation);
+   setBasePosition(variation, position);
+   prepareSearch(variation);
 
    if (debugOutput) {
       logDebug("Starting pgn parsing at: >%s<\n", &pgnMoveText[*offset]);
@@ -586,11 +592,11 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
             logDebug("Move token: >%s<\n", token);
          }
 
-         move = parsePGNMove(token, &variation.singlePosition);
+         move = parsePGNMove(token, &variation->singlePosition);
 
-         if (moveIsLegal(&variation.singlePosition, move)) {
+         if (moveIsLegal(&variation->singlePosition, move)) {
             Gamemove *newMove =
-               getGamemove(&variation.singlePosition, lastMove, game);
+               getGamemove(&variation->singlePosition, lastMove, game);
 
             newMove->from = getFromSquare(move);
             newMove->to = getToSquare(move);
@@ -603,12 +609,13 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
             }
 
             lastMove = newMove;
-            makeMove(&variation, move);
-            setBasePosition(&variation, &variation.singlePosition);
+            makeMove(variation, move);
+            setBasePosition(variation, &variation->singlePosition);
          } else {
             logDebug("### Illegal move: %s\n", token);
             dumpMove(move);
-            dumpPosition(&variation.singlePosition);
+            dumpPosition(&variation->singlePosition);
+            free(variation);
             exit(-1);
 
             break;
@@ -621,6 +628,7 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
       }
    }
 
+   free(variation);
    return baseMove;
 }
 
@@ -659,7 +667,7 @@ static void parseRoasterValue(const char *pgn, const char *name,
 
 static void parseRoasterValues(const char *pgn, PGNGame * pgngame) {
    char *moves;
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
    parseRoasterValue(pgn, "Event", pgngame->event);
    parseRoasterValue(pgn, "Site", pgngame->site);
@@ -681,7 +689,7 @@ static void parseRoasterValues(const char *pgn, PGNGame * pgngame) {
    pgngame->moveText = 0;
    pgngame->firstMove = 0;
 
-   initializeVariationFromGame(&variation, pgngame);
+   initializeVariationFromGame(variation, pgngame);
 
    if ((moves = strstr(pgn, "\n\n")) == 0) {
       moves = strstr(pgn, "\r\n\r\n");
@@ -695,10 +703,11 @@ static void parseRoasterValues(const char *pgn, PGNGame * pgngame) {
          trim(pgngame->moveText);
 
          pgngame->firstMove =
-            parseMoveSection(pgngame->moveText, &variation.singlePosition,
+            parseMoveSection(pgngame->moveText, &variation->singlePosition,
                              pgngame);
       }
    }
+   free(variation);
 }
 
 PGNGame *getGame(PGNFile * pgnfile, int number) {
@@ -854,10 +863,10 @@ void generateMoveText(Variation * variation, const Move move, char *pgnMove, siz
 static char *generateMoveSection(Gamemove * gamemove, const char *result) {
    String moveText = getEmptyString();
    char moveBuffer[64], *temp;
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
    bool restart = TRUE;
 
-   initializeVariation(&variation, FEN_GAMESTART);
+   initializeVariation(variation, FEN_GAMESTART);
 
    while (gamemove != 0) {
       if (restart == TRUE && gamemove->position.activeColor == BLACK) {
@@ -866,8 +875,8 @@ static char *generateMoveSection(Gamemove * gamemove, const char *result) {
 
       restart = FALSE;
 
-      setBasePosition(&variation, &gamemove->position);
-      generateMoveText(&variation,
+      setBasePosition(variation, &gamemove->position);
+      generateMoveText(variation,
                        getPackedMove(gamemove->from, gamemove->to,
                                      gamemove->newPiece), moveBuffer, sizeof(moveBuffer));
 
@@ -904,6 +913,7 @@ static char *generateMoveSection(Gamemove * gamemove, const char *result) {
    trim(moveText.buffer);
    breakLines(moveText.buffer, 79);
 
+   free(variation);
    return moveText.buffer;
 }
 
@@ -1069,124 +1079,126 @@ int initializeModulePgn(void) {
 static int testGeneration(void) {
    char *p1 = "r2qkb1r/ppp2ppp/3p4/5b2/3PN3/n4N2/PPP1QPPP/R3K2R w KQkq - 0 1";
    char *p2 = "r3k2r/n3nppp/3n2P1/8/1q1q4/2B5/1q1pRPPP/5RK1 b kq - 0 1";
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
    char pgnMove[64];
 
-   initializeVariation(&variation, p1);
+   initializeVariation(variation, p1);
 
-   generateMoveText(&variation, getPackedMove(D4, D5, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(D4, D5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("d5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E1, G1, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E1, G1, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("O-O", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E1, C1, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E1, C1, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("O-O-O", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, D6, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E4, D6, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nxd6+", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, F6, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E4, F6, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nf6#", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(F3, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(F3, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nfg5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(E4, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E4, G5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Neg5+", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B2, A3, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(B2, A3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("bxa3", pgnMove) == 0);
 
-   initializeVariation(&variation, p2);
+   initializeVariation(variation, p2);
 
-   generateMoveText(&variation, getPackedMove(E7, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(E7, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("(illegal move: e7-f5)", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D2, D1, WHITE_BISHOP), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(D2, D1, WHITE_BISHOP), pgnMove, sizeof(pgnMove));
    assert(strcmp("d1=B", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(B4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Qb4xc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(B2, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(B2, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Q2xc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(D4, C3, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Qdxc3", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D6, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(D6, F5, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Nf5", pgnMove) == 0);
 
-   generateMoveText(&variation, getPackedMove(D6, C8, NO_PIECE), pgnMove, sizeof(pgnMove));
+   generateMoveText(variation, getPackedMove(D6, C8, NO_PIECE), pgnMove, sizeof(pgnMove));
    assert(strcmp("Ndc8", pgnMove) == 0);
 
+   free(variation);
    return 0;
 }
 
 static int testParsing(void) {
    char *p1 = "r2qkb1r/ppp2ppp/3p4/5b2/3PN3/n4N2/PPP1QPPP/R3K2R w KQkq - 0 1";
    char *p2 = "r3k2r/n3nppp/3n2P1/8/1q1q4/2B5/1q1pRPPP/5RK1 b kq - 0 1";
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
-   initializeVariation(&variation, p1);
+   initializeVariation(variation, p1);
 
-   assert(parsePGNMove("d5", &variation.singlePosition) ==
+   assert(parsePGNMove("d5", &variation->singlePosition) ==
           getPackedMove(D4, D5, NO_PIECE));
 
-   assert(parsePGNMove("b4", &variation.singlePosition) ==
+   assert(parsePGNMove("b4", &variation->singlePosition) ==
           getPackedMove(B2, B4, NO_PIECE));
 
-   assert(parsePGNMove("bxa3", &variation.singlePosition) ==
+   assert(parsePGNMove("bxa3", &variation->singlePosition) ==
           getPackedMove(B2, A3, NO_PIECE));
 
-   assert(parsePGNMove("O-O", &variation.singlePosition) ==
+   assert(parsePGNMove("O-O", &variation->singlePosition) ==
           getPackedMove(E1, G1, NO_PIECE));
 
-   assert(parsePGNMove("O-O-O", &variation.singlePosition) ==
+   assert(parsePGNMove("O-O-O", &variation->singlePosition) ==
           getPackedMove(E1, C1, NO_PIECE));
 
-   assert(parsePGNMove("Ng3+", &variation.singlePosition) ==
+   assert(parsePGNMove("Ng3+", &variation->singlePosition) ==
           getPackedMove(E4, G3, NO_PIECE));
 
-   assert(parsePGNMove("Nf6#", &variation.singlePosition) ==
+   assert(parsePGNMove("Nf6#", &variation->singlePosition) ==
           getPackedMove(E4, F6, NO_PIECE));
 
-   assert(parsePGNMove("Nfg5", &variation.singlePosition) ==
+   assert(parsePGNMove("Nfg5", &variation->singlePosition) ==
           getPackedMove(F3, G5, NO_PIECE));
 
-   initializeVariation(&variation, p2);
+   initializeVariation(variation, p2);
 
-   assert(parsePGNMove("h6", &variation.singlePosition) ==
+   assert(parsePGNMove("h6", &variation->singlePosition) ==
           getPackedMove(H7, H6, NO_PIECE));
 
-   assert(parsePGNMove("f5", &variation.singlePosition) ==
+   assert(parsePGNMove("f5", &variation->singlePosition) ==
           getPackedMove(F7, F5, NO_PIECE));
 
-   assert(parsePGNMove("fxg6", &variation.singlePosition) ==
+   assert(parsePGNMove("fxg6", &variation->singlePosition) ==
           getPackedMove(F7, G6, NO_PIECE));
 
-   assert(parsePGNMove("d1=B", &variation.singlePosition) ==
+   assert(parsePGNMove("d1=B", &variation->singlePosition) ==
           getPackedMove(D2, D1, (Piece) BISHOP));
 
-   assert(parsePGNMove("O-O", &variation.singlePosition) ==
+   assert(parsePGNMove("O-O", &variation->singlePosition) ==
           getPackedMove(E8, G8, NO_PIECE));
 
-   assert(parsePGNMove("O-O-O", &variation.singlePosition) ==
+   assert(parsePGNMove("O-O-O", &variation->singlePosition) ==
           getPackedMove(E8, C8, NO_PIECE));
 
-   assert(parsePGNMove("Nf5", &variation.singlePosition) ==
+   assert(parsePGNMove("Nf5", &variation->singlePosition) ==
           getPackedMove(D6, F5, NO_PIECE));
 
-   assert(parsePGNMove("Q2xc3", &variation.singlePosition) ==
+   assert(parsePGNMove("Q2xc3", &variation->singlePosition) ==
           getPackedMove(B2, C3, NO_PIECE));
 
-   assert(parsePGNMove("Qdxc3", &variation.singlePosition) ==
+   assert(parsePGNMove("Qdxc3", &variation->singlePosition) ==
           getPackedMove(D4, C3, NO_PIECE));
 
-   assert(parsePGNMove("Qb4xc3", &variation.singlePosition) ==
+   assert(parsePGNMove("Qb4xc3", &variation->singlePosition) ==
           getPackedMove(B4, C3, NO_PIECE));
 
+   free(variation);
    return 0;
 }
 

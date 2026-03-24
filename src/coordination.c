@@ -311,7 +311,7 @@ int initializeModuleCoordination(void) {
    resetHashtable(&sharedHashtable);
 
    for (threadCount = 0; threadCount < MAX_THREADS; threadCount++) {
-      variations[threadCount] = malloc(sizeof(Variation));
+      variations[threadCount] = aligned_alloc(64, sizeof(Variation));
       variations[threadCount]->searchStatus = SEARCH_STATUS_FINISHED;
       searchThreadStarted[threadCount] = FALSE;
    }

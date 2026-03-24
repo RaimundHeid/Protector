@@ -1605,174 +1605,179 @@ static int checkMove(Square from, Square to, Piece newPiece,
 }
 
 static int testPawnMoves(void) {
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
-   initializeVariation(&variation, FEN_GAMESTART);
-   assert(checkConsistency(&variation.singlePosition) == 0);
+   initializeVariation(variation, FEN_GAMESTART);
+   assert(checkConsistency(&variation->singlePosition) == 0);
 
-   checkMove(E2, E4, NO_PIECE, &variation);
-   assert(variation.singlePosition.enPassantSquare == E3);
-   checkMove(D7, D5, NO_PIECE, &variation);
-   assert(variation.singlePosition.enPassantSquare == D6);
+   checkMove(E2, E4, NO_PIECE, variation);
+   assert(variation->singlePosition.enPassantSquare == E3);
+   checkMove(D7, D5, NO_PIECE, variation);
+   assert(variation->singlePosition.enPassantSquare == D6);
 
-   checkMove(E4, D5, NO_PIECE, &variation);
-   assert(variation.singlePosition.enPassantSquare == NO_SQUARE);
-   checkMove(D8, D5, NO_PIECE, &variation);
+   checkMove(E4, D5, NO_PIECE, variation);
+   assert(variation->singlePosition.enPassantSquare == NO_SQUARE);
+   checkMove(D8, D5, NO_PIECE, variation);
 
-   checkMove(D2, D4, NO_PIECE, &variation);
-   checkMove(D5, D8, NO_PIECE, &variation);
+   checkMove(D2, D4, NO_PIECE, variation);
+   checkMove(D5, D8, NO_PIECE, variation);
 
-   checkMove(D4, D5, NO_PIECE, &variation);
-   checkMove(C7, C5, NO_PIECE, &variation);
-   assert(variation.singlePosition.enPassantSquare == C6);
+   checkMove(D4, D5, NO_PIECE, variation);
+   checkMove(C7, C5, NO_PIECE, variation);
+   assert(variation->singlePosition.enPassantSquare == C6);
 
-   checkMove(D5, C6, NO_PIECE, &variation);
-   checkMove(E7, E5, NO_PIECE, &variation);
+   checkMove(D5, C6, NO_PIECE, variation);
+   checkMove(E7, E5, NO_PIECE, variation);
 
-   checkMove(C6, B7, NO_PIECE, &variation);
-   checkMove(E5, E4, NO_PIECE, &variation);
+   checkMove(C6, B7, NO_PIECE, variation);
+   checkMove(E5, E4, NO_PIECE, variation);
 
-   checkMove(F2, F4, NO_PIECE, &variation);
-   assert(variation.singlePosition.enPassantSquare == F3);
-   checkMove(E4, F3, NO_PIECE, &variation);
+   checkMove(F2, F4, NO_PIECE, variation);
+   assert(variation->singlePosition.enPassantSquare == F3);
+   checkMove(E4, F3, NO_PIECE, variation);
 
-   checkMove(B7, C8, WHITE_ROOK, &variation);
-   checkMove(F3, G2, NO_PIECE, &variation);
+   checkMove(B7, C8, WHITE_ROOK, variation);
+   checkMove(F3, G2, NO_PIECE, variation);
 
-   checkMove(C8, B8, NO_PIECE, &variation);
-   checkMove(G2, H1, WHITE_QUEEN, &variation);
+   checkMove(C8, B8, NO_PIECE, variation);
+   checkMove(G2, H1, WHITE_QUEEN, variation);
 
-   checkMove(D1, D8, WHITE_QUEEN, &variation);  /* checkmate; what a game! */
+   checkMove(D1, D8, WHITE_QUEEN, variation);  /* checkmate; what a game! */
 
+   free(variation);
    return 0;
 }
 
 static int testShortCastlings(void) {
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
-   initializeVariation(&variation, FEN_GAMESTART);
-   assert(checkConsistency(&variation.singlePosition) == 0);
+   initializeVariation(variation, FEN_GAMESTART);
+   assert(checkConsistency(&variation->singlePosition) == 0);
 
-   checkMove(E2, E4, NO_PIECE, &variation);
-   checkMove(E7, E5, NO_PIECE, &variation);
+   checkMove(E2, E4, NO_PIECE, variation);
+   checkMove(E7, E5, NO_PIECE, variation);
 
-   checkMove(G1, F3, NO_PIECE, &variation);
-   checkMove(G8, F6, NO_PIECE, &variation);
+   checkMove(G1, F3, NO_PIECE, variation);
+   checkMove(G8, F6, NO_PIECE, variation);
 
-   checkMove(F1, C4, NO_PIECE, &variation);
-   checkMove(F8, C5, NO_PIECE, &variation);
+   checkMove(F1, C4, NO_PIECE, variation);
+   checkMove(F8, C5, NO_PIECE, variation);
 
-   checkMove(E1, G1, NO_PIECE, &variation);
-   assert(variation.singlePosition.piece[F1] == WHITE_ROOK);
-   checkMove(E8, G8, NO_PIECE, &variation);
-   assert(variation.singlePosition.piece[F8] == BLACK_ROOK);
+   checkMove(E1, G1, NO_PIECE, variation);
+   assert(variation->singlePosition.piece[F1] == WHITE_ROOK);
+   checkMove(E8, G8, NO_PIECE, variation);
+   assert(variation->singlePosition.piece[F8] == BLACK_ROOK);
 
+   free(variation);
    return 0;
 }
 
 static int testLongCastlings(void) {
-   Variation variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
 
-   initializeVariation(&variation, FEN_GAMESTART);
-   assert(checkConsistency(&variation.singlePosition) == 0);
+   initializeVariation(variation, FEN_GAMESTART);
+   assert(checkConsistency(&variation->singlePosition) == 0);
 
-   checkMove(D2, D4, NO_PIECE, &variation);
-   checkMove(D7, D5, NO_PIECE, &variation);
+   checkMove(D2, D4, NO_PIECE, variation);
+   checkMove(D7, D5, NO_PIECE, variation);
 
-   checkMove(B1, C3, NO_PIECE, &variation);
-   checkMove(B8, C6, NO_PIECE, &variation);
+   checkMove(B1, C3, NO_PIECE, variation);
+   checkMove(B8, C6, NO_PIECE, variation);
 
-   checkMove(C1, F4, NO_PIECE, &variation);
-   checkMove(C8, F5, NO_PIECE, &variation);
+   checkMove(C1, F4, NO_PIECE, variation);
+   checkMove(C8, F5, NO_PIECE, variation);
 
-   checkMove(D1, D2, NO_PIECE, &variation);
-   checkMove(D8, D7, NO_PIECE, &variation);
+   checkMove(D1, D2, NO_PIECE, variation);
+   checkMove(D8, D7, NO_PIECE, variation);
 
-   checkMove(E1, C1, NO_PIECE, &variation);
-   assert(variation.singlePosition.piece[D1] == WHITE_ROOK);
-   checkMove(E8, C8, NO_PIECE, &variation);
-   assert(variation.singlePosition.piece[D8] == BLACK_ROOK);
+   checkMove(E1, C1, NO_PIECE, variation);
+   assert(variation->singlePosition.piece[D1] == WHITE_ROOK);
+   checkMove(E8, C8, NO_PIECE, variation);
+   assert(variation->singlePosition.piece[D8] == BLACK_ROOK);
 
+   free(variation);
    return 0;
 }
 
 static int testCastlingLegality(void) {
-   Variation variation, *p_variation = &variation;
+   Variation * variation = aligned_alloc(64, sizeof(Variation));
+   Variation * p_variation = variation;
 
-   initializeVariation(&variation, FEN_GAMESTART);
-   assert(checkConsistency(&variation.singlePosition) == 0);
+   initializeVariation(variation, FEN_GAMESTART);
+   assert(checkConsistency(&variation->singlePosition) == 0);
 
-   checkMove(E2, E4, NO_PIECE, &variation);
-   checkMove(E7, E5, NO_PIECE, &variation);
+   checkMove(E2, E4, NO_PIECE, variation);
+   checkMove(E7, E5, NO_PIECE, variation);
 
-   checkMove(G1, F3, NO_PIECE, &variation);
-   checkMove(G8, F6, NO_PIECE, &variation);
+   checkMove(G1, F3, NO_PIECE, variation);
+   checkMove(G8, F6, NO_PIECE, variation);
 
-   checkMove(F3, E5, NO_PIECE, &variation);
-   checkMove(F6, E4, NO_PIECE, &variation);
+   checkMove(F3, E5, NO_PIECE, variation);
+   checkMove(F6, E4, NO_PIECE, variation);
 
-   checkMove(E5, G6, NO_PIECE, &variation);
-   checkMove(E4, G3, NO_PIECE, &variation);
+   checkMove(E5, G6, NO_PIECE, variation);
+   checkMove(E4, G3, NO_PIECE, variation);
 
-   checkMove(F1, C4, NO_PIECE, &variation);
-   checkMove(F8, C5, NO_PIECE, &variation);
+   checkMove(F1, C4, NO_PIECE, variation);
+   checkMove(F8, C5, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E1, G1, NO_PIECE)) == 1);
+   assert(makeMove(variation, getPackedMove(E1, G1, NO_PIECE)) == 1);
    unmakeLastMove(p_variation);
 
-   checkMove(H2, G3, NO_PIECE, &variation);
+   checkMove(H2, G3, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E8, G8, NO_PIECE)) == 1);
+   assert(makeMove(variation, getPackedMove(E8, G8, NO_PIECE)) == 1);
    unmakeLastMove(p_variation);
 
-   checkMove(H7, G6, NO_PIECE, &variation);
+   checkMove(H7, G6, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
+   assert(makeMove(variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
 
-   assert(makeMove(&variation, getPackedMove(E8, G8, NO_PIECE)) == 0);
+   assert(makeMove(variation, getPackedMove(E8, G8, NO_PIECE)) == 0);
 
-   initializeVariation(&variation, FEN_GAMESTART);
-   assert(checkConsistency(&variation.singlePosition) == 0);
+   initializeVariation(variation, FEN_GAMESTART);
+   assert(checkConsistency(&variation->singlePosition) == 0);
 
-   checkMove(E2, E4, NO_PIECE, &variation);
-   checkMove(E7, E5, NO_PIECE, &variation);
+   checkMove(E2, E4, NO_PIECE, variation);
+   checkMove(E7, E5, NO_PIECE, variation);
 
-   checkMove(G1, F3, NO_PIECE, &variation);
-   checkMove(G8, F6, NO_PIECE, &variation);
+   checkMove(G1, F3, NO_PIECE, variation);
+   checkMove(G8, F6, NO_PIECE, variation);
 
-   checkMove(F3, E5, NO_PIECE, &variation);
-   checkMove(F6, E4, NO_PIECE, &variation);
+   checkMove(F3, E5, NO_PIECE, variation);
+   checkMove(F6, E4, NO_PIECE, variation);
 
-   checkMove(E5, F3, NO_PIECE, &variation);
-   checkMove(E4, F6, NO_PIECE, &variation);
+   checkMove(E5, F3, NO_PIECE, variation);
+   checkMove(E4, F6, NO_PIECE, variation);
 
-   checkMove(F1, C4, NO_PIECE, &variation);
-   checkMove(F8, C5, NO_PIECE, &variation);
+   checkMove(F1, C4, NO_PIECE, variation);
+   checkMove(F8, C5, NO_PIECE, variation);
 
-   checkMove(D1, E2, NO_PIECE, &variation);
+   checkMove(D1, E2, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E8, G8, NO_PIECE)) == 1);
+   assert(makeMove(variation, getPackedMove(E8, G8, NO_PIECE)) == 1);
    unmakeLastMove(p_variation); /* 0-0 */
    unmakeLastMove(p_variation); /* Qe2+ */
 
-   assert(makeMove(&variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
+   assert(makeMove(variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
    unmakeLastMove(p_variation); /* 0-0 */
 
-   checkMove(D2, D3, NO_PIECE, &variation);
+   checkMove(D2, D3, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E8, G8, NO_PIECE)) == 0);
+   assert(makeMove(variation, getPackedMove(E8, G8, NO_PIECE)) == 0);
    unmakeLastMove(p_variation); /* 0-0 */
 
-   checkMove(D8, E7, NO_PIECE, &variation);
+   checkMove(D8, E7, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E1, G1, NO_PIECE)) == 1);
+   assert(makeMove(variation, getPackedMove(E1, G1, NO_PIECE)) == 1);
    unmakeLastMove(p_variation); /* 0-0 */
    unmakeLastMove(p_variation); /* Qe7+ */
 
-   checkMove(D7, D6, NO_PIECE, &variation);
+   checkMove(D7, D6, NO_PIECE, variation);
 
-   assert(makeMove(&variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
+   assert(makeMove(variation, getPackedMove(E1, G1, NO_PIECE)) == 0);
 
+   free(variation);
    return 0;
 }
 

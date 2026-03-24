@@ -486,15 +486,16 @@ static void sendBestmoveInfo(Variation * var) {
    postPv(var, TRUE);
 
    if (moveIsLegal(&var->startPosition, var->bestBaseMove)) {
-      Variation tmp = *var;
+      Variation * tmp = aligned_alloc(64, sizeof(Variation));
+      *tmp = *var;
 
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
       status.ponderingMove = (Move) var->completePv.move[1];
-      setBasePosition(&tmp, &var->startPosition);
-      makeMove(&tmp, var->bestBaseMove);
+      setBasePosition(tmp, &var->startPosition);
+      makeMove(tmp, var->bestBaseMove);
 
       if (status.ponderingMove != NO_MOVE &&
-          moveIsLegal(&tmp.singlePosition, status.ponderingMove)) {
+          moveIsLegal(&tmp->singlePosition, status.ponderingMove)) {
          char ponderMoveBuffer[16];
 
          getGuiMoveString(status.ponderingMove, ponderMoveBuffer, sizeof(ponderMoveBuffer));
@@ -505,7 +506,8 @@ static void sendBestmoveInfo(Variation * var) {
          sendToUciNonDebug("bestmove %s", moveBuffer);
       }
 
-      unmakeLastMove(&tmp);
+      unmakeLastMove(tmp);
+      free(tmp);
    } else {
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
 
@@ -929,7 +931,7 @@ int initializeModuleUci(void) {
    initializePGNGame(&game);
 
    if (variation_ptr == NULL) {
-       variation_ptr = malloc(sizeof(Variation));
+       variation_ptr = aligned_alloc(64, sizeof(Variation));
    }
    variation_ptr->timeLimit = 5000;
    variation_ptr->ponderMode = FALSE;
