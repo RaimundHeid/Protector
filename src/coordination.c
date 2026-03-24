@@ -188,6 +188,13 @@ int scheduleTask(SearchTask * task) {
    pthread_attr_t attr;
    int result = 0;
 
+   /* Join any threads from a previous search to reclaim their stack memory.
+      On POSIX systems, a terminated-but-unjoined thread retains its stack
+      until pthread_join is called.  Without this, every 'go' command leaks
+      the search-thread stacks (4 MB each) and the timer-thread stack,
+      causing an out-of-memory crash in longer matches. */
+   waitForSearchTermination();
+
    sharedHashtable.entriesUsed = 0;
 
    pthread_attr_init(&attr);

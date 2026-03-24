@@ -224,8 +224,15 @@ void initializePGNGame(PGNGame * game) {
 }
 
 void resetPGNGame(PGNGame * game) {
+   int i;
+
    if (game->moveText != 0) {
       free(game->moveText);
+   }
+
+   for (i = 0; i < game->nextMoveFromHeap; i++) {
+      free(game->moveHeap[i].comment);
+      free(game->moveHeap[i].glyphs);
    }
 
    initializePGNGame(game);

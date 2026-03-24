@@ -169,6 +169,7 @@ int processTestsuite(const char *filename) {
    logReport("Not solved: %s\n", notSolved.buffer);
    deleteString(&notSolved);
    closePGNFile(&pgnfile);
+   free(variation);
 
    return 0;
 }

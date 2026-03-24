@@ -1,0 +1,30 @@
+# Performance Optimizations for NNUE (Inspired by Stockfish)
+
+Listed in order of likely performance impact.
+
+1. **Weight Permutation & Implicit Clipping (High Impact)**
+   - Pre-permute Feature Transformer weights to match SIMD layout (especially `packus` order).
+   - Scale weights by 2 and use `mulhi` with pre-shifting to perform activation (CliSqrReLU) and scaling in fewer instructions.
+   - Leverage `packus` for implicit clipping to zero, avoiding `vec_max_16(v, zero)`.
+
+2. **Advanced SIMD & VNNI (High Impact)**
+   - Implement AVX-512 and AVX2-VNNI support.
+   - Use dot-product instructions (`_mm256_dpbusd_epi32` or `vdotq_s32` on NEON) for fully connected layers.
+   - Use template metaprogramming (if moving to C++) or more aggressive macro specialization to generate fused Add/Sub loops.
+
+3. **Accumulator Caching (Finny Tables) (Medium-High Impact)**
+   - Implement a per-thread cache for accumulators indexed by king square.
+   - This allows fast "refresh" when the incremental update path is broken or when returning to a previous king square.
+
+4. **Eliminate Large Memcpys (Medium-High Impact)**
+   - Avoid `memcpy` of the entire Accumulator (4KB+) in `updateAccumulator`.
+   - Use a more granular update strategy or pointer swapping where possible.
+
+5. **Double Incremental Updates (Medium Impact)**
+   - Implement the ability to update the accumulator for two moves simultaneously (e.g., in search or when handling captures). This improves cache locality.
+
+6. **SIMD PSQT Updates (Medium Impact)**
+   - Integrate PSQT accumulation into the main Feature Transformer SIMD loops instead of using separate scalar loops.
+
+7. **Tiling & Register Optimization (Low-Medium Impact)**
+   - Use architecture-specific tiling to ensure data fits in SIMD registers during accumulation, minimizing memory stalls.
