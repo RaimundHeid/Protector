@@ -21,9 +21,9 @@
 #ifndef _matesearch_h_
 #define _matesearch_h_
 
-#include "protector.h"
-#include "position.h"
 #include "movegeneration.h"
+#include "position.h"
+#include "protector.h"
 
 /**
  * Solve the mate problem specified by variation.
@@ -31,7 +31,7 @@
  * @param movelist contains all solutions found
  * @param numMoves the maximum number of moves until the winner mates
  */
-void searchForMate(Variation * variation, Movelist * movelist, int numMoves);
+void searchForMate(Variation *variation, Movelist *movelist, int numMoves);
 
 /**
  * Initialize this module.

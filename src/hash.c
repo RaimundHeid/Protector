@@ -18,14 +18,16 @@
 
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <math.h>
 #include "hash.h"
-#include "protector.h"
+
 #include "io.h"
 #include "keytable.h"
+#include "protector.h"
+
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define NODE_TABLE_SIZE (MAX_THREADS * MAX_DEPTH * 32)
 
@@ -35,398 +37,406 @@ const UINT8 DEPTH_NONE = 0;
 Nodeentry nodeUsageTable[NODE_TABLE_SIZE];
 UINT64 numNodeTableEntries;
 
-INT16 getHashentryValue(const Hashentry * entry) {
-   return (INT16) (entry->data & 0xFFFF);
+INT16 getHashentryValue(const Hashentry *entry)
+{
+    return (INT16)(entry->data & 0xFFFF);
 }
 
-INT16 getHashentryStaticValue(const Hashentry * entry) {
-   return (INT16) ((entry->data >> 16) & 0xFFFF);
+INT16 getHashentryStaticValue(const Hashentry *entry)
+{
+    return (INT16)((entry->data >> 16) & 0xFFFF);
 }
 
-UINT8 getHashentryImportance(const Hashentry * entry) {
-   return (UINT8) ((entry->data >> 32) & 0xFF);
+UINT8 getHashentryImportance(const Hashentry *entry)
+{
+    return (UINT8)((entry->data >> 32) & 0xFF);
 }
 
-UINT16 getHashentryMove(const Hashentry * entry) {
-   return (UINT16) ((entry->data >> 40) & 0xFFFF);
+UINT16 getHashentryMove(const Hashentry *entry)
+{
+    return (UINT16)((entry->data >> 40) & 0xFFFF);
 }
 
-UINT8 getHashentryDate(const Hashentry * entry) {
-   return (UINT8) ((entry->data >> 56) & 0x0F);
+UINT8 getHashentryDate(const Hashentry *entry)
+{
+    return (UINT8)((entry->data >> 56) & 0x0F);
 }
 
-UINT8 getHashentryFlag(const Hashentry * entry) {
-   return (UINT8) ((entry->data >> 60) & 0x03);
+UINT8 getHashentryFlag(const Hashentry *entry)
+{
+    return (UINT8)((entry->data >> 60) & 0x03);
 }
 
-UINT64 getHashentryKey(const Hashentry * entry) {
-   return entry->key ^ entry->data;
+UINT64 getHashentryKey(const Hashentry *entry)
+{
+    return entry->key ^ entry->data;
 }
 
-static int getAge(const Hashtable * hashtable, const UINT8 date) {
-   assert(hashtable != NULL);
-   assert(date < NUM_DATES);
-   assert(hashtable->date < NUM_DATES);
+static int getAge(const Hashtable *hashtable, const UINT8 date)
+{
+    assert(hashtable != NULL);
+    assert(date < NUM_DATES);
+    assert(hashtable->date < NUM_DATES);
 
-   return (hashtable->date + NUM_DATES - date) & (NUM_DATES - 1);
+    return (hashtable->date + NUM_DATES - date) & (NUM_DATES - 1);
 }
 
-void incrementDate(Hashtable * hashtable) {
-   assert(hashtable != NULL);
-   assert(hashtable->date < NUM_DATES);
+void incrementDate(Hashtable *hashtable)
+{
+    assert(hashtable != NULL);
+    assert(hashtable->date < NUM_DATES);
 
-   hashtable->date = (UINT8) ((hashtable->date + 1) % NUM_DATES);
+    hashtable->date = (UINT8)((hashtable->date + 1) % NUM_DATES);
 
-   assert(hashtable->date < NUM_DATES);
+    assert(hashtable->date < NUM_DATES);
 }
 
-static void deleteTables(Hashtable * hashtable) {
-   if (hashtable != NULL && hashtable->table != NULL) {
-      free(hashtable->table);
-      hashtable->table = NULL;
-      hashtable->tableSize = 0;
-   }
+static void deleteTables(Hashtable *hashtable)
+{
+    if (hashtable != NULL && hashtable->table != NULL) {
+        free(hashtable->table);
+        hashtable->table = NULL;
+        hashtable->tableSize = 0;
+    }
 }
 
-static UINT64 _getHashData(INT16 value, INT16 staticValue, UINT8 importance,
-                           UINT16 bestMove, UINT8 date, UINT8 flag) {
-   return ((UINT64) (value & 0xFFFF)) |
-      (((UINT64) (staticValue & 0xFFFF)) << 16) |
-      (((UINT64) importance) << 32) |
-      (((UINT64) bestMove) << 40) |
-      (((UINT64) date) << 56) |
-      (((UINT64) flag) << 60);
+static UINT64 _getHashData(INT16 value, INT16 staticValue, UINT8 importance, UINT16 bestMove, UINT8 date, UINT8 flag)
+{
+    return ((UINT64)(value & 0xFFFF)) | (((UINT64)(staticValue & 0xFFFF)) << 16) | (((UINT64)importance) << 32) |
+           (((UINT64)bestMove) << 40) | (((UINT64)date) << 56) | (((UINT64)flag) << 60);
 }
 
-Hashentry constructHashEntry(UINT64 key, INT16 value, INT16 staticValue,
-                             UINT8 importance, UINT16 bestMove, UINT8 date,
-                             UINT8 flag) {
-   Hashentry entry;
+Hashentry constructHashEntry(UINT64 key, INT16 value, INT16 staticValue, UINT8 importance, UINT16 bestMove, UINT8 date,
+                             UINT8 flag)
+{
+    Hashentry entry;
 
-   entry.key = key;
-   entry.data = _getHashData(value, staticValue, importance,
-                             bestMove, date, flag);
+    entry.key = key;
+    entry.data = _getHashData(value, staticValue, importance, bestMove, date, flag);
 
-   return entry;
+    return entry;
 }
 
-void resetHashtable(Hashtable * hashtable) {
-   UINT64 l;
-   Hashentry emptyEntry;
+void resetHashtable(Hashtable *hashtable)
+{
+    UINT64 l;
+    Hashentry emptyEntry;
 
-   if (hashtable->table == NULL) {
-      return;
-   }
+    if (hashtable->table == NULL) {
+        return;
+    }
 
-   emptyEntry.key = ULONG_ZERO;
-   emptyEntry.data = _getHashData(-VALUE_MATED, 0, DEPTH_NONE,
-                                  (UINT16) NO_MOVE, 0, HASHVALUE_UPPER_LIMIT);
+    emptyEntry.key = ULONG_ZERO;
+    emptyEntry.data = _getHashData(-VALUE_MATED, 0, DEPTH_NONE, (UINT16)NO_MOVE, 0, HASHVALUE_UPPER_LIMIT);
 
-   for (l = 0; l < hashtable->tableSize + CLUSTER_SIZE; l++) {
-      hashtable->table[l] = emptyEntry;
-   }
+    for (l = 0; l < hashtable->tableSize + CLUSTER_SIZE; l++) {
+        hashtable->table[l] = emptyEntry;
+    }
 
-   hashtable->date = 0;
-   hashtable->entriesUsed = 0;
-
+    hashtable->date = 0;
+    hashtable->entriesUsed = 0;
 }
 
-void resetNodetable(void) {
-   size_t i;
+void resetNodetable(void)
+{
+    size_t i;
 
-   for (i = 0; i < NODE_TABLE_SIZE; i++) {
-      nodeUsageTable[i].key = ULONG_ZERO;
-   }
+    for (i = 0; i < NODE_TABLE_SIZE; i++) {
+        nodeUsageTable[i].key = ULONG_ZERO;
+    }
 }
 
-void finalizeHashtable(Hashtable * hashtable) {
-   deleteTables(hashtable);
+void finalizeHashtable(Hashtable *hashtable)
+{
+    deleteTables(hashtable);
 }
 
-void initializeHashtable(Hashtable * hashtable) {
-   if (hashtable != NULL) {
-      hashtable->table = NULL;
-      hashtable->tableSize = 0;
-      hashtable->entriesUsed = 0;
-      hashtable->date = 0;
-   }
+void initializeHashtable(Hashtable *hashtable)
+{
+    if (hashtable != NULL) {
+        hashtable->table = NULL;
+        hashtable->tableSize = 0;
+        hashtable->entriesUsed = 0;
+        hashtable->date = 0;
+    }
 }
 
-bool isPrimeNumber(UINT64 n) {
-   UINT64 limit, d;
+bool isPrimeNumber(UINT64 n)
+{
+    UINT64 limit, d;
 
-   if (n == 2) {
-      return TRUE;
-   }
+    if (n == 2) {
+        return TRUE;
+    }
 
-   if (n < 2 || n % 2 == 0) {
-      return FALSE;
-   }
+    if (n < 2 || n % 2 == 0) {
+        return FALSE;
+    }
 
-   limit = (UINT64) (sqrt((double) n) + 1.0);
+    limit = (UINT64)(sqrt((double)n) + 1.0);
 
-   for (d = 3; d <= limit; d += 2) {
-      if (n % d == 0) {
-         return FALSE;
-      }
-   }
+    for (d = 3; d <= limit; d += 2) {
+        if (n % d == 0) {
+            return FALSE;
+        }
+    }
 
-   return TRUE;
+    return TRUE;
 }
 
-UINT64 getNextPrime(UINT64 n) {
-   while (isPrimeNumber(n) == FALSE) {
-      n++;
-   }
+UINT64 getNextPrime(UINT64 n)
+{
+    while (isPrimeNumber(n) == FALSE) {
+        n++;
+    }
 
-   return n;
+    return n;
 }
 
-UINT64 getPreviousPrime(UINT64 n) {
-   n--;
+UINT64 getPreviousPrime(UINT64 n)
+{
+    n--;
 
-   while (isPrimeNumber(n) == FALSE) {
-      n--;
-   }
+    while (isPrimeNumber(n) == FALSE) {
+        n--;
+    }
 
-   return n;
+    return n;
 }
 
-bool setHashtableSize(Hashtable * hashtable, UINT64 size) {
-   const UINT64 ENTRY_SIZE = sizeof(Hashentry);
-   UINT64 newTableSize;
-   Hashentry *newTable;
+bool setHashtableSize(Hashtable *hashtable, UINT64 size)
+{
+    const UINT64 ENTRY_SIZE = sizeof(Hashentry);
+    UINT64 newTableSize;
+    Hashentry *newTable;
 
-   if (hashtable == NULL) {
-      return FALSE;
-   }
+    if (hashtable == NULL) {
+        return FALSE;
+    }
 
-   deleteTables(hashtable);
+    deleteTables(hashtable);
 
-   if (size == 0) {
-      return TRUE;
-   }
+    if (size == 0) {
+        return TRUE;
+    }
 
-   newTableSize = getNextPrime(size / ENTRY_SIZE);
-   newTable = (Hashentry *) malloc((newTableSize + CLUSTER_SIZE) * ENTRY_SIZE);
+    newTableSize = getNextPrime(size / ENTRY_SIZE);
+    newTable = (Hashentry *)malloc((newTableSize + CLUSTER_SIZE) * ENTRY_SIZE);
 
-   if (newTable == NULL) {
-      return FALSE;
-   }
+    if (newTable == NULL) {
+        return FALSE;
+    }
 
-   hashtable->table = newTable;
-   hashtable->tableSize = newTableSize;
+    hashtable->table = newTable;
+    hashtable->tableSize = newTableSize;
 
-   return TRUE;
+    return TRUE;
 }
 
-UINT64 getHashIndex(Hashtable * hashtable, UINT64 key) {
-   assert(hashtable != NULL);
+UINT64 getHashIndex(Hashtable *hashtable, UINT64 key)
+{
+    assert(hashtable != NULL);
 
-   if (hashtable->tableSize == 0) {
-      return 0;
-   }
+    if (hashtable->tableSize == 0) {
+        return 0;
+    }
 
-   return key % ((hashtable)->tableSize);
+    return key % ((hashtable)->tableSize);
 }
 
-void setHashentry(Hashtable * hashtable, UINT64 key, INT16 value,
-                  UINT8 importance, UINT16 bestMove, UINT8 flag,
-                  INT16 staticValue) {
-   UINT64 index, data, i, bestEntry = 0;
-   int bestEntryScore = -1024;
-   Hashentry *entryToBeReplaced;
+void setHashentry(Hashtable *hashtable, UINT64 key, INT16 value, UINT8 importance, UINT16 bestMove, UINT8 flag,
+                  INT16 staticValue)
+{
+    UINT64 index, data, i, bestEntry = 0;
+    int bestEntryScore = -1024;
+    Hashentry *entryToBeReplaced;
 
-   assert(hashtable != NULL);
+    assert(hashtable != NULL);
 
-   if (hashtable->table == NULL) {
-      return;
-   }
+    if (hashtable->table == NULL) {
+        return;
+    }
 
-   index = getHashIndex(hashtable, key);
+    index = getHashIndex(hashtable, key);
 
-   for (i = 0; i < CLUSTER_SIZE; i++) {
-      Hashentry copy = hashtable->table[index + i];
-      const UINT8 copyDate = getHashentryDate(&copy);
-      const int copyFlag = getHashentryFlag(&copy);
+    for (i = 0; i < CLUSTER_SIZE; i++) {
+        Hashentry copy = hashtable->table[index + i];
+        const UINT8 copyDate = getHashentryDate(&copy);
+        const int copyFlag = getHashentryFlag(&copy);
 
-      if (getHashentryKey(&copy) == key || copy.key == ULONG_ZERO) {
-         if (copyDate != hashtable->date || copy.key == ULONG_ZERO) {
-            hashtable->entriesUsed++;
-         }
+        if (getHashentryKey(&copy) == key || copy.key == ULONG_ZERO) {
+            if (copyDate != hashtable->date || copy.key == ULONG_ZERO) {
+                hashtable->entriesUsed++;
+            }
 
-         if (bestMove == (UINT16) NO_MOVE) {
-            bestMove = getHashentryMove(&copy);
-         }
+            if (bestMove == (UINT16)NO_MOVE) {
+                bestMove = getHashentryMove(&copy);
+            }
 
-         data = _getHashData(value, staticValue, importance, bestMove,
-                             hashtable->date, flag);
-         hashtable->table[index + i].key = key ^ data;
-         hashtable->table[index + i].data = data;
+            data = _getHashData(value, staticValue, importance, bestMove, hashtable->date, flag);
+            hashtable->table[index + i].key = key ^ data;
+            hashtable->table[index + i].data = data;
 
-         return;
-      } else {
-         const int score =
-            getAge(hashtable, copyDate) * 8 -
-            getHashentryImportance(&copy) -
-            (copyFlag == HASHVALUE_EXACT ? 24 : 0);
+            return;
+        } else {
+            const int score = getAge(hashtable, copyDate) * 8 - getHashentryImportance(&copy) -
+                              (copyFlag == HASHVALUE_EXACT ? 24 : 0);
 
-         if (score > bestEntryScore) {
-            bestEntry = i;
-            bestEntryScore = score;
-         }
-      }
-   }
+            if (score > bestEntryScore) {
+                bestEntry = i;
+                bestEntryScore = score;
+            }
+        }
+    }
 
-   if (getHashentryDate(&hashtable->table[index + bestEntry]) !=
-       hashtable->date) {
-      hashtable->entriesUsed++;
-   }
+    if (getHashentryDate(&hashtable->table[index + bestEntry]) != hashtable->date) {
+        hashtable->entriesUsed++;
+    }
 
-   entryToBeReplaced = &hashtable->table[index + bestEntry];
-   data = _getHashData(value, staticValue, importance, bestMove,
-                       hashtable->date, flag);
-   entryToBeReplaced->key = key ^ data;
-   entryToBeReplaced->data = data;
+    entryToBeReplaced = &hashtable->table[index + bestEntry];
+    data = _getHashData(value, staticValue, importance, bestMove, hashtable->date, flag);
+    entryToBeReplaced->key = key ^ data;
+    entryToBeReplaced->data = data;
 }
 
-Hashentry *getHashentry(Hashtable * hashtable, UINT64 key) {
-   UINT64 index, i;
+Hashentry *getHashentry(Hashtable *hashtable, UINT64 key)
+{
+    UINT64 index, i;
 
-   assert(hashtable != NULL);
+    assert(hashtable != NULL);
 
-   if (hashtable->table == NULL) {
-      return NULL;
-   }
+    if (hashtable->table == NULL) {
+        return NULL;
+    }
 
-   index = getHashIndex(hashtable, key);
+    index = getHashIndex(hashtable, key);
 
-   for (i = 0; i < CLUSTER_SIZE; i++) {
-      Hashentry *tableEntry = &hashtable->table[index + i];
+    for (i = 0; i < CLUSTER_SIZE; i++) {
+        Hashentry *tableEntry = &hashtable->table[index + i];
 
-      if (getHashentryKey(tableEntry) == key) {
-         if (getHashentryDate(tableEntry) != hashtable->date) {
+        if (getHashentryKey(tableEntry) == key) {
+            if (getHashentryDate(tableEntry) != hashtable->date) {
 #ifndef NDEBUG
-            const Hashentry originalEntry = *tableEntry;
+                const Hashentry originalEntry = *tableEntry;
 #endif
-            const UINT64 mask = (((UINT64) 0x0F) << 56);
-            const UINT64 newData = (tableEntry->data & ~mask) |
-               (((UINT64) hashtable->date) << 56);
+                const UINT64 mask = (((UINT64)0x0F) << 56);
+                const UINT64 newData = (tableEntry->data & ~mask) | (((UINT64)hashtable->date) << 56);
 
-            tableEntry->key = key ^ newData;
-            tableEntry->data = newData;
-            hashtable->entriesUsed++;
+                tableEntry->key = key ^ newData;
+                tableEntry->data = newData;
+                hashtable->entriesUsed++;
 
-            assert(getHashentryValue(&originalEntry) ==
-                   getHashentryValue(tableEntry));
-            assert(getHashentryStaticValue(&originalEntry) ==
-                   getHashentryStaticValue(tableEntry));
-            assert(getHashentryImportance(&originalEntry) ==
-                   getHashentryImportance(tableEntry));
-            assert(getHashentryMove(&originalEntry) ==
-                   getHashentryMove(tableEntry));
-            assert(getHashentryFlag(&originalEntry) ==
-                   getHashentryFlag(tableEntry));
-            assert(hashtable->date == getHashentryDate(tableEntry));
-         }
+                assert(getHashentryValue(&originalEntry) == getHashentryValue(tableEntry));
+                assert(getHashentryStaticValue(&originalEntry) == getHashentryStaticValue(tableEntry));
+                assert(getHashentryImportance(&originalEntry) == getHashentryImportance(tableEntry));
+                assert(getHashentryMove(&originalEntry) == getHashentryMove(tableEntry));
+                assert(getHashentryFlag(&originalEntry) == getHashentryFlag(tableEntry));
+                assert(hashtable->date == getHashentryDate(tableEntry));
+            }
 
-         return tableEntry;
-      }
-   }
+            return tableEntry;
+        }
+    }
 
-   return NULL;
+    return NULL;
 }
 
-UINT64 getNodeIndex(UINT64 key) {
-   if (numNodeTableEntries == 0) {
-      return 0;
-   }
+UINT64 getNodeIndex(UINT64 key)
+{
+    if (numNodeTableEntries == 0) {
+        return 0;
+    }
 
-   return key % numNodeTableEntries;
+    return key % numNodeTableEntries;
 }
 
-bool nodeIsInUse(UINT64 key, UINT8 depth) {
-   UINT64 nodeIndex;
+bool nodeIsInUse(UINT64 key, UINT8 depth)
+{
+    UINT64 nodeIndex;
 
-   if (numNodeTableEntries == 0) {
-      return FALSE;
-   }
+    if (numNodeTableEntries == 0) {
+        return FALSE;
+    }
 
-   nodeIndex = getNodeIndex(key);
+    nodeIndex = getNodeIndex(key);
 
-   return nodeUsageTable[nodeIndex].key == key &&
-      nodeUsageTable[nodeIndex].depth >= depth && key != ULONG_ZERO;
+    return nodeUsageTable[nodeIndex].key == key && nodeUsageTable[nodeIndex].depth >= depth && key != ULONG_ZERO;
 }
 
-bool setNodeUsage(UINT64 key, UINT8 depth) {
-   UINT64 nodeIndex;
+bool setNodeUsage(UINT64 key, UINT8 depth)
+{
+    UINT64 nodeIndex;
 
-   if (numNodeTableEntries == 0) {
-      return FALSE;
-   }
+    if (numNodeTableEntries == 0) {
+        return FALSE;
+    }
 
-   nodeIndex = getNodeIndex(key);
+    nodeIndex = getNodeIndex(key);
 
-   if (nodeUsageTable[nodeIndex].key == ULONG_ZERO) {
-      nodeUsageTable[nodeIndex].key = key;
-      nodeUsageTable[nodeIndex].depth = depth;
+    if (nodeUsageTable[nodeIndex].key == ULONG_ZERO) {
+        nodeUsageTable[nodeIndex].key = key;
+        nodeUsageTable[nodeIndex].depth = depth;
 
-      return TRUE;
-   } else {
-      return FALSE;
-   }
+        return TRUE;
+    } else {
+        return FALSE;
+    }
 }
 
-void resetNodeUsage(UINT64 key) {
-   UINT64 nodeIndex;
+void resetNodeUsage(UINT64 key)
+{
+    UINT64 nodeIndex;
 
-   if (numNodeTableEntries == 0) {
-      return;
-   }
+    if (numNodeTableEntries == 0) {
+        return;
+    }
 
-   nodeIndex = getNodeIndex(key);
+    nodeIndex = getNodeIndex(key);
 
-   nodeUsageTable[nodeIndex].key = ULONG_ZERO;
+    nodeUsageTable[nodeIndex].key = ULONG_ZERO;
 }
 
-int initializeModuleHash(void) {
-   resetNodetable();
-   numNodeTableEntries = getPreviousPrime(NODE_TABLE_SIZE);
+int initializeModuleHash(void)
+{
+    resetNodetable();
+    numNodeTableEntries = getPreviousPrime(NODE_TABLE_SIZE);
 
-   if (numNodeTableEntries == 0) {
-      return -1;
-   }
+    if (numNodeTableEntries == 0) {
+        return -1;
+    }
 
-   return 0;
+    return 0;
 }
 
-static int testAgeCalculation(void) {
-   Hashtable hashtable;
+static int testAgeCalculation(void)
+{
+    Hashtable hashtable;
 
-   hashtable.date = 0;
-   assert(getAge(&hashtable, (UINT8) (NUM_DATES - 1)) == 1);
-   assert(getAge(&hashtable, 0) == 0);
-   assert(getAge(&hashtable, 1) == (int) (NUM_DATES - 1));
+    hashtable.date = 0;
+    assert(getAge(&hashtable, (UINT8)(NUM_DATES - 1)) == 1);
+    assert(getAge(&hashtable, 0) == 0);
+    assert(getAge(&hashtable, 1) == (int)(NUM_DATES - 1));
 
-   hashtable.date = 2;
-   assert(getAge(&hashtable, 1) == 1);
-   assert(getAge(&hashtable, 2) == 0);
-   assert(getAge(&hashtable, 3) == (int) (NUM_DATES - 1));
+    hashtable.date = 2;
+    assert(getAge(&hashtable, 1) == 1);
+    assert(getAge(&hashtable, 2) == 0);
+    assert(getAge(&hashtable, 3) == (int)(NUM_DATES - 1));
 
-   hashtable.date = (UINT8) (NUM_DATES - 1);
-   assert(getAge(&hashtable, (UINT8) (NUM_DATES - 2)) == 1);
-   assert(getAge(&hashtable, (UINT8) (NUM_DATES - 1)) == 0);
-   assert(getAge(&hashtable, 0) == (int) (NUM_DATES - 1));
+    hashtable.date = (UINT8)(NUM_DATES - 1);
+    assert(getAge(&hashtable, (UINT8)(NUM_DATES - 2)) == 1);
+    assert(getAge(&hashtable, (UINT8)(NUM_DATES - 1)) == 0);
+    assert(getAge(&hashtable, 0) == (int)(NUM_DATES - 1));
 
-   return (hashtable.date == (UINT8) (NUM_DATES - 1) ? 0 : 1);
+    return (hashtable.date == (UINT8)(NUM_DATES - 1) ? 0 : 1);
 }
 
-int testModuleHash(void) {
-   int result = 0;
+int testModuleHash(void)
+{
+    int result = 0;
 
-   if ((result = testAgeCalculation()) != 0) {
-      return result;
-   }
+    if ((result = testAgeCalculation()) != 0) {
+        return result;
+    }
 
-   return 0;
+    return 0;
 }

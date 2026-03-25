@@ -21,26 +21,21 @@
 #ifndef _coordination_h_
 #define _coordination_h_
 
-#include "position.h"
 #include "movegeneration.h"
+#include "position.h"
 
-typedef enum {
-   TASKTYPE_BEST_MOVE,
-   TASKTYPE_TEST_BEST_MOVE,
-   TASKTYPE_MATE_IN_N,
-   TASKTYPE_TEST_MATE_IN_N
-} TaskType;
+typedef enum { TASKTYPE_BEST_MOVE, TASKTYPE_TEST_BEST_MOVE, TASKTYPE_MATE_IN_N, TASKTYPE_TEST_MATE_IN_N } TaskType;
 
 typedef struct {
-   TaskType type;               /* the type of task to be performed */
-   Variation *variation;        /* the variation to be examined */
-   int numberOfMoves;           /* mateproblems: the number of moves */
-   Movelist solutions;          /* mateproblems: the known solutions */
+    TaskType type;        /* the type of task to be performed */
+    Variation *variation; /* the variation to be examined */
+    int numberOfMoves;    /* mateproblems: the number of moves */
+    Movelist solutions;   /* mateproblems: the known solutions */
 
-   Movelist calculatedSolutions;        /* the calculated solutions */
-   Move bestMove;               /* the calculated best move */
+    Movelist calculatedSolutions; /* the calculated solutions */
+    Move bestMove;                /* the calculated best move */
 
-   UINT64 nodes;                /* the number of nodes calculated */
+    UINT64 nodes; /* the number of nodes calculated */
 } SearchTask;
 
 /**
@@ -74,13 +69,13 @@ void releaseGuiSearchMutex(void);
  * Schedule the specified task as the next task to be calculated.
  * @return 0 if successful, -1 otherwise.
  */
-int scheduleTask(SearchTask * task);
+int scheduleTask(SearchTask *task);
 
 /**
  * Start the timer of the specified task.
  * @return 0 if successful, -1 otherwise.
  */
-int startTimerThread(const SearchTask * task);
+int startTimerThread(const SearchTask *task);
 
 /**
  * Get the elapsed time of the current search.
@@ -93,7 +88,7 @@ long getElapsedTime(void);
 Hashtable *getSharedHashtable(void);
 
 /**
- * Signal an abortion of the current search and copy 
+ * Signal an abortion of the current search and copy
  * the current variation to 'variation'.
  */
 void prepareSearchAbort(void);
@@ -117,7 +112,7 @@ void setTimeLimit(unsigned long timeTarget, unsigned long timeLimit);
  * Schedule the specified task as the next task to be calculated.
  * Then wait until the task is completed.
  */
-void completeTask(SearchTask * task);
+void completeTask(SearchTask *task);
 
 /**
  * Get the variation object of the current search task.

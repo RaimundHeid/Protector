@@ -21,24 +21,25 @@
 #ifndef _position_h_
 #define _position_h_
 
-#include "protector.h"
 #include "bitboard.h"
 #include "nnue.h"
 #include "position_struct.h"
-#include <string.h>
-#include <stdlib.h>
+#include "protector.h"
+
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MAX_DEPTH 96
 #define MAX_DEPTH_ARRAY_SIZE (MAX_DEPTH + 2)
 #define POSITION_HISTORY_OFFSET 100
-#define DEFAULT_HASHTABLE_EXPONENT   16
+#define DEFAULT_HASHTABLE_EXPONENT 16
 
-#define SEARCHEVENT_SEARCH_FINISHED    1
-#define SEARCHEVENT_PLY_FINISHED       2
-#define SEARCHEVENT_NEW_PV             3
-#define SEARCHEVENT_NEW_BASEMOVE       4
-#define SEARCHEVENT_STATISTICS_UPDATE  5
+#define SEARCHEVENT_SEARCH_FINISHED 1
+#define SEARCHEVENT_PLY_FINISHED 2
+#define SEARCHEVENT_NEW_PV 3
+#define SEARCHEVENT_NEW_BASEMOVE 4
+#define SEARCHEVENT_STATISTICS_UPDATE 5
 
 #define DELTA (-3)
 
@@ -53,16 +54,14 @@ extern int basicValue[16];
 typedef UINT32 Move;
 
 typedef struct {
-   Square square;
-   Bitboard moves;
-}
-MovesOfPiece;
+    Square square;
+    Bitboard moves;
+} MovesOfPiece;
 
 typedef struct {
-   Bitboard diaAttackers, orthoAttackers, knightAttackers, pawnAttackers[2];
-   Square attackedByDia[_64_], attackedByOrtho[_64_];
-}
-KingAttacks;
+    Bitboard diaAttackers, orthoAttackers, knightAttackers, pawnAttackers[2];
+    Square attackedByDia[_64_], attackedByOrtho[_64_];
+} KingAttacks;
 
 #define HASHVALUE_UPPER_LIMIT 0
 #define HASHVALUE_EXACT 1
@@ -70,202 +69,191 @@ KingAttacks;
 #define HASHVALUE_EVAL 3
 
 typedef struct {
-   UINT16 move[MAX_DEPTH_ARRAY_SIZE];
-   int length, score, scoreType;
-}
-PrincipalVariation;
+    UINT16 move[MAX_DEPTH_ARRAY_SIZE];
+    int length, score, scoreType;
+} PrincipalVariation;
 
 typedef struct {
-   Move killerMove1, killerMove2, killerMove3, killerMove4, killerMove5,
-      killerMove6;
-   Move currentMove;
-   int indexCurrentMove;
-   bool currentMoveIsCheck;
-   Piece captured, restorePiece1, restorePiece2;
-   Square enPassantSquare, restoreSquare1, restoreSquare2, kingSquare;
-   BYTE castlingRights;
-   int halfMoveClock;
-   Bitboard allPieces, whitePieces, blackPieces, hashKey;
-   int staticValue, refinedStaticValue;
-   bool staticValueAvailable, gainsUpdated;
-   bool quietMove, isHashMove;
-   Accumulator accumulator;
-   PrincipalVariation pv;
-}
-PlyInfo;
+    Move killerMove1, killerMove2, killerMove3, killerMove4, killerMove5, killerMove6;
+    Move currentMove;
+    int indexCurrentMove;
+    bool currentMoveIsCheck;
+    Piece captured, restorePiece1, restorePiece2;
+    Square enPassantSquare, restoreSquare1, restoreSquare2, kingSquare;
+    BYTE castlingRights;
+    int halfMoveClock;
+    Bitboard allPieces, whitePieces, blackPieces, hashKey;
+    int staticValue, refinedStaticValue;
+    bool staticValueAvailable, gainsUpdated;
+    bool quietMove, isHashMove;
+    Accumulator accumulator;
+    PrincipalVariation pv;
+} PlyInfo;
 
 typedef struct {
-   Position *position;
-   PlyInfo *plyInfo;
-   Move hashMove;
-   Move moves[MAX_MOVES_PER_POSITION];
-   Move badCaptures[MAX_MOVES_PER_POSITION];
-   bool killer1Executed, killer2Executed, killer3Executed, killer4Executed,
-      killer5Executed, killer6Executed;
-   MovesOfPiece movesOfPiece[16];
-   int numberOfMoves, numberOfBadCaptures;
-   int nextMove, currentStage, numberOfPieces;
-   UINT16 *historyValue;
-   INT16 *positionalGain;
-}
-Movelist;
+    Position *position;
+    PlyInfo *plyInfo;
+    Move hashMove;
+    Move moves[MAX_MOVES_PER_POSITION];
+    Move badCaptures[MAX_MOVES_PER_POSITION];
+    bool killer1Executed, killer2Executed, killer3Executed, killer4Executed, killer5Executed, killer6Executed;
+    MovesOfPiece movesOfPiece[16];
+    int numberOfMoves, numberOfBadCaptures;
+    int nextMove, currentStage, numberOfPieces;
+    UINT16 *historyValue;
+    INT16 *positionalGain;
+} Movelist;
 
 typedef struct {
-   UINT64 key;
-   UINT64 data;
-}
-Hashentry;
+    UINT64 key;
+    UINT64 data;
+} Hashentry;
 
 typedef struct {
-   UINT64 key;
-   UINT8 depth;
-}
-Nodeentry;
+    UINT64 key;
+    UINT8 depth;
+} Nodeentry;
 
 typedef struct {
-   Hashentry *table;
-   UINT64 tableSize, entriesUsed;
-   UINT8 date;
-}
-Hashtable;
+    Hashentry *table;
+    UINT64 tableSize, entriesUsed;
+    UINT8 date;
+} Hashtable;
 
 typedef enum {
-   SEARCH_STATUS_RUNNING,
-   SEARCH_STATUS_TERMINATE,
-   SEARCH_STATUS_ABORT,
-   SEARCH_STATUS_FINISHED
-}
-SearchStatus;
+    SEARCH_STATUS_RUNNING,
+    SEARCH_STATUS_TERMINATE,
+    SEARCH_STATUS_ABORT,
+    SEARCH_STATUS_FINISHED
+} SearchStatus;
 
-#define HISTORY_SIZE (16*64)
-#define HISTORY_MAX  16384
-#define HISTORY_LIMIT 60        /* (60%) */
+#define HISTORY_SIZE (16 * 64)
+#define HISTORY_MAX 16384
+#define HISTORY_LIMIT 60 /* (60%) */
 
 #define BONUS_HIDDEN_PASSER
 
 typedef struct {
-   int ply, iteration, selDepth;
-   int numberOfBaseMoves, numberOfCurrentBaseMove;
-   Move currentBaseMove, bestBaseMove;
-   Position singlePosition, startPosition;
-   PlyInfo plyInfo[MAX_DEPTH_ARRAY_SIZE];
-   FinnyTable finnyTable;
-   PrincipalVariation completePv;
-   PrincipalVariation pv[MAX_NUM_PV];
-   int pvId;
-   UINT64 positionHistory[POSITION_HISTORY_OFFSET + MAX_DEPTH_ARRAY_SIZE];
-   UINT64 nodes, nodesAtTimeCheck, nodesBetweenTimecheck;
-   UINT16 historyValue[HISTORY_SIZE];
-   INT16 positionalGain[HISTORY_SIZE];
-   Move counterMove1[HISTORY_SIZE], counterMove2[HISTORY_SIZE];
-   Move followupMove1[HISTORY_SIZE], followupMove2[HISTORY_SIZE];
-   long startTime, timeTarget, timeLimit, finishTime, timestamp;
-   long startTimeProcess, finishTimeProcess, hashSendTimestamp;
-   unsigned long tbHits;
-   void (*handleSearchEvent) (int, void *);
-   SearchStatus searchStatus;
-   int drawScore[2];
-   int bestMoveChangeCount;
-   bool terminate, ponderMode, terminateSearchOnPonderhit, failingLow;
-   int previousBest;
-   long numPvUpdates;
-   unsigned int threadNumber;
-   Color ownColor;
-}
-Variation;
+    int ply, iteration, selDepth;
+    int numberOfBaseMoves, numberOfCurrentBaseMove;
+    Move currentBaseMove, bestBaseMove;
+    Position singlePosition, startPosition;
+    PlyInfo plyInfo[MAX_DEPTH_ARRAY_SIZE];
+    FinnyTable finnyTable;
+    PrincipalVariation completePv;
+    PrincipalVariation pv[MAX_NUM_PV];
+    int pvId;
+    UINT64 positionHistory[POSITION_HISTORY_OFFSET + MAX_DEPTH_ARRAY_SIZE];
+    UINT64 nodes, nodesAtTimeCheck, nodesBetweenTimecheck;
+    UINT16 historyValue[HISTORY_SIZE];
+    INT16 positionalGain[HISTORY_SIZE];
+    Move counterMove1[HISTORY_SIZE], counterMove2[HISTORY_SIZE];
+    Move followupMove1[HISTORY_SIZE], followupMove2[HISTORY_SIZE];
+    long startTime, timeTarget, timeLimit, finishTime, timestamp;
+    long startTimeProcess, finishTimeProcess, hashSendTimestamp;
+    unsigned long tbHits;
+    void (*handleSearchEvent)(int, void *);
+    SearchStatus searchStatus;
+    int drawScore[2];
+    int bestMoveChangeCount;
+    bool terminate, ponderMode, terminateSearchOnPonderhit, failingLow;
+    int previousBest;
+    long numPvUpdates;
+    unsigned int threadNumber;
+    Color ownColor;
+} Variation;
 
 #define TIME_CHECK_INTERVALL_IN_MS 100
 #define NODES_BETWEEN_TIMECHECK_DEFAULT 25000
 
-#define V(op,eg)  ((INT32)((UINT32)(op) + ((UINT32)(eg) << 16)))
-#define HV(op,eg) ((INT32)((UINT32)(((op)*100)/256) + ((UINT32)(((eg)*100)/256) << 16)))
+#define V(op, eg) ((INT32)((UINT32)(op) + ((UINT32)(eg) << 16)))
+#define HV(op, eg) ((INT32)((UINT32)(((op) * 100) / 256) + ((UINT32)(((eg) * 100) / 256) << 16)))
 
 /**
  * Flip the specified position.
  */
-void flipPosition(Position * position);
+void flipPosition(Position *position);
 
 /**
  * Remove all pieces from the specified position.
  */
-void clearPosition(Position * position);
+void clearPosition(Position *position);
 
 /**
  * Calculate the redundant data of the specified position.
  */
-void initializePosition(Position * position);
+void initializePosition(Position *position);
 
 /**
  * Prepare a search with the specified variation.
  */
-void prepareSearch(Variation * variation);
+void prepareSearch(Variation *variation);
 
 /**
  * Reset history values.
  */
-void resetHistoryValues(Variation * variation);
+void resetHistoryValues(Variation *variation);
 
 /**
  * Reset history hit values.
  */
-void resetHistoryHitValues(Variation * variation);
+void resetHistoryHitValues(Variation *variation);
 
 /**
  * Reset gain values.
  */
-void resetGainValues(Variation * variation);
+void resetGainValues(Variation *variation);
 
 /**
  * Shrink all history values.
  */
-void shrinkHistoryValues(Variation * variation);
+void shrinkHistoryValues(Variation *variation);
 
 /**
  * Shrink all history hit values.
  */
-void shrinkHistoryHitValues(Variation * variation);
+void shrinkHistoryHitValues(Variation *variation);
 
 /**
  * Initialize a variation with the position specified by 'fen'.
  * Prepare a search.
  */
-void initializeVariation(Variation * variation, const char *fen);
+void initializeVariation(Variation *variation, const char *fen);
 
 /**
  * Initialize a variation with the position specified by 'position'.
  * To perform a search, call 'prepareSearch' afterwards.
  */
-void setBasePosition(Variation * variation, const Position * position);
+void setBasePosition(Variation *variation, const Position *position);
 
 /**
  * Set the value of a definite draw.
  */
-void setDrawScore(Variation * variation, int score, Color color);
+void setDrawScore(Variation *variation, int score, Color color);
 
 /**
  * Get the pieces interested in moving to 'square'.
  */
-Bitboard getInterestedPieces(const Position * position, const Square square,
-                             const Color attackerColor);
+Bitboard getInterestedPieces(const Position *position, const Square square, const Color attackerColor);
 
 /**
  * Make the specified move at the current end of the specified variation.
  *
  * @return 1 if the move was an illegal castling move, 0 otherwise
  */
-int makeMove(Variation * variation, const Move move);
+int makeMove(Variation *variation, const Move move);
 
 /**
  * Make the specified move at the current end of the specified variation.
  *
  * @return 1 if the move was an illegal castling move, 0 otherwise
  */
-int makeMoveFast(Variation * variation, const Move move);
+int makeMoveFast(Variation *variation, const Move move);
 
 /**
  * Unmake the last move.
  */
-void unmakeLastMove(Variation * variation);
+void unmakeLastMove(Variation *variation);
 
 /**
  * Test if a move attacks the opponent's king.
@@ -273,83 +261,72 @@ void unmakeLastMove(Variation * variation);
  * @return FALSE if the specified move doesn't attack
  *         the opponent's king, TRUE otherwise
  */
-bool moveIsCheck(const Move move, const Position * position);
+bool moveIsCheck(const Move move, const Position *position);
 
 /**
  * Check if the specified position is consistent.
  *
  * @return 0 if the specified position is consistent
  */
-int checkConsistency(const Position * position);
+int checkConsistency(const Position *position);
 
 /**
  * Check if the specified variation is consistent.
  *
  * @return 0 if the specified variation is consistent
  */
-int checkVariation(Variation * variation);
+int checkVariation(Variation *variation);
 
 /**
  * Check if the given position is legal.
  */
-bool positionIsLegal(const Position * position);
+bool positionIsLegal(const Position *position);
 
 /**
  * Check if the specified position are identical (excluding move numbers).
  */
-bool positionsAreIdentical(const Position * position1,
-                           const Position * position2);
+bool positionsAreIdentical(const Position *position1, const Position *position2);
 
 Square relativeSquare(const Square square, const Color color);
 INT32 evalBonus(INT32 openingBonus, INT32 endgameBonus);
 int getOpeningValue(INT32 value);
 int getEndgameValue(INT32 value);
 UINT16 packedMove(const Move move);
-Move getMove(const Square from, const Square to,
-             const Piece newPiece, const INT16 value);
+Move getMove(const Square from, const Square to, const Piece newPiece, const INT16 value);
 Move getOrdinaryMove(const Square from, const Square to);
 Move getPackedMove(const Square from, const Square to, const Piece newPiece);
 Square getFromSquare(const Move move);
 Square getToSquare(const Move move);
 Piece getNewPiece(const Move move);
 INT16 getMoveValue(const Move move);
-void setMoveValue(Move * move, const int value);
+void setMoveValue(Move *move, const int value);
 Color opponent(Color color);
-Bitboard getDirectAttackers(const Position * position,
-                            const Square square,
-                            const Color attackerColor,
+Bitboard getDirectAttackers(const Position *position, const Square square, const Color attackerColor,
                             const Bitboard obstacles);
-Bitboard getDiaSquaresBehind(const Position * position,
-                             const Square targetSquare,
-                             const Square viewPoint);
-Bitboard getOrthoSquaresBehind(const Position * position,
-                               const Square targetSquare,
-                               const Square viewPoint);
-void initializePlyInfo(Variation * variation);
-void initializePv(PrincipalVariation * pv);
-void initializePvsOfVariation(Variation * variation);
-void resetPvsOfVariation(Variation * variation);
-void addPvByScore(Variation * variation, PrincipalVariation * pv);
-bool pvListContainsMove(Variation * variation, PrincipalVariation * pv);
-void resetPlyInfo(Variation * variation);
-int numberOfNonPawnPieces(const Position * position, const Color color);
-bool hasOrthoPieces(const Position * position, const Color color);
-bool hasQueen(const Position * position, const Color color);
-void appendMoveToPv(const PrincipalVariation * oldPv,
-                    PrincipalVariation * newPv, const Move move);
+Bitboard getDiaSquaresBehind(const Position *position, const Square targetSquare, const Square viewPoint);
+Bitboard getOrthoSquaresBehind(const Position *position, const Square targetSquare, const Square viewPoint);
+void initializePlyInfo(Variation *variation);
+void initializePv(PrincipalVariation *pv);
+void initializePvsOfVariation(Variation *variation);
+void resetPvsOfVariation(Variation *variation);
+void addPvByScore(Variation *variation, PrincipalVariation *pv);
+bool pvListContainsMove(Variation *variation, PrincipalVariation *pv);
+void resetPlyInfo(Variation *variation);
+int numberOfNonPawnPieces(const Position *position, const Color color);
+bool hasOrthoPieces(const Position *position, const Color color);
+bool hasQueen(const Position *position, const Color color);
+void appendMoveToPv(const PrincipalVariation *oldPv, PrincipalVariation *newPv, const Move move);
 INT16 calcHashtableValue(const int value, const int ply);
 int calcEffectiveValue(const int value, const int ply);
-Bitboard getOrdinaryPieces(const Position * position, const Color color);
-Bitboard getNonPawnPieces(const Position * position, const Color color);
-Bitboard getOrthoPieces(const Position * position, const Color color);
+Bitboard getOrdinaryPieces(const Position *position, const Color color);
+Bitboard getNonPawnPieces(const Position *position, const Color color);
+Bitboard getOrthoPieces(const Position *position, const Color color);
 bool movesAreEqual(const Move m1, const Move m2);
-bool pieceIsPresent(const Position * position, const Piece piece);
-int historyIndex(const Move move, const Position * position);
-int moveIndex(const Move move, const Position * position);
-int getMinimalDistance(const Position * position,
-                       const Square origin, const Piece piece);
-int getMinimalTaxiDistance(const Position * position,
-                           const Square origin, const Piece piece);
+bool pieceIsPresent(const Position *position, const Piece piece);
+int historyIndex(const Move move, const Position *position);
+int moveIndex(const Move move, const Position *position);
+int getMinimalDistance(const Position *position, const Square origin, const Piece piece);
+int getMinimalTaxiDistance(const Position *position, const Square origin, const Piece piece);
 
 /**
  * Initialize this module.

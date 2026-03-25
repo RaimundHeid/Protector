@@ -58,16 +58,16 @@ void closeTablebaseFiles(void);
 /**
  * Probe the tablebase for the specified position.
  */
-int probeTablebase(const Position * position);
+int probeTablebase(const Position *position);
 
 /**
  * Probe the tablebase (WDL) for the specified position.
  */
-int probeTablebaseWDL(const Position * position);
+int probeTablebaseWDL(const Position *position);
 
 /**
  * Probe the tablebase (DTZ) for the specified position.
  */
-int probeTablebaseDTZ(const Position * position, Move * move);
+int probeTablebaseDTZ(const Position *position, Move *move);
 
 #endif

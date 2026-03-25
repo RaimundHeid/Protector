@@ -21,24 +21,24 @@
 #ifndef _evaluation_h_
 #define _evaluation_h_
 
-#include "position.h"
 #include "bitboard.h"
-#include "keytable.h"
 #include "io.h"
+#include "keytable.h"
+#include "position.h"
 
 extern Bitboard passedPawnCorridor[2][_64_];
 extern Bitboard candidateDefenders[2][_64_];
 
 /* Stockfish piece values used for NNUE material estimation */
-#define SFVAL_PAWN              208
-#define SFVAL_KNIGHT            781
-#define SFVAL_BISHOP            825
-#define SFVAL_ROOK             1276
-#define SFVAL_QUEEN            2538
-#define SFVAL_PAWN_MATERIAL     534  /* Pawn weight in the NNUE material blend formula */
+#define SFVAL_PAWN 208
+#define SFVAL_KNIGHT 781
+#define SFVAL_BISHOP 825
+#define SFVAL_ROOK 1276
+#define SFVAL_QUEEN 2538
+#define SFVAL_PAWN_MATERIAL 534 /* Pawn weight in the NNUE material blend formula */
 
-bool hasWinningPotential(Position * position, Color color);
-bool hasBishopPair(const Position * position, const Color color);
+bool hasWinningPotential(Position *position, Color color);
+bool hasBishopPair(const Position *position, const Color color);
 
 #include "nnue.h"
 
@@ -47,20 +47,19 @@ bool hasBishopPair(const Position * position, const Color color);
  *
  * @return the value of the specified position
  */
-int getValue(const Position * position, Accumulator * acc, int optimism);
+int getValue(const Position *position, Accumulator *acc, int optimism);
 
 /**
  * Check if the pawn at the specified square is a passed pawn.
  */
-bool pawnIsPassed(const Position * position, const Square pawnSquare,
-                  const Color pawnColor);
+bool pawnIsPassed(const Position *position, const Square pawnSquare, const Color pawnColor);
 
 /**
  * Flip the given position and check if it yields the same result.
  *
  * @return FALSE if the flipped position yields a diffent result
  */
-bool flipTest(Position * position);
+bool flipTest(Position *position);
 
 /**
  * Initialize this module.

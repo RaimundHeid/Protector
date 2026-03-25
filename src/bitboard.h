@@ -22,44 +22,40 @@
 #define _bitboard_h_
 
 #include "protector.h"
+
 #include <string.h>
 
 typedef UINT64 Bitboard;
 
 #define EMPTY_BITBOARD ULONG_ZERO
-#define IMAX_ROOK    4096
-#define IMAX_BISHOP  512
+#define IMAX_ROOK 4096
+#define IMAX_BISHOP 512
 
 typedef struct {
-   int hLane, vLane, uLane, dLane;
-   BYTE hLaneSetMask, vLaneSetMask, uLaneSetMask, dLaneSetMask;
-   BYTE hLaneClearMask, vLaneClearMask, uLaneClearMask, dLaneClearMask;
-}
-SquareLaneInfo;
+    int hLane, vLane, uLane, dLane;
+    BYTE hLaneSetMask, vLaneSetMask, uLaneSetMask, dLaneSetMask;
+    BYTE hLaneClearMask, vLaneClearMask, uLaneClearMask, dLaneClearMask;
+} SquareLaneInfo;
 
 typedef struct {
-   int numSetSquares;
-   UINT8 setSquares[16];
-}
-SetSquaresInfo;
+    int numSetSquares;
+    UINT8 setSquares[16];
+} SetSquaresInfo;
 
 typedef struct {
-   int hLaneNumber, vLaneNumber, uLaneNumber, dLaneNumber;
-   Bitboard hLane[256], vLane[256], uLane[256], dLane[256];
-}
-ObstacleSquareInfo;
+    int hLaneNumber, vLaneNumber, uLaneNumber, dLaneNumber;
+    Bitboard hLane[256], vLane[256], uLane[256], dLane[256];
+} ObstacleSquareInfo;
 
 typedef struct {
-   Bitboard preMask, magicNumber;
-   Bitboard moves[IMAX_ROOK];
-}
-MagicSquareInfoRook;
+    Bitboard preMask, magicNumber;
+    Bitboard moves[IMAX_ROOK];
+} MagicSquareInfoRook;
 
 typedef struct {
-   Bitboard preMask, magicNumber;
-   Bitboard moves[IMAX_BISHOP];
-}
-MagicSquareInfoBishop;
+    Bitboard preMask, magicNumber;
+    Bitboard moves[IMAX_BISHOP];
+} MagicSquareInfoBishop;
 
 #define SLI(square) (squareLaneInfo[(square)])
 
@@ -100,8 +96,7 @@ extern Bitboard diaKingAttackers[_64_];
 extern Bitboard knightKingAttackers[_64_];
 extern Bitboard pawnKingAttackers[2][_64_];
 extern Bitboard interestedPawns[2][_64_][256];
-extern Bitboard nonA, nonH, border, center, lightSquares, darkSquares,
-   queenSide, kingSide, centerFiles, extendedCenter;
+extern Bitboard nonA, nonH, border, center, lightSquares, darkSquares, queenSide, kingSide, centerFiles, extendedCenter;
 extern int hLaneNumber[_64_], vLaneNumber[_64_];
 extern int uLaneNumber[_64_], dLaneNumber[_64_];
 extern Bitboard preMaskRook[64], preMaskBishop[64];
@@ -112,9 +107,9 @@ extern const Bitboard magicBishopNumber[64];
 extern MagicSquareInfoRook magicSquareInfoRook[64];
 extern MagicSquareInfoBishop magicSquareInfoBishop[64];
 
-#define setSquare(bitboard,square) ((bitboard) |= minValue[(square)]);
-#define clearSquare(bitboard,square) ((bitboard) &= maxValue[(square)]);
-#define excludeSquares(bitboard,toBeExcluded) ((bitboard) &= ~(toBeExcluded))
+#define setSquare(bitboard, square) ((bitboard) |= minValue[(square)]);
+#define clearSquare(bitboard, square) ((bitboard) &= maxValue[(square)]);
+#define excludeSquares(bitboard, toBeExcluded) ((bitboard) &= ~(toBeExcluded))
 
 /**
  * The number of lanes used to hold information
@@ -132,25 +127,20 @@ extern MagicSquareInfoBishop magicSquareInfoBishop[64];
 
 bool testSquare(const Bitboard bitboard, const Square square);
 Bitboard getKingMoves(const Square square);
-Bitboard getCastlingMoves(const Color color,
-                          const BYTE castlingRights,
-                          const Bitboard obstacles);
+Bitboard getCastlingMoves(const Color color, const BYTE castlingRights, const Bitboard obstacles);
 /*
  Bitboard getQueenMoves(const Square square, const BYTE * obstacles);
 */
 int getWidth(const Bitboard set);
 Bitboard getMagicQueenMoves(const Square square, const Bitboard obstacles);
-Bitboard getRookMoves(const Square square, const BYTE * obstacles);
+Bitboard getRookMoves(const Square square, const BYTE *obstacles);
 Bitboard getMagicRookMoves(const Square square, const Bitboard obstacles);
-Bitboard getBishopMoves(const Square square, const BYTE * obstacles);
+Bitboard getBishopMoves(const Square square, const BYTE *obstacles);
 Bitboard getMagicBishopMoves(const Square square, const Bitboard obstacles);
 Bitboard getKnightMoves(const Square square);
-Bitboard getPawnCaptures(const Piece piece, const Square square,
-                         const Bitboard allPieces);
-Bitboard getPawnAdvances(const Color color, const Square square,
-                         const Bitboard obstacles);
-Bitboard getInterestedPawns(const Color color,
-                            const Square square, const Bitboard obstacles);
+Bitboard getPawnCaptures(const Piece piece, const Square square, const Bitboard allPieces);
+Bitboard getPawnAdvances(const Color color, const Square square, const Bitboard obstacles);
+Bitboard getInterestedPawns(const Color color, const Square square, const Bitboard obstacles);
 Bitboard getSquaresBetween(const Square square1, const Square square2);
 Bitboard getSquaresBehind(const Square target, const Square viewpoint);
 Bitboard shiftLeft(const Bitboard bitboard);
@@ -165,22 +155,21 @@ Bitboard getCaptureMoves(Square square, Piece piece, Bitboard allPieces);
 void setObstacleSquare(Square square, BYTE obstacles[NUM_LANES]);
 void clearObstacleSquare(Square square, BYTE obstacles[NUM_LANES]);
 void calculateObstacles(Bitboard board, BYTE obstacles[NUM_LANES]);
-Square getLastSquare(Bitboard * vector);
-void floodBoard(Bitboard * board);
+Square getLastSquare(Bitboard *vector);
+void floodBoard(Bitboard *board);
 Bitboard getWhitePawnTargets(const Bitboard whitePawns);
 Bitboard getBlackPawnTargets(const Bitboard blackPawns);
-void floodBoard(Bitboard * board);
-Square getLastSquare(Bitboard * vector);
-Square getFirstSquare(Bitboard * vector);
+void floodBoard(Bitboard *board);
+Square getLastSquare(Bitboard *vector);
+Square getFirstSquare(Bitboard *vector);
 int getSetSquares(const Bitboard board, UINT8 squares[_64_]);
 Bitboard getMultipleSquaresBetween(const Square origin, Bitboard targets);
 
-#define ITERATE_BITBOARD(b,sq) while ( ( sq = getLastSquare(b) ) >= 0 )
+#define ITERATE_BITBOARD(b, sq) while ((sq = getLastSquare(b)) >= 0)
 
 unsigned int getMinimumDistance(const Bitboard targets, const Square square);
 unsigned int getMaximumDistance(const Bitboard targets, const Square square);
-int getFloodValue(const Square origin, const Bitboard targets,
-                  const Bitboard permittedSquares);
+int getFloodValue(const Square origin, const Bitboard targets, const Bitboard permittedSquares);
 Bitboard getFlippedBitboard(Bitboard original);
 
 /**

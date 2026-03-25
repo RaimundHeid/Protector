@@ -23,8 +23,8 @@
 
 #define FEN_GAMESTART "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-#include "protector.h"
 #include "position.h"
+#include "protector.h"
 
 /**
  * Convert a FEN string to a position object.
@@ -35,7 +35,7 @@
  *
  * @return 0 if the conversion could be accomplished
  */
-int readFen(const char *fen, Position * position);
+int readFen(const char *fen, Position *position);
 
 /**
  * Convert a position object to an FEN string.
@@ -44,7 +44,7 @@ int readFen(const char *fen, Position * position);
  * @param fen the buffer supposed to contain the fen string of the position
  *        specified by 'position'
  */
-void getFen(const Position * position, char *fen, size_t bufferSize);
+void getFen(const Position *position, char *fen, size_t bufferSize);
 
 /**
  * Initialize this module.

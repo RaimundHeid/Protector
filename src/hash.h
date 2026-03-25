@@ -21,8 +21,8 @@
 #ifndef _hash_h_
 #define _hash_h_
 
-#include "protector.h"
 #include "position.h"
+#include "protector.h"
 
 /**
  * Define the size of the specified hashtable.
@@ -30,54 +30,52 @@
  * @param size the size of the hashtable in bytes
  * @return true if the hashtable was successfully allocated, false otherwise
  */
-bool setHashtableSize(Hashtable * hashtable, UINT64 size);
+bool setHashtableSize(Hashtable *hashtable, UINT64 size);
 
 /**
  * Initialize the specified hashtable. Call this function exactly once
  * for every hashtable before using it.
  */
-void initializeHashtable(Hashtable * hashtable);
+void initializeHashtable(Hashtable *hashtable);
 
-void finalizeHashtable(Hashtable * hashtable);
+void finalizeHashtable(Hashtable *hashtable);
 
 /**
  * Reset the specified hashtable.
  Call this function in order to
  * erase all stored data.
  */
-void resetHashtable(Hashtable * hashtable);
+void resetHashtable(Hashtable *hashtable);
 
 /**
  * Increment the date of the specified hashtable.
  */
-void incrementDate(Hashtable * hashtable);
+void incrementDate(Hashtable *hashtable);
 
 /**
  * Construct a hashentry from the given values.
  */
-Hashentry constructHashEntry(UINT64 key, INT16 value, INT16 staticValue,
-                             UINT8 importance, UINT16 bestMove, UINT8 date,
+Hashentry constructHashEntry(UINT64 key, INT16 value, INT16 staticValue, UINT8 importance, UINT16 bestMove, UINT8 date,
                              UINT8 flag);
 
 /**
  * Put the specified entry into the hashtable.
  */
-void setHashentry(Hashtable * hashtable, UINT64 key, INT16 value,
-                  UINT8 importance, UINT16 bestMove, UINT8 flag,
+void setHashentry(Hashtable *hashtable, UINT64 key, INT16 value, UINT8 importance, UINT16 bestMove, UINT8 flag,
                   INT16 staticValue);
 
 /**
  * Get the entry specified by key.
  */
-Hashentry *getHashentry(Hashtable * hashtable, UINT64 key);
+Hashentry *getHashentry(Hashtable *hashtable, UINT64 key);
 
-INT16 getHashentryValue(const Hashentry * entry);
-UINT8 getHashentryImportance(const Hashentry * entry);
-UINT16 getHashentryMove(const Hashentry * entry);
-UINT8 getHashentryDate(const Hashentry * entry);
-UINT8 getHashentryFlag(const Hashentry * entry);
-UINT64 getHashentryKey(const Hashentry * entry);
-INT16 getHashentryStaticValue(const Hashentry * entry);
+INT16 getHashentryValue(const Hashentry *entry);
+UINT8 getHashentryImportance(const Hashentry *entry);
+UINT16 getHashentryMove(const Hashentry *entry);
+UINT8 getHashentryDate(const Hashentry *entry);
+UINT8 getHashentryFlag(const Hashentry *entry);
+UINT64 getHashentryKey(const Hashentry *entry);
+INT16 getHashentryStaticValue(const Hashentry *entry);
 bool nodeIsInUse(UINT64 key, UINT8 depth);
 bool setNodeUsage(UINT64 key, UINT8 depth);
 void resetNodeUsage(UINT64 key);

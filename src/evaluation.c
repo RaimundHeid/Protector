@@ -18,29 +18,30 @@
 
 */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include "position.h"
+#include "evaluation.h"
+
 #include "fen.h"
 #include "io.h"
-#include "evaluation.h"
-#include "tools.h"
+#include "position.h"
 #include "tablebase.h"
+#include "tools.h"
+
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
-int getValue(const Position * position, Accumulator * acc, int optimism) {
+int getValue(const Position *position, Accumulator *acc, int optimism)
+{
     assert(acc != NULL);
 
     // Use precomputed materialBalance (white minus black, Stockfish values) for
     // small-net selection, and materialCount (total material blend) for the formula.
-    int se = (position->activeColor == WHITE)
-             ? position->materialBalance
-             : -position->materialBalance;
+    int se = (position->activeColor == WHITE) ? position->materialBalance : -position->materialBalance;
     const bool smallNet = abs(se) > 962;
 
     int psqt, positional;
@@ -69,7 +70,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism) {
     int v = (nnue * (77871 + material) + optimism * (7191 + material)) / 77871;
 
     // Final scaling to centipawns
-    int a = win_rate_scaling((Position*)position);
+    int a = win_rate_scaling((Position *)position);
     v = v * 100 / a;
 
     // Damp down the evaluation linearly when shuffling
@@ -80,122 +81,125 @@ int getValue(const Position * position, Accumulator * acc, int optimism) {
     // i.e. [-31506, 31506] with its mate value 32000.
     // Protector's mate value is 30000, so we use a similar range relative to mate.
     int min_v = -30000 + 2 * 246 + 1 + 1; // approx -29506
-    int max_v = 30000 - 2 * 246 - 1 - 1; // approx 29506
-    if (v < min_v) v = min_v;
-    if (v > max_v) v = max_v;
+    int max_v = 30000 - 2 * 246 - 1 - 1;  // approx 29506
+    if (v < min_v)
+        v = min_v;
+    if (v > max_v)
+        v = max_v;
 
     return v;
 }
 
-bool pawnIsPassed(const Position * position, const Square pawnSquare,
-                  const Color pawnColor) {
-   const Color defenderColor = opponent(pawnColor);
-   const Bitboard corridor = passedPawnCorridor[pawnColor][pawnSquare];
-   const Bitboard defenders = position->piecesOfType[PAWN | defenderColor] &
-      (candidateDefenders[pawnColor][pawnSquare] | corridor);
+bool pawnIsPassed(const Position *position, const Square pawnSquare, const Color pawnColor)
+{
+    const Color defenderColor = opponent(pawnColor);
+    const Bitboard corridor = passedPawnCorridor[pawnColor][pawnSquare];
+    const Bitboard defenders =
+        position->piecesOfType[PAWN | defenderColor] & (candidateDefenders[pawnColor][pawnSquare] | corridor);
 
-   if (defenders == EMPTY_BITBOARD) {
-      const Bitboard blockers = position->piecesOfType[PAWN | pawnColor] &
-         corridor;
+    if (defenders == EMPTY_BITBOARD) {
+        const Bitboard blockers = position->piecesOfType[PAWN | pawnColor] & corridor;
 
-      return (bool) (blockers == EMPTY_BITBOARD);
-   }
+        return (bool)(blockers == EMPTY_BITBOARD);
+    }
 
-   return FALSE;
+    return FALSE;
 }
 
-bool hasBishopPair(const Position * position, const Color color) {
-   const Bitboard bishops = position->piecesOfType[BISHOP | color];
+bool hasBishopPair(const Position *position, const Color color)
+{
+    const Bitboard bishops = position->piecesOfType[BISHOP | color];
 
-   return (bool) ((bishops & lightSquares) != EMPTY_BITBOARD &&
-                  (bishops & darkSquares) != EMPTY_BITBOARD);
+    return (bool)((bishops & lightSquares) != EMPTY_BITBOARD && (bishops & darkSquares) != EMPTY_BITBOARD);
 }
 
-bool hasWinningPotential(Position * position, Color color) {
-   if (position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD ||
-       position->piecesOfType[ROOK | color] != EMPTY_BITBOARD) {
-      return TRUE;
-   }
+bool hasWinningPotential(Position *position, Color color)
+{
+    if (position->piecesOfType[QUEEN | color] != EMPTY_BITBOARD ||
+        position->piecesOfType[ROOK | color] != EMPTY_BITBOARD) {
+        return TRUE;
+    }
 
-   const Bitboard bishops = position->piecesOfType[BISHOP | color];
-   const int numBishops = getNumberOfSetSquares(bishops);
+    const Bitboard bishops = position->piecesOfType[BISHOP | color];
+    const int numBishops = getNumberOfSetSquares(bishops);
 
-   if (numBishops >= 2 ||
-       (numBishops > 0 &&
-        position->piecesOfType[KNIGHT | color] != EMPTY_BITBOARD)) {
-      return TRUE;
-   }
+    if (numBishops >= 2 || (numBishops > 0 && position->piecesOfType[KNIGHT | color] != EMPTY_BITBOARD)) {
+        return TRUE;
+    }
 
-   return FALSE;
+    return FALSE;
 }
 
-int initializeModuleEvaluation(void) {
-   Square square;
+int initializeModuleEvaluation(void)
+{
+    Square square;
 
-   ITERATE(square) {
-      Color color;
+    ITERATE (square) {
+        Color color;
 
-      for (color = WHITE; color <= BLACK; color++) {
-         passedPawnCorridor[color][square] =
-            candidateDefenders[color][square] = EMPTY_BITBOARD;
-      }
-   }
+        for (color = WHITE; color <= BLACK; color++) {
+            passedPawnCorridor[color][square] = candidateDefenders[color][square] = EMPTY_BITBOARD;
+        }
+    }
 
-   ITERATE(square) {
-      const File squarefile = file(square);
-      const Rank squarerank = rank(square);
-      Square kingsquare, catchersquare;
+    ITERATE (square) {
+        const File squarefile = file(square);
+        const Rank squarerank = rank(square);
+        Square kingsquare, catchersquare;
 
-      ITERATE(kingsquare) {
-         const File kingsquarefile = file(kingsquare);
-         const Rank kingsquarerank = rank(kingsquare);
+        ITERATE (kingsquare) {
+            const File kingsquarefile = file(kingsquare);
+            const Rank kingsquarerank = rank(kingsquare);
 
-         if (kingsquarefile == squarefile) {
-            if (kingsquarerank > squarerank) {
-               setSquare(passedPawnCorridor[WHITE][square], kingsquare);
+            if (kingsquarefile == squarefile) {
+                if (kingsquarerank > squarerank) {
+                    setSquare(passedPawnCorridor[WHITE][square], kingsquare);
+                }
+
+                if (kingsquarerank < squarerank) {
+                    setSquare(passedPawnCorridor[BLACK][square], kingsquare);
+                }
             }
+        }
 
-            if (kingsquarerank < squarerank) {
-               setSquare(passedPawnCorridor[BLACK][square], kingsquare);
+        ITERATE (catchersquare) {
+            if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile)
+                                                    : (squarefile - file(catchersquare))) == 1) {
+                if (rank(catchersquare) > squarerank) {
+                    setSquare(candidateDefenders[WHITE][square], catchersquare);
+                }
+
+                if (rank(catchersquare) < squarerank) {
+                    setSquare(candidateDefenders[BLACK][square], catchersquare);
+                }
             }
-         }
-      }
+        }
+    }
 
-      ITERATE(catchersquare) {
-         if (((file(catchersquare) > squarefile) ? (file(catchersquare) - squarefile) : (squarefile - file(catchersquare))) == 1) {
-            if (rank(catchersquare) > squarerank) {
-               setSquare(candidateDefenders[WHITE][square], catchersquare);
-            }
-
-            if (rank(catchersquare) < squarerank) {
-               setSquare(candidateDefenders[BLACK][square], catchersquare);
-            }
-         }
-      }
-   }
-
-   return 0;
+    return 0;
 }
 
-bool flipTest(Position * position) {
-   int v1, v2;
-   Position flippedPosition;
-   Accumulator acc1, acc2;
-   FinnyTable finny;
+bool flipTest(Position *position)
+{
+    int v1, v2;
+    Position flippedPosition;
+    Accumulator acc1, acc2;
+    FinnyTable finny;
 
-   resetFinnyTable(&finny);
-   refreshAccumulator(position, &acc1, &finny);
-   v1 = getValue(position, &acc1, 0);
+    resetFinnyTable(&finny);
+    refreshAccumulator(position, &acc1, &finny);
+    v1 = getValue(position, &acc1, 0);
 
-   memcpy(&flippedPosition, position, sizeof(Position));
-   flipPosition(&flippedPosition);
-   resetFinnyTable(&finny);
-   refreshAccumulator(&flippedPosition, &acc2, &finny);
-   v2 = getValue(&flippedPosition, &acc2, 0);
+    memcpy(&flippedPosition, position, sizeof(Position));
+    flipPosition(&flippedPosition);
+    resetFinnyTable(&finny);
+    refreshAccumulator(&flippedPosition, &acc2, &finny);
+    v2 = getValue(&flippedPosition, &acc2, 0);
 
-   return (bool) (v1 == v2);
+    return (bool)(v1 == v2);
 }
 
-int testModuleEvaluation(void) {
-   return 0;
+int testModuleEvaluation(void)
+{
+    return 0;
 }

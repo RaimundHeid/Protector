@@ -18,27 +18,29 @@
 
 */
 
+#include "protector.h"
+
+#include "bitboard.h"
+#include "coordination.h"
+#include "evaluation.h"
+#include "fen.h"
+#include "hash.h"
+#include "io.h"
+#include "matesearch.h"
+#include "movegeneration.h"
+#include "nnue.h"
+#include "pgn.h"
+#include "position.h"
+#include "search.h"
+#include "tablebase.h"
+#include "test.h"
+#include "tools.h"
+#include "uci.h"
+
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include "tools.h"
-#include "io.h"
-#include "protector.h"
-#include "bitboard.h"
-#include "position.h"
-#include "fen.h"
-#include "movegeneration.h"
-#include "matesearch.h"
-#include "search.h"
-#include "hash.h"
-#include "test.h"
-#include "pgn.h"
-#include "evaluation.h"
-#include "coordination.h"
-#include "uci.h"
-#include "tablebase.h"
-#include "nnue.h"
 
 const char *programVersionNumber = "2.1";
 
@@ -47,231 +49,248 @@ int _horizontalDistance[_64_][_64_];
 int _verticalDistance[_64_][_64_];
 int _taxiDistance[_64_][_64_];
 int castlingsOfColor[2];
-const int colorSign[2] = { 1, -1 };
+const int colorSign[2] = {1, -1};
 
 CommandlineOptions commandlineOptions;
 UINT64 statCount1, statCount2;
 int debugOutput = FALSE;
 
-static int initializeModuleProtector(void) {
-   int sq1, sq2;
+static int initializeModuleProtector(void)
+{
+    int sq1, sq2;
 
-   ITERATE(sq1) {
-      ITERATE(sq2) {
-         _horizontalDistance[sq1][sq2] =
-            max(file(sq1), file(sq2)) - min(file(sq1), file(sq2));
-         _verticalDistance[sq1][sq2] =
-            max(rank(sq1), rank(sq2)) - min(rank(sq1), rank(sq2));
-         _distance[sq1][sq2] =
-            max(_horizontalDistance[sq1][sq2], _verticalDistance[sq1][sq2]);
-         _taxiDistance[sq1][sq2] =
-            _horizontalDistance[sq1][sq2] + _verticalDistance[sq1][sq2];
-      }
-   }
+    ITERATE (sq1) {
+        ITERATE (sq2) {
+            _horizontalDistance[sq1][sq2] = max(file(sq1), file(sq2)) - min(file(sq1), file(sq2));
+            _verticalDistance[sq1][sq2] = max(rank(sq1), rank(sq2)) - min(rank(sq1), rank(sq2));
+            _distance[sq1][sq2] = max(_horizontalDistance[sq1][sq2], _verticalDistance[sq1][sq2]);
+            _taxiDistance[sq1][sq2] = _horizontalDistance[sq1][sq2] + _verticalDistance[sq1][sq2];
+        }
+    }
 
-   castlingsOfColor[WHITE] = WHITE_00 | WHITE_000;
-   castlingsOfColor[BLACK] = BLACK_00 | BLACK_000;
+    castlingsOfColor[WHITE] = WHITE_00 | WHITE_000;
+    castlingsOfColor[BLACK] = BLACK_00 | BLACK_000;
 
-   if (initializeModuleIo() != 0) return -1;
-   if (initializeModuleTools() != 0) return -1;
-   if (initializeModuleCoordination() != 0) return -1;
-   if (initializeModuleBitboard() != 0) return -1;
-   if (initializeModulePosition() != 0) return -1;
-   if (initializeModuleFen() != 0) return -1;
-   if (initializeModuleMovegeneration() != 0) return -1;
-   if (initializeModuleMatesearch() != 0) return -1;
-   if (initializeModuleSearch() != 0) return -1;
-   if (initializeModuleHash() != 0) return -1;
-   if (initializeModuleTest() != 0) return -1;
-   if (initializeModulePgn() != 0) return -1;
-   if (initializeModuleTablebase() != 0) return -1;
-   if (initializeModuleEvaluation() != 0) return -1;
-   if (initializeModuleNnue() != 0) return -1;
-   if (initializeModuleUci() != 0) return -1;
+    if (initializeModuleIo() != 0)
+        return -1;
+    if (initializeModuleTools() != 0)
+        return -1;
+    if (initializeModuleCoordination() != 0)
+        return -1;
+    if (initializeModuleBitboard() != 0)
+        return -1;
+    if (initializeModulePosition() != 0)
+        return -1;
+    if (initializeModuleFen() != 0)
+        return -1;
+    if (initializeModuleMovegeneration() != 0)
+        return -1;
+    if (initializeModuleMatesearch() != 0)
+        return -1;
+    if (initializeModuleSearch() != 0)
+        return -1;
+    if (initializeModuleHash() != 0)
+        return -1;
+    if (initializeModuleTest() != 0)
+        return -1;
+    if (initializeModulePgn() != 0)
+        return -1;
+    if (initializeModuleTablebase() != 0)
+        return -1;
+    if (initializeModuleEvaluation() != 0)
+        return -1;
+    if (initializeModuleNnue() != 0)
+        return -1;
+    if (initializeModuleUci() != 0)
+        return -1;
 
-   return 0;
+    return 0;
 }
 
-static void reportSuccess(const char *moduleName) {
-   logDebug("Module %s tested successfully.\n", moduleName);
+static void reportSuccess(const char *moduleName)
+{
+    logDebug("Module %s tested successfully.\n", moduleName);
 }
 
-static int testModuleProtector(void) {
-   assert(_horizontalDistance[C2][E6] == 2);
-   assert(_verticalDistance[C2][E6] == 4);
-   assert(_distance[C3][H8] == 5);
-   assert(_taxiDistance[B2][F7] == 9);
+static int testModuleProtector(void)
+{
+    assert(_horizontalDistance[C2][E6] == 2);
+    assert(_verticalDistance[C2][E6] == 4);
+    assert(_distance[C3][H8] == 5);
+    assert(_taxiDistance[B2][F7] == 9);
 
-   if (testModuleIo() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Io");
-   }
+    if (testModuleIo() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Io");
+    }
 
-   if (testModuleTools() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Tools");
-   }
+    if (testModuleTools() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Tools");
+    }
 
-   if (testModuleCoordination() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Coordination");
-   }
+    if (testModuleCoordination() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Coordination");
+    }
 
-   if (testModuleBitboard() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Bitboard");
-   }
+    if (testModuleBitboard() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Bitboard");
+    }
 
-   if (testModulePosition() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Position");
-   }
+    if (testModulePosition() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Position");
+    }
 
-   if (testModuleFen() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Fen");
-   }
+    if (testModuleFen() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Fen");
+    }
 
-   if (testModuleMovegeneration() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Movegeneration");
-   }
+    if (testModuleMovegeneration() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Movegeneration");
+    }
 
-   if (testModuleHash() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Hash");
-   }
+    if (testModuleHash() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Hash");
+    }
 
-   if (testModuleMatesearch() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Matesearch");
-   }
+    if (testModuleMatesearch() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Matesearch");
+    }
 
-   if (testModuleSearch() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Search");
-   }
+    if (testModuleSearch() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Search");
+    }
 
-   if (testModulePgn() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Pgn");
-   }
+    if (testModulePgn() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Pgn");
+    }
 
-   if (testModuleEvaluation() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Evaluation");
-   }
+    if (testModuleEvaluation() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Evaluation");
+    }
 
-   if (testModuleUci() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Uci");
-   }
+    if (testModuleUci() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Uci");
+    }
 
-   if (testModuleTablebase() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Tablebase");
-   }
+    if (testModuleTablebase() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Tablebase");
+    }
 
-   if (testModuleNnue() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Nnue");
-   }
+    if (testModuleNnue() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Nnue");
+    }
 
-   if (testModuleTest() != 0) {
-      return -1;
-   } else {
-      reportSuccess("Test");
-   }
+    if (testModuleTest() != 0) {
+        return -1;
+    } else {
+        reportSuccess("Test");
+    }
 
-   logDebug("\nModuletest finished successfully.\n");
+    logDebug("\nModuletest finished successfully.\n");
 
-   return 0;
+    return 0;
 }
 
-static void parseOptions(int argc, char **argv, CommandlineOptions * options) {
-   int i;
+static void parseOptions(int argc, char **argv, CommandlineOptions *options)
+{
+    int i;
 
-   options->processModuleTest = FALSE;
-   options->uciMode = TRUE;
-   options->dumpEvaluation = FALSE;
-   options->testfile = NULL;
-   options->tablebasePath = NULL;
-   getDirectory(argv[0], options->engineDirectory, sizeof(options->engineDirectory));
+    options->processModuleTest = FALSE;
+    options->uciMode = TRUE;
+    options->dumpEvaluation = FALSE;
+    options->testfile = NULL;
+    options->tablebasePath = NULL;
+    getDirectory(argv[0], options->engineDirectory, sizeof(options->engineDirectory));
 
-   for (i = 0; i < argc; i++) {
-      const char *currentArg = argv[i];
+    for (i = 0; i < argc; i++) {
+        const char *currentArg = argv[i];
 
-      if (strcmp(currentArg, "-m") == 0) {
-         options->processModuleTest = TRUE;
-         options->uciMode = FALSE;
-      }
+        if (strcmp(currentArg, "-m") == 0) {
+            options->processModuleTest = TRUE;
+            options->uciMode = FALSE;
+        }
 
-      if (strcmp(currentArg, "-d") == 0) {
-         options->dumpEvaluation = TRUE;
-      }
+        if (strcmp(currentArg, "-d") == 0) {
+            options->dumpEvaluation = TRUE;
+        }
 
-      if (strcmp(currentArg, "-t") == 0 && i < argc - 1) {
-         options->testfile = argv[++i];
-         options->uciMode = FALSE;
-      }
+        if (strcmp(currentArg, "-t") == 0 && i < argc - 1) {
+            options->testfile = argv[++i];
+            options->uciMode = FALSE;
+        }
 
-      if (strcmp(currentArg, "-e") == 0 && i < argc - 1) {
-         options->tablebasePath = argv[++i];
-      }
+        if (strcmp(currentArg, "-e") == 0 && i < argc - 1) {
+            options->tablebasePath = argv[++i];
+        }
 
-      if (strcmp(currentArg, "-v") == 0) {
-         printf("Protector %s\n", programVersionNumber);
-      }
-   }
+        if (strcmp(currentArg, "-v") == 0) {
+            printf("Protector %s\n", programVersionNumber);
+        }
+    }
 }
 
-int main(int argc, char **argv) {
-   parseOptions(argc, argv, &commandlineOptions);
+int main(int argc, char **argv)
+{
+    parseOptions(argc, argv, &commandlineOptions);
 
-   if (initializeModuleProtector() != 0) {
-      logDebug("Initialization failed. Terminating.\n");
-      finalizeModuleCoordination();
+    if (initializeModuleProtector() != 0) {
+        logDebug("Initialization failed. Terminating.\n");
+        finalizeModuleCoordination();
 
-      return -1;
-   }
+        return -1;
+    }
 
-   if (commandlineOptions.uciMode) {
-      acceptGuiCommands();
-   } else if (commandlineOptions.processModuleTest) {
-      if (testModuleProtector() != 0) {
-         logDebug("\n##### Moduletest failed! #####\n");
+    if (commandlineOptions.uciMode) {
+        acceptGuiCommands();
+    } else if (commandlineOptions.processModuleTest) {
+        if (testModuleProtector() != 0) {
+            logDebug("\n##### Moduletest failed! #####\n");
 
-         finalizeModuleCoordination();
+            finalizeModuleCoordination();
 
-         return -1;
-      }
-   }
+            return -1;
+        }
+    }
 
-   if (commandlineOptions.testfile != NULL) {
-      if (processTestsuite(commandlineOptions.testfile) != 0) {
-         finalizeModuleCoordination();
+    if (commandlineOptions.testfile != NULL) {
+        if (processTestsuite(commandlineOptions.testfile) != 0) {
+            finalizeModuleCoordination();
 
-         return -1;
-      }
-   }
+            return -1;
+        }
+    }
 
-   logDebug("Main thread terminated.\n");
-   finalizeModuleCoordination();
+    logDebug("Main thread terminated.\n");
+    finalizeModuleCoordination();
 
-   return 0;
+    return 0;
 }

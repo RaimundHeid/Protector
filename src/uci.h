@@ -21,32 +21,30 @@
 #ifndef _uci_h_
 #define _uci_h_
 
-#include "protector.h"
 #include "position.h"
+#include "protector.h"
 
 typedef struct {
-   int movesToGo;
-   int incrementTime;           /* unit: milliseconds */
+    int movesToGo;
+    int incrementTime; /* unit: milliseconds */
 
-   int numberOfMovesPlayed;
-   int restTime;                /* unit: milliseconds */
-}
-TimecontrolData;
+    int numberOfMovesPlayed;
+    int restTime; /* unit: milliseconds */
+} TimecontrolData;
 
 #define UCI_OPERATIONMODE_ANALYSIS 2
 #define UCI_OPERATIONMODE_USERGAME 4
 
 typedef struct {
-   TimecontrolData timecontrolData[2];
-   int operationMode;           /* see above */
-   Color engineColor;
-   bool pondering;
-   bool engineIsActive, engineIsPondering, bestMoveWasSent;
-   Move ponderingMove;
-   Move ponderResultMove;
-   int maxPlies;
-}
-UciStatus;
+    TimecontrolData timecontrolData[2];
+    int operationMode; /* see above */
+    Color engineColor;
+    bool pondering;
+    bool engineIsActive, engineIsPondering, bestMoveWasSent;
+    Move ponderingMove;
+    Move ponderResultMove;
+    int maxPlies;
+} UciStatus;
 
 /**
  * Wait for the next UCI command and process it.

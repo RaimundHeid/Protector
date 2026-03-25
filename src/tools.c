@@ -18,392 +18,416 @@
 
 */
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <assert.h>
-#include <math.h>
-#include <time.h>
-#include <sys/timeb.h>
 #include "tools.h"
 
-unsigned long getTimestamp(void) {
-   struct timeb t_current;
+#include <assert.h>
+#include <ctype.h>
+#include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/timeb.h>
+#include <time.h>
 
-   ftime(&t_current);
+unsigned long getTimestamp(void)
+{
+    struct timeb t_current;
 
-   return 1000 * (long) t_current.time + (long) t_current.millitm;
+    ftime(&t_current);
+
+    return 1000 * (long)t_current.time + (long)t_current.millitm;
 }
 
-long getProcessTimestamp(void) {
-   clock_t ts = clock();
+long getProcessTimestamp(void)
+{
+    clock_t ts = clock();
 
-   while (ts < 0) {
-      ts = clock();
-   }
+    while (ts < 0) {
+        ts = clock();
+    }
 
-   return ts / (CLOCKS_PER_SEC / 1000);
+    return ts / (CLOCKS_PER_SEC / 1000);
 }
 
-String getEmptyString(void) {
-   String s;
+String getEmptyString(void)
+{
+    String s;
 
-   s.bufferSize = 256;
-   s.buffer = s.tail = (char *) malloc(s.bufferSize);
+    s.bufferSize = 256;
+    s.buffer = s.tail = (char *)malloc(s.bufferSize);
 
-   if (s.buffer != NULL) {
-      *s.tail = '\0';
-   } else {
-      s.bufferSize = 0;
-      s.tail = NULL;
-   }
+    if (s.buffer != NULL) {
+        *s.tail = '\0';
+    } else {
+        s.bufferSize = 0;
+        s.tail = NULL;
+    }
 
-   return s;
+    return s;
 }
 
-String getString(const char *buffer, const char *lastChar) {
-   String s;
+String getString(const char *buffer, const char *lastChar)
+{
+    String s;
 
-   s.bufferSize = (unsigned int) (lastChar - buffer + 2);
-   s.buffer = (char *) malloc(s.bufferSize);
+    s.bufferSize = (unsigned int)(lastChar - buffer + 2);
+    s.buffer = (char *)malloc(s.bufferSize);
 
-   if (s.buffer != NULL) {
-      s.tail = s.buffer + s.bufferSize - 1;
-      strncpy(s.buffer, buffer, s.bufferSize - 1);
-      *s.tail = '\0';
-   } else {
-      s.bufferSize = 0;
-      s.tail = NULL;
-   }
+    if (s.buffer != NULL) {
+        s.tail = s.buffer + s.bufferSize - 1;
+        strncpy(s.buffer, buffer, s.bufferSize - 1);
+        *s.tail = '\0';
+    } else {
+        s.bufferSize = 0;
+        s.tail = NULL;
+    }
 
-   return s;
+    return s;
 }
 
-void deleteString(String * string) {
-   if (string != NULL) {
-      free(string->buffer);
-      string->buffer = NULL;
-      string->tail = NULL;
-      string->bufferSize = 0;
-   }
+void deleteString(String *string)
+{
+    if (string != NULL) {
+        free(string->buffer);
+        string->buffer = NULL;
+        string->tail = NULL;
+        string->bufferSize = 0;
+    }
 }
 
-static String *appendBufferToString(String * string, const char *buffer) {
-   size_t appendedLength = strlen(buffer);
-   size_t newLength = string->tail - string->buffer + appendedLength + 1;
+static String *appendBufferToString(String *string, const char *buffer)
+{
+    size_t appendedLength = strlen(buffer);
+    size_t newLength = string->tail - string->buffer + appendedLength + 1;
 
-   if (newLength > string->bufferSize) {
-      size_t delta = string->tail - string->buffer;
-      char *newBuffer;
+    if (newLength > string->bufferSize) {
+        size_t delta = string->tail - string->buffer;
+        char *newBuffer;
 
-      string->bufferSize = (unsigned int) (2 * newLength);
-      newBuffer = (char *) realloc(string->buffer, string->bufferSize);
+        string->bufferSize = (unsigned int)(2 * newLength);
+        newBuffer = (char *)realloc(string->buffer, string->bufferSize);
 
-      if (newBuffer == NULL) {
-         return NULL;
-      }
+        if (newBuffer == NULL) {
+            return NULL;
+        }
 
-      string->buffer = newBuffer;
-      string->tail = string->buffer + delta;
-   }
+        string->buffer = newBuffer;
+        string->tail = string->buffer + delta;
+    }
 
-   memcpy(string->tail, buffer, appendedLength + 1);
-   string->tail += appendedLength;
+    memcpy(string->tail, buffer, appendedLength + 1);
+    string->tail += appendedLength;
 
-   return string;
+    return string;
 }
 
 #define BUFFER_SIZE 8192
 
-String *appendToString(String * string, const char *fmt, ...) {
-   va_list args;
+String *appendToString(String *string, const char *fmt, ...)
+{
+    va_list args;
 
-   char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
 
-   va_start(args, fmt);
-   vsnprintf(buffer, sizeof(buffer), fmt, args);
-   va_end(args);
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
 
-   return (appendBufferToString(string, buffer));
+    return (appendBufferToString(string, buffer));
 }
 
-void breakLines(char *buffer, unsigned int maxLineLength) {
-   char *lastChar;
+void breakLines(char *buffer, unsigned int maxLineLength)
+{
+    char *lastChar;
 
-   while (strlen(buffer) > maxLineLength) {
-      lastChar = buffer + maxLineLength;
+    while (strlen(buffer) > maxLineLength) {
+        lastChar = buffer + maxLineLength;
 
-      while (isspace((unsigned char) *lastChar) == 0 && lastChar > buffer) {
-         lastChar--;
-      }
+        while (isspace((unsigned char)*lastChar) == 0 && lastChar > buffer) {
+            lastChar--;
+        }
 
-      if (isspace((unsigned char) *lastChar)) {
-         *lastChar = '\n';
-         buffer = lastChar + 1;
-      } else {
-         while (*buffer != '\0') {
-            if (isspace((unsigned char) *buffer)) {
-               *buffer++ = '\n';
+        if (isspace((unsigned char)*lastChar)) {
+            *lastChar = '\n';
+            buffer = lastChar + 1;
+        } else {
+            while (*buffer != '\0') {
+                if (isspace((unsigned char)*buffer)) {
+                    *buffer++ = '\n';
 
-               break;
-            } else {
-               buffer++;
+                    break;
+                } else {
+                    buffer++;
+                }
             }
-         }
-      }
-   }
+        }
+    }
 }
 
-void trim(char *buffer) {
-   char *p = buffer;
-   size_t length = strlen(buffer);
+void trim(char *buffer)
+{
+    char *p = buffer;
+    size_t length = strlen(buffer);
 
-   if (length == 0) {
-      return;
-   }
+    if (length == 0) {
+        return;
+    }
 
-   while (isspace((unsigned char) *p)) {
-      p++;
-   }
+    while (isspace((unsigned char)*p)) {
+        p++;
+    }
 
-   if (p > buffer) {
-      length -= p - buffer;
-      memmove(buffer, p, length + 1);
-   }
+    if (p > buffer) {
+        length -= p - buffer;
+        memmove(buffer, p, length + 1);
+    }
 
-   p = buffer + length - 1;
+    p = buffer + length - 1;
 
-   while (p >= buffer && isspace((unsigned char) *p)) {
-      *(p--) = '\0';
-   }
+    while (p >= buffer && isspace((unsigned char)*p)) {
+        *(p--) = '\0';
+    }
 }
 
-char *getToken(const char *token, const char *tokenDelimiters) {
-   unsigned int i = 0;
-   char *buffer;
+char *getToken(const char *token, const char *tokenDelimiters)
+{
+    unsigned int i = 0;
+    char *buffer;
 
-   while (token[i] != '\0' && strchr(tokenDelimiters, token[i]) == NULL) {
-      i++;
-   }
+    while (token[i] != '\0' && strchr(tokenDelimiters, token[i]) == NULL) {
+        i++;
+    }
 
-   buffer = (char *) malloc(i + 1);
+    buffer = (char *)malloc(i + 1);
 
-   if (buffer != NULL) {
-      strncpy(buffer, token, i);
-      buffer[i] = '\0';
+    if (buffer != NULL) {
+        strncpy(buffer, token, i);
+        buffer[i] = '\0';
 
-      assert(strlen(buffer) == i);
-   }
+        assert(strlen(buffer) == i);
+    }
 
-   return buffer;
+    return buffer;
 }
 
-int isPrime(unsigned long candidate) {
-   long limit, i;
+int isPrime(unsigned long candidate)
+{
+    long limit, i;
 
-   if (candidate == 2 || candidate == 3) {
-      return 1;
-   }
+    if (candidate == 2 || candidate == 3) {
+        return 1;
+    }
 
-   if (candidate < 2 || candidate % 2 == 0) {
-      return 0;
-   }
+    if (candidate < 2 || candidate % 2 == 0) {
+        return 0;
+    }
 
-   limit = (unsigned long) sqrt((double) candidate) + 1;
+    limit = (unsigned long)sqrt((double)candidate) + 1;
 
-   for (i = 3; i <= limit; i += 2) {
-      if (candidate % i == 0) {
-         return 0;
-      }
-   }
+    for (i = 3; i <= limit; i += 2) {
+        if (candidate % i == 0) {
+            return 0;
+        }
+    }
 
-   return 1;
+    return 1;
 }
 
-int logIntValue(const double zeroPoint, const int maxPoint,
-                const double maxValue, const int x) {
-   const double xScaleFactor = 1.0 / (zeroPoint);
-   const double yScaleFactor = maxValue /
-      log(((double) maxPoint) * xScaleFactor);
-   const double y = log(((double) x) * xScaleFactor) * yScaleFactor;
+int logIntValue(const double zeroPoint, const int maxPoint, const double maxValue, const int x)
+{
+    const double xScaleFactor = 1.0 / (zeroPoint);
+    const double yScaleFactor = maxValue / log(((double)maxPoint) * xScaleFactor);
+    const double y = log(((double)x) * xScaleFactor) * yScaleFactor;
 
-   return (int) (floor(y + 0.5));
+    return (int)(floor(y + 0.5));
 }
 
-int applyWeight(double value, double weight) {
-   double weightedValue = (value * weight) / 256.0;
+int applyWeight(double value, double weight)
+{
+    double weightedValue = (value * weight) / 256.0;
 
-   return (int) (floor(weightedValue + 0.5));
+    return (int)(floor(weightedValue + 0.5));
 }
 
-int getLimitedValue(const int minValue, const int maxValue, const int value) {
-   return min(maxValue, max(minValue, value));
+int getLimitedValue(const int minValue, const int maxValue, const int value)
+{
+    return min(maxValue, max(minValue, value));
 }
 
-unsigned long long getUnsignedLongLongFromHexString(const char *str) {
-   unsigned long long number = strtoull(str, 0, 16);
+unsigned long long getUnsignedLongLongFromHexString(const char *str)
+{
+    unsigned long long number = strtoull(str, 0, 16);
 
-   return number;
+    return number;
 }
 
-void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value) {
+void getHexStringFromUnsignedLongLong(char *buffer, size_t bufferSize, unsigned long long value)
+{
 #if defined(_WIN32) || defined(_WIN64)
-   const char *fmt = "%I64x";
+    const char *fmt = "%I64x";
 #else
-   const char *fmt = "%llx";
+    const char *fmt = "%llx";
 #endif
 
-   snprintf(buffer, bufferSize, fmt, value);
+    snprintf(buffer, bufferSize, fmt, value);
 }
 
-int initializeModuleTools(void) {
-   return 0;
+int initializeModuleTools(void)
+{
+    return 0;
 }
 
-static int testStringOperations(void) {
-   const char *testString = "Pascal";
-   String string = getEmptyString();
-   String string2;
+static int testStringOperations(void)
+{
+    const char *testString = "Pascal";
+    String string = getEmptyString();
+    String string2;
 
-   appendToString(&string, "test");
-   assert(strcmp(string.buffer, "test") == 0);
-   assert(string.tail - string.buffer == 4);
+    appendToString(&string, "test");
+    assert(strcmp(string.buffer, "test") == 0);
+    assert(string.tail - string.buffer == 4);
 
-   appendToString(&string, " %d", 123);
-   assert(strcmp(string.buffer, "test 123") == 0);
-   assert(string.tail - string.buffer == 8);
+    appendToString(&string, " %d", 123);
+    assert(strcmp(string.buffer, "test 123") == 0);
+    assert(string.tail - string.buffer == 8);
 
-   string2 = getString(testString, strchr(testString, 'c'));
-   assert(strcmp(string2.buffer, "Pasc") == 0);
-   assert(string2.bufferSize == 5);
+    string2 = getString(testString, strchr(testString, 'c'));
+    assert(strcmp(string2.buffer, "Pasc") == 0);
+    assert(string2.bufferSize == 5);
 
-   return (string2.bufferSize == 5 ? 0 : -1);
+    return (string2.bufferSize == 5 ? 0 : -1);
 }
 
-static int testLineBreaking(void) {
-   char ts1[] = "abcd efgh", ts2[] = "abcdefgh";
-   char buffer[1024];
+static int testLineBreaking(void)
+{
+    char ts1[] = "abcd efgh", ts2[] = "abcdefgh";
+    char buffer[1024];
 
-   strcpy(buffer, ts1);
-   breakLines(buffer, 3);
-   assert(strcmp(buffer, "abcd\nefgh") == 0);
+    strcpy(buffer, ts1);
+    breakLines(buffer, 3);
+    assert(strcmp(buffer, "abcd\nefgh") == 0);
 
-   strcpy(buffer, ts1);
-   breakLines(buffer, 4);
-   assert(strcmp(buffer, "abcd\nefgh") == 0);
+    strcpy(buffer, ts1);
+    breakLines(buffer, 4);
+    assert(strcmp(buffer, "abcd\nefgh") == 0);
 
-   strcpy(buffer, ts1);
-   breakLines(buffer, 5);
-   assert(strcmp(buffer, "abcd\nefgh") == 0);
+    strcpy(buffer, ts1);
+    breakLines(buffer, 5);
+    assert(strcmp(buffer, "abcd\nefgh") == 0);
 
-   strcpy(buffer, ts2);
-   breakLines(buffer, 3);
-   assert(strcmp(buffer, "abcdefgh") == 0);
+    strcpy(buffer, ts2);
+    breakLines(buffer, 3);
+    assert(strcmp(buffer, "abcdefgh") == 0);
 
-   return 0;
+    return 0;
 }
 
-static int testTrimming(void) {
-   char buffer1[] = "   abcd efgh\n  ", buffer2[] = " ";
+static int testTrimming(void)
+{
+    char buffer1[] = "   abcd efgh\n  ", buffer2[] = " ";
 
-   trim(buffer1);
-   assert(strcmp(buffer1, "abcd efgh") == 0);
+    trim(buffer1);
+    assert(strcmp(buffer1, "abcd efgh") == 0);
 
-   trim(buffer2);
-   assert(strcmp(buffer2, "") == 0);
+    trim(buffer2);
+    assert(strcmp(buffer2, "") == 0);
 
-   return 0;
+    return 0;
 }
 
-static int testTokenizer(void) {
-   char *result;
+static int testTokenizer(void)
+{
+    char *result;
 
-   result = getToken("123456", "6");
-   assert(strcmp(result, "12345") == 0);
-   free(result);
+    result = getToken("123456", "6");
+    assert(strcmp(result, "12345") == 0);
+    free(result);
 
-   result = getToken("123456", " ");
-   assert(strcmp(result, "123456") == 0);
-   free(result);
+    result = getToken("123456", " ");
+    assert(strcmp(result, "123456") == 0);
+    free(result);
 
-   return 0;
+    return 0;
 }
 
-static int testPrimechecker(void) {
-   assert(isPrime(159) == 0);
-   assert(isPrime(221) == 0);
-   assert(isPrime(3337) == 0);
+static int testPrimechecker(void)
+{
+    assert(isPrime(159) == 0);
+    assert(isPrime(221) == 0);
+    assert(isPrime(3337) == 0);
 
-   assert(isPrime(101) == 1);
-   assert(isPrime(257) == 1);
-   assert(isPrime(997) == 1);
+    assert(isPrime(101) == 1);
+    assert(isPrime(257) == 1);
+    assert(isPrime(997) == 1);
 
-   return 0;
+    return 0;
 }
 
-static int testMiscFunctions(void) {
-   unsigned long long testValue = 18446744073709551564llu;
-   char buffer[256];
+static int testMiscFunctions(void)
+{
+    unsigned long long testValue = 18446744073709551564llu;
+    char buffer[256];
 
-   assert(getLimitedValue(100, 200, 50) == 100);
-   assert(getLimitedValue(100, 200, 150) == 150);
-   assert(getLimitedValue(100, 200, 250) == 200);
+    assert(getLimitedValue(100, 200, 50) == 100);
+    assert(getLimitedValue(100, 200, 150) == 150);
+    assert(getLimitedValue(100, 200, 250) == 200);
 
-   assert(getUnsignedLongLongFromHexString("ffffffffffffffce") ==
-          18446744073709551566llu);
-   assert(getUnsignedLongLongFromHexString("FFFFFFFFFFFFFFCD") ==
-          18446744073709551565llu);
-   getHexStringFromUnsignedLongLong(buffer, sizeof(buffer), testValue);
-   assert(getUnsignedLongLongFromHexString(buffer) == testValue);
+    assert(getUnsignedLongLongFromHexString("ffffffffffffffce") == 18446744073709551566llu);
+    assert(getUnsignedLongLongFromHexString("FFFFFFFFFFFFFFCD") == 18446744073709551565llu);
+    getHexStringFromUnsignedLongLong(buffer, sizeof(buffer), testValue);
+    assert(getUnsignedLongLongFromHexString(buffer) == testValue);
 
-   return 0;
+    return 0;
 }
 
-int testModuleTools(void) {
-   int result;
+int testModuleTools(void)
+{
+    int result;
 
-   if ((result = testStringOperations()) != 0) {
-      return result;
-   }
+    if ((result = testStringOperations()) != 0) {
+        return result;
+    }
 
-   if ((result = testLineBreaking()) != 0) {
-      return result;
-   }
+    if ((result = testLineBreaking()) != 0) {
+        return result;
+    }
 
-   if ((result = testTrimming()) != 0) {
-      return result;
-   }
+    if ((result = testTrimming()) != 0) {
+        return result;
+    }
 
-   if ((result = testTokenizer()) != 0) {
-      return result;
-   }
+    if ((result = testTokenizer()) != 0) {
+        return result;
+    }
 
-   if ((result = testPrimechecker()) != 0) {
-      return result;
-   }
+    if ((result = testPrimechecker()) != 0) {
+        return result;
+    }
 
-   if ((result = testMiscFunctions()) != 0) {
-      return result;
-   }
+    if ((result = testMiscFunctions()) != 0) {
+        return result;
+    }
 
-   return 0;
+    return 0;
 }
 
-void getDirectory(const char *path, char *directory, size_t bufferSize) {
-   const char *lastSlash = strrchr(path, '/');
+void getDirectory(const char *path, char *directory, size_t bufferSize)
+{
+    const char *lastSlash = strrchr(path, '/');
 #if defined(_WIN32) || defined(_WIN64)
-   const char *lastBackslash = strrchr(path, '\\');
-   if (lastBackslash > lastSlash) lastSlash = lastBackslash;
+    const char *lastBackslash = strrchr(path, '\\');
+    if (lastBackslash > lastSlash)
+        lastSlash = lastBackslash;
 #endif
 
-   if (lastSlash == NULL) {
-      strncpy(directory, "", bufferSize);
-   } else {
-      size_t length = (size_t) (lastSlash - path);
-      if (length >= bufferSize) length = bufferSize - 1;
-      strncpy(directory, path, length);
-      directory[length] = '\0';
-   }
+    if (lastSlash == NULL) {
+        strncpy(directory, "", bufferSize);
+    } else {
+        size_t length = (size_t)(lastSlash - path);
+        if (length >= bufferSize)
+            length = bufferSize - 1;
+        strncpy(directory, path, length);
+        directory[length] = '\0';
+    }
 }

@@ -23,10 +23,10 @@
 
 #include <stddef.h>
 
-#define min(x,y) ((x)<(y)?(x):(y))
-#define max(x,y) ((x)>(y)?(x):(y))
-#define avg(a,b) (((a)+(b))/2)
-#define max4(a,b,c,d)      ( max(max((a),(b)),max((c),(d))) )
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
+#define avg(a, b) (((a) + (b)) / 2)
+#define max4(a, b, c, d) (max(max((a), (b)), max((c), (d))))
 
 /**
  * Get the system time in milliseconds.
@@ -39,11 +39,10 @@ unsigned long getTimestamp(void);
 long getProcessTimestamp(void);
 
 typedef struct {
-   char *buffer;
-   char *tail;
-   unsigned int bufferSize;
-}
-String;
+    char *buffer;
+    char *tail;
+    unsigned int bufferSize;
+} String;
 
 /**
  * Get an initialized empty string.
@@ -58,14 +57,14 @@ String getString(const char *buffer, const char *lastChar);
 /**
  * Free all memory allocated for the specified String.
  */
-void deleteString(String * string);
+void deleteString(String *string);
 
 /**
  * Append a formatted C-string to String.
  *
  * @return a pointer to the new String
  */
-String *appendToString(String * string, const char *fmt, ...);
+String *appendToString(String *string, const char *fmt, ...);
 
 /**
  * Break the string specified by 'buffer' into lines of a maximum length
@@ -100,12 +99,11 @@ char *getToken(const char *token, const char *tokenDelimiters);
 int isPrime(unsigned long candidate);
 
 /**
- * Calculate y = ln(x) 
+ * Calculate y = ln(x)
  *
  * @return a rounded integer
  */
-int logIntValue(const double zeroPoint, const int maxPoint,
-                const double maxValue, const int x);
+int logIntValue(const double zeroPoint, const int maxPoint, const double maxValue, const int x);
 
 /**
  * Apply a 256-based weight to the specified value.

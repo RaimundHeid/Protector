@@ -105,7 +105,10 @@ protectorpgo:
 	$(MAKE) CFLAGS='$(PGO_USE_FLAGS) $(COMMON_CFLAGS)' protector_pgouse
 	rm -f *.o
 
-.PHONY: clean
+.PHONY: clean format
 clean:
 	$(CLEAN_CMD)
 	$(CLEAN_PGO_DATA)
+
+format:
+	clang-format -i $(wildcard *.c *.h)

@@ -21,10 +21,10 @@
 #ifndef _io_h_
 #define _io_h_
 
-#include "protector.h"
 #include "bitboard.h"
-#include "position.h"
 #include "movegeneration.h"
+#include "position.h"
+#include "protector.h"
 
 extern char pieceSymbol[16];
 
@@ -66,36 +66,34 @@ void logMove(const Move move);
 /**
  * Send a string representation of the specified movelist to stdout.
  */
-void dumpMovelist(const Movelist * movelist);
+void dumpMovelist(const Movelist *movelist);
 
 /**
  * Send a string representation of the specified pv to stdout.
  */
-void dumpPv(int depth, long timestamp,
-            const char *moves, int value, UINT64 nodes,
-            const Color activeColor);
+void dumpPv(int depth, long timestamp, const char *moves, int value, UINT64 nodes, const Color activeColor);
 
 /**
  * Send a string representation of the specified position to stdout.
  */
-void logPosition(const Position * position);
+void logPosition(const Position *position);
 
 /**
  * Send a string representation of the specified position to stdout
  * and wait for a keystroke.
  */
-void dumpPosition(const Position * position);
+void dumpPosition(const Position *position);
 
 /**
  * Send a string representation of the specified variation to stdout
  * and wait for a keystroke.
  */
-void dumpVariation(const Variation * variation);
+void dumpVariation(const Variation *variation);
 
 /**
  * Send a string representation of the specified variation to stdout.
  */
-void reportVariation(const Variation * variation);
+void reportVariation(const Variation *variation);
 
 /**
  * Get the name of the specified square.
@@ -140,7 +138,6 @@ void formatUciValue(const int centipawnValue, char *buffer, size_t bufferSize);
 /**
  * Write the specified table to a source code file.
  */
-void writeTableToFile(UINT64 * table, const int tablesize,
-                      const char *fileName, const char *tableName);
+void writeTableToFile(UINT64 *table, const int tablesize, const char *fileName, const char *tableName);
 
 #endif
