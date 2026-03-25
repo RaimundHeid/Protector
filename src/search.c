@@ -1071,27 +1071,15 @@ static int searchBest(Variation * variation, int alpha, int beta,
       variation->plyInfo[ply].currentMoveIsCheck = check =
          activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-      if (check) {
-         unmakeLastMove(variation);
-
-         if (seeMove(position, currentMove) >= 0) {
-            extension = DEPTH_RESOLUTION;
-         }
-
-         makeMoveFast(variation, currentMove);
+      if (check && pvNode)
+      {
+         extension = DEPTH_RESOLUTION;
       }
-
-      if (pvNode) {
-         if (pieceType(position->piece[toSquare]) == PAWN &&
-             pawnIsPassed(position, toSquare,
-                          opponent(position->activeColor))) {
-            extension = DEPTH_RESOLUTION;
-         } else if (capturedPiece != NO_PIECE &&
-                  pieceType(capturedPiece) != PAWN &&
-                  numberOfNonPawnPieces(position, WHITE) ==
-                  numberOfNonPawnPieces(position, BLACK)) {
-            extension = DEPTH_RESOLUTION;
-         }
+      else if (pvNode && capturedPiece != NO_PIECE &&
+               pieceType(capturedPiece) != PAWN &&
+               numberOfNonPawnPieces(position, WHITE) ==
+               numberOfNonPawnPieces(position, BLACK)) {
+         extension = DEPTH_RESOLUTION;
       }
 
       if (singularExtensionNode != FALSE &&

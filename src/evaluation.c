@@ -33,7 +33,6 @@
 Bitboard passedPawnCorridor[2][_64_];
 Bitboard candidateDefenders[2][_64_];
 
-
 int getValue(const Position * position, Accumulator * acc, int optimism) {
     assert(acc != NULL);
 
@@ -42,7 +41,7 @@ int getValue(const Position * position, Accumulator * acc, int optimism) {
     int se = (position->activeColor == WHITE)
              ? position->materialBalance
              : -position->materialBalance;
-    bool smallNet = abs(se) > 962;
+    const bool smallNet = abs(se) > 962;
 
     int psqt, positional;
 
@@ -58,7 +57,6 @@ int getValue(const Position * position, Accumulator * acc, int optimism) {
     if (smallNet && (abs(nnue) < 277)) {
         evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
         nnue = (125 * psqt + 131 * positional) / 128;
-        smallNet = FALSE;
     }
 
     // Blend optimism and eval with nnue complexity
