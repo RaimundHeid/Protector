@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 #include "position.h"
@@ -1606,6 +1607,10 @@ static int checkMove(Square from, Square to, Piece newPiece,
 
 static int testPawnMoves(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("Error: aligned_alloc failed in testPawnMoves (position.c)");
+      exit(-1);
+   }
 
    initializeVariation(variation, FEN_GAMESTART);
    assert(checkConsistency(&variation->singlePosition) == 0);
@@ -1650,6 +1655,10 @@ static int testPawnMoves(void) {
 
 static int testShortCastlings(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("Error: aligned_alloc failed in testShortCastlings (position.c)");
+      exit(-1);
+   }
 
    initializeVariation(variation, FEN_GAMESTART);
    assert(checkConsistency(&variation->singlePosition) == 0);
@@ -1674,6 +1683,10 @@ static int testShortCastlings(void) {
 
 static int testLongCastlings(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("Error: aligned_alloc failed in testLongCastlings (position.c)");
+      exit(-1);
+   }
 
    initializeVariation(variation, FEN_GAMESTART);
    assert(checkConsistency(&variation->singlePosition) == 0);
@@ -1701,6 +1714,11 @@ static int testLongCastlings(void) {
 
 static int testCastlingLegality(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("Error: aligned_alloc failed in testCastlingLegality (position.c)");
+      exit(-1);
+   }
+
    Variation * p_variation = variation;
 
    initializeVariation(variation, FEN_GAMESTART);

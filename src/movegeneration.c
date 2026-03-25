@@ -464,6 +464,11 @@ bool moveIsLegal(const Position * position, const Move move) {
    bool result = FALSE;
    Variation * variation = aligned_alloc(64, sizeof(Variation));
 
+   if (variation == NULL) {
+      logSevere("Out of memory in moveIsLegal\n");
+      exit(-1);
+   }
+
    if (moveIsPseudoLegal(position, move) == FALSE) {
       free(variation);
       return FALSE;
@@ -1947,6 +1952,10 @@ int initializeModuleMovegeneration(void) {
 
 static int testPseudoLegalMoves(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("Error: aligned_alloc failed in testPseudoLegalMoves (movegeneration.c)");
+      exit(-1);
+   }
    Bitboard attackers, interested;
 
    initializeVariation(variation, FEN_GAMESTART);
@@ -2077,6 +2086,10 @@ static int testPseudoLegalMoves(void) {
 
 static int testLegalMoves(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testLegalMoves");
+      exit(-1);
+   }
 
    initializeVariation(variation, FEN_GAMESTART);
    assert(moveIsLegal
@@ -2109,6 +2122,10 @@ static int testLegalMoves(void) {
 
 static int testStaticExchangeEvaluation(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testStaticExchangeEvaluation");
+      exit(-1);
+   }
    Move move;
 
    initializeVariation(variation, FEN_GAMESTART);
@@ -2236,6 +2253,10 @@ static int testStaticExchangeEvaluation(void) {
 
 static int testStaticExchangeEvaluationWithKing(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testStaticExchangeEvaluationWithKing");
+      exit(-1);
+   }
    Move move;
 
    initializeVariation(variation, FEN_GAMESTART);
@@ -2266,6 +2287,10 @@ static int testStaticExchangeEvaluationWithKing(void) {
 
 static int testStaticExchangeEvaluationWithEnPassantCapture(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testStaticExchangeEvaluationWithEnPassantCapture");
+      exit(-1);
+   }
    Move move;
 
    initializeVariation(variation, "6k1/8/7r/pP6/8/8/8/R5K1 w - a6 0 1");
@@ -2290,6 +2315,10 @@ static int testStaticExchangeEvaluationWithEnPassantCapture(void) {
 
 static int testAttackCalculations(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testAttackCalculations");
+      exit(-1);
+   }
 
    initializeVariation(variation, FEN_GAMESTART);
    assert(passiveKingIsSafe(&variation->singlePosition));
@@ -2318,6 +2347,10 @@ static int testAttackCalculations(void) {
 
 static int testLegalMoveGeneration(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testLegalMoveGeneration");
+      exit(-1);
+   }
    Movelist movelist;
 
    initializeVariation(variation, "R5k1/8/5K2/8/8/8/1r6/8 b - - 0 1");
@@ -2335,6 +2368,10 @@ static int testPinCheck(void) {
    static const char *fen1 =
       "r1b1k2r/ppp2ppp/2n2n2/1B6/1b2qp2/2NP1N2/PPP1QPPP/R3K2R w KQkq - 0 9";
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testPinCheck");
+      exit(-1);
+   }
    Bitboard pinnedPieces;
 
    initializeVariation(variation, fen1);

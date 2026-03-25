@@ -113,7 +113,14 @@ int processTestsuite(const char *filename) {
 
       logReport("\n%ld (%ld): %s-%s\n", i, pgnfile.numGames,
                 game->white, game->black);
-      logPosition(&game->firstMove->position);
+
+      initializeVariation(variation, game->fen);
+
+      if (game->firstMove != NULL) {
+         logPosition(&game->firstMove->position);
+      } else {
+         logPosition(&variation->singlePosition);
+      }
 
       entry.solutions.numberOfMoves = 0;
       gamemove = game->firstMove;
@@ -127,7 +134,6 @@ int processTestsuite(const char *filename) {
          gamemove = gamemove->alternativeMove;
       }
 
-      initializeVariation(variation, game->fen);
       resetSharedHashtable = TRUE;
       variation->handleSearchEvent = &handleSearchEvent;
 

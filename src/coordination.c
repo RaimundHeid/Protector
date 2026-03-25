@@ -312,6 +312,10 @@ int initializeModuleCoordination(void) {
 
    for (threadCount = 0; threadCount < MAX_THREADS; threadCount++) {
       variations[threadCount] = aligned_alloc(64, sizeof(Variation));
+      if (variations[threadCount] == NULL) {
+         logSevere("Error: aligned_alloc failed in initializeCoordination (coordination.c)");
+         exit(-1);
+      }
       variations[threadCount]->searchStatus = SEARCH_STATUS_FINISHED;
       searchThreadStarted[threadCount] = FALSE;
    }

@@ -488,6 +488,10 @@ static void sendBestmoveInfo(Variation * var) {
 
    if (moveIsLegal(&var->startPosition, var->bestBaseMove)) {
       Variation * tmp = aligned_alloc(64, sizeof(Variation));
+      if (tmp == NULL) {
+         logSevere("Error: aligned_alloc failed in sendBestmoveInfo (uci.c)");
+         exit(-1);
+      }
       *tmp = *var;
 
       getGuiMoveString(var->bestBaseMove, moveBuffer, sizeof(moveBuffer));
@@ -933,6 +937,10 @@ int initializeModuleUci(void) {
 
    if (variation_ptr == NULL) {
        variation_ptr = aligned_alloc(64, sizeof(Variation));
+       if (variation_ptr == NULL) {
+          logSevere("Error: aligned_alloc failed in parseCommand (uci.c)");
+          exit(-1);
+       }
    }
    variation_ptr->timeLimit = 5000;
    variation_ptr->ponderMode = FALSE;

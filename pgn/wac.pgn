@@ -2867,8 +2867,9 @@
 [Result "*"]
 [FEN "r3k3/P5bp/2N1bpp1/4p3/2p5/6NP/1PP2PP1/3R2K1 w q - 0 1"]
 [SetUp "1"]
+[PlyCount "1"]
 
-*
+1.Rd8+ *
 
 [Event "wac"]
 [Site "?"]
@@ -2972,7 +2973,7 @@
 [SetUp "1"]
 [PlyCount "1"]
 
-1...Rxh4 *
+1...Rxh4 ( 1...b4 ) *
 
 [Event "wac"]
 [Site "?"]

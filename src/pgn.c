@@ -429,6 +429,11 @@ Move interpretPGNMove(const char *moveText, PGNGame * game) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
    Move move;
 
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in interpretPGNMove\n");
+      exit(-1);
+   }
+
    initializeVariationFromGame(variation, game);
 
    move = parsePGNMove(moveText, &variation->singlePosition);
@@ -439,6 +444,11 @@ Move interpretPGNMove(const char *moveText, PGNGame * game) {
 
 int appendMove(PGNGame * game, const Move move) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in appendMove\n");
+      exit(-1);
+   }
 
    initializeVariationFromGame(variation, game);
 
@@ -493,6 +503,11 @@ static Gamemove *parseMoveText(const char *pgnMoveText,
    char currentChar;
    const char *token;
    const bool debugOutput = FALSE;
+
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in parseMoveText\n");
+      exit(-1);
+   }
 
    setBasePosition(variation, position);
    prepareSearch(variation);
@@ -668,6 +683,11 @@ static void parseRoasterValue(const char *pgn, const char *name,
 static void parseRoasterValues(const char *pgn, PGNGame * pgngame) {
    char *moves;
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in parseRoasterValues\n");
+      exit(-1);
+   }
 
    parseRoasterValue(pgn, "Event", pgngame->event);
    parseRoasterValue(pgn, "Site", pgngame->site);
@@ -864,6 +884,12 @@ static char *generateMoveSection(Gamemove * gamemove, const char *result) {
    String moveText = getEmptyString();
    char moveBuffer[64], *temp;
    Variation * variation = aligned_alloc(64, sizeof(Variation));
+
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in generateMoveSection\n");
+      exit(-1);
+   }
+
    bool restart = TRUE;
 
    initializeVariation(variation, FEN_GAMESTART);
@@ -1082,6 +1108,11 @@ static int testGeneration(void) {
    Variation * variation = aligned_alloc(64, sizeof(Variation));
    char pgnMove[64];
 
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testGeneration\n");
+      exit(-1);
+   }
+
    initializeVariation(variation, p1);
 
    generateMoveText(variation, getPackedMove(D4, D5, NO_PIECE), pgnMove, sizeof(pgnMove));
@@ -1140,7 +1171,13 @@ static int testParsing(void) {
    char *p2 = "r3k2r/n3nppp/3n2P1/8/1q1q4/2B5/1q1pRPPP/5RK1 b kq - 0 1";
    Variation * variation = aligned_alloc(64, sizeof(Variation));
 
+   if (variation == NULL) {
+      logSevere("aligned_alloc failed in testParsing\n");
+      exit(-1);
+   }
+
    initializeVariation(variation, p1);
+
 
    assert(parsePGNMove("d5", &variation->singlePosition) ==
           getPackedMove(D4, D5, NO_PIECE));
