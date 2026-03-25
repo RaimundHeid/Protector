@@ -474,12 +474,6 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     return best;
 }
 
-static bool moveIsCastling(const Move move, const Position *position)
-{
-    return (bool)(pieceType(position->piece[getFromSquare(move)]) == KING &&
-                  distance(getFromSquare(move), getToSquare(move)) == 2);
-}
-
 static bool isPassedPawnMove(const Square pawnSquare, const Square targetSquare, const Position *position)
 {
     const Piece piece = position->piece[pawnSquare];
@@ -675,7 +669,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Razoring */
     if (pvNode == FALSE && restDepth < 4 * DEPTH_RESOLUTION && inCheck == FALSE && hashmove == NO_MOVE &&
-        cutsAreAllowed && hasDangerousPawns(position, position->activeColor) == FALSE) {
+        cutsAreAllowed) {
         const int limit = alpha - (110 + 12 * restDepth);
 
         if (getRefinedStaticValue(variation, ply) < limit) {
@@ -885,7 +879,7 @@ checkAvailableMoves:
         /* Optimistic futility cuts */
         if (pvNode == FALSE && inCheck == FALSE && quietMove != FALSE &&
             !isPassedPawnMove(getFromSquare(currentMove), toSquare, position) &&
-            !moveIsCastling(currentMove, position) && best > VALUE_ALMOST_MATED && cutsAreAllowed && restDepth < 32) {
+            best > VALUE_ALMOST_MATED && cutsAreAllowed && restDepth < 32) {
             bool moveIsRelevant = FALSE;
             const int predictedDepth = restDepth - reduction;
 
@@ -979,8 +973,7 @@ checkAvailableMoves:
         if (inCheck == FALSE && extension == 0 && restDepth >= 3 * DEPTH_RESOLUTION && quietMove != FALSE &&
             stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
-            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE &&
-            isPassedPawnMove(toSquare, toSquare, position) == FALSE) {
+            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE) {
             reduce = TRUE;
         }
 
