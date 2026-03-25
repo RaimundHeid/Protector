@@ -22,6 +22,8 @@
 #define _pgn_h_
 
 #include <stdio.h>
+#include "protector.h"
+#include "position.h"
 
 typedef struct {
     long *index;
