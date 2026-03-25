@@ -62,7 +62,7 @@ static bool moveIsQuiet(const Move move, const Position *position)
 static void checkTerminationConditions(Variation *variation)
 {
     if (variation->searchStatus == SEARCH_STATUS_RUNNING) {
-        if (variation->terminate != FALSE && (variation->iteration > 1 || variation->threadNumber > 0)) {
+        if (variation->terminate && (variation->iteration > 1 || variation->threadNumber > 0)) {
             variation->searchStatus = SEARCH_STATUS_TERMINATE;
         }
     }
@@ -117,7 +117,7 @@ static int getRefinedStaticValue(Variation *variation, const int ply)
 
 static void updateGains(Variation *variation, const int ply)
 {
-    if (variation->plyInfo[ply].gainsUpdated == FALSE && variation->plyInfo[ply - 1].quietMove != FALSE) {
+    if (variation->plyInfo[ply].gainsUpdated == FALSE && variation->plyInfo[ply - 1].quietMove) {
         const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
         INT16 *storedGain = &variation->positionalGain[moveIndex];
         const INT16 currentDiff = (INT16)(getStaticValue(variation, ply) + variation->plyInfo[ply - 1].staticValue);
@@ -265,7 +265,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     assert(ply > 0 && ply < MAX_DEPTH);
     assert(restDepth < DEPTH_RESOLUTION);
     assert(passiveKingIsSafe(position));
-    assert((inCheck != FALSE) == (activeKingIsSafe(position) == FALSE));
+    assert(inCheck == (activeKingIsSafe(position) == FALSE));
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].quietMove = FALSE; /* avoid subsequent gain updates */
@@ -315,7 +315,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     if (inCheck == FALSE) {
         const bool staticValueAvailable = variation->plyInfo[ply].staticValueAvailable;
 
-        assert(flipTest(position) != FALSE);
+        assert(flipTest(position));
 
         if (staticValueAvailable == FALSE) {
             best = getValue(position, &variation->plyInfo[ply].accumulator, 0);
@@ -353,7 +353,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     }
 
     if (ply >= MAX_DEPTH) {
-        assert(flipTest(position) != FALSE);
+        assert(flipTest(position));
 
         return getStaticValue(variation, ply);
     }
@@ -421,7 +421,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
                 position->piece[getFromSquare(currentMove)] == (PAWN | position->activeColor)) ||
                getNewPiece(currentMove) != NO_PIECE || inCheck || variation->plyInfo[ply].currentMoveIsCheck);
 
-        assert(inCheck != FALSE ||
+        assert(inCheck ||
                basicValue[position->piece[getFromSquare(currentMove)]] <=
                    basicValue[position->piece[getToSquare(currentMove)]] ||
                seeMove(position, currentMove) >= 0);
@@ -455,7 +455,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     if (best == VALUE_MATED) {
         /* mate */
 
-        assert(inCheck != FALSE);
+        assert(inCheck);
 
         best = VALUE_MATED + ply;
     }
@@ -530,7 +530,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     assert(alpha < beta);
     assert(ply > 0 && ply < MAX_DEPTH);
     assert(passiveKingIsSafe(position));
-    assert((inCheck != FALSE) == (activeKingIsSafe(position) == FALSE));
+    assert(inCheck == (activeKingIsSafe(position) == FALSE));
 
     /* Check for a draw according to the 50-move-rule */
     /* ---------------------------------------------- */
@@ -555,7 +555,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         qsValue = searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
 
-        if (inCheck == FALSE && variation->plyInfo[ply].staticValueAvailable != FALSE) {
+        if (inCheck == FALSE && variation->plyInfo[ply].staticValueAvailable) {
             updateGains(variation, ply);
         }
 
@@ -571,7 +571,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Probe the tablebases in case of reduced material */
     /* ------------------------------------------------ */
-    if (tbAvailable != FALSE && excludeMove == NO_MOVE) {
+    if (tbAvailable && excludeMove == NO_MOVE) {
         int numPieces = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
         int wdlValue = TABLEBASE_ERROR;
 
@@ -696,14 +696,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Nullmove pruning with verification */
     if (restDepth >= 2 * DEPTH_RESOLUTION && inCheck == FALSE && pvNode == FALSE && cutsAreAllowed &&
         excludeMove == NO_MOVE && numPieces >= 2 && getRefinedStaticValue(variation, ply) >= beta &&
-        (cutNode != FALSE || restDepth >= 6 * DEPTH_RESOLUTION)) { /* 16-32% */
+        (cutNode || restDepth >= 6 * DEPTH_RESOLUTION)) { /* 16-32% */
         const int diff = getRefinedStaticValue(variation, ply) - beta;
         const int additionalReduction = min(diff / 59, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
         const int verificationDepth = (numPieces >= 3 ? 12 : 6) * DEPTH_RESOLUTION;
         int nullValue;
 
-        assert(flipTest(position) != FALSE);
+        assert(flipTest(position));
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
@@ -877,9 +877,9 @@ checkAvailableMoves:
         assert(hashmove == NO_MOVE || numMovesPlayed > 0 || movesAreEqual(currentMove, hashmove));
 
         /* Optimistic futility cuts */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove != FALSE &&
-            !isPassedPawnMove(getFromSquare(currentMove), toSquare, position) &&
-            best > VALUE_ALMOST_MATED && cutsAreAllowed && restDepth < 32) {
+        if (pvNode == FALSE && inCheck == FALSE && quietMove &&
+            !isPassedPawnMove(getFromSquare(currentMove), toSquare, position) && best > VALUE_ALMOST_MATED &&
+            cutsAreAllowed && restDepth < 32) {
             bool moveIsRelevant = FALSE;
             const int predictedDepth = restDepth - reduction;
 
@@ -945,7 +945,7 @@ checkAvailableMoves:
             extension = DEPTH_RESOLUTION;
         }
 
-        if (singularExtensionNode != FALSE && extension < DEPTH_RESOLUTION && movesAreEqual(currentMove, hashmove)) {
+        if (singularExtensionNode && extension < DEPTH_RESOLUTION && movesAreEqual(currentMove, hashmove)) {
             const int limitValue = hashEntryValue - (149 * restDepth) / 256;
 
             assert(excludeMove == NO_MOVE);
@@ -970,7 +970,7 @@ checkAvailableMoves:
 
         /* History pruning */
         /* --------------- */
-        if (inCheck == FALSE && extension == 0 && restDepth >= 3 * DEPTH_RESOLUTION && quietMove != FALSE &&
+        if (inCheck == FALSE && extension == 0 && restDepth >= 3 * DEPTH_RESOLUTION && quietMove &&
             stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE) {
@@ -1293,7 +1293,7 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
         resetPvsOfVariation(variation);
         best = VALUE_MATED;
 
-        if (tbAvailable != FALSE && position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7) {
+        if (tbAvailable && position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK] <= 7) {
             int i;
             bool allProbed = TRUE;
 
