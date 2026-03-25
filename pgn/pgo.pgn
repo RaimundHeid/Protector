@@ -2498,19 +2498,6 @@
 [Site "?"]
 [Date "????.??.??"]
 [Round "?"]
-[White "WAC.226"]
-[Black "?"]
-[Result "*"]
-[SetUp "1"]
-[FEN "2b2rk1/p1p4p/2p1p1p1/br2N1Q1/1p2q3/8/PB3PPP/3R1RK1 w - - 0 1"]
-[PlyCount "1"]
-
-1. Nf7 *
-
-[Event "wac"]
-[Site "?"]
-[Date "????.??.??"]
-[Round "?"]
 [White "WAC.227"]
 [Black "?"]
 [Result "*"]
