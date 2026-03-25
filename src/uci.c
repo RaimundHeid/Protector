@@ -397,7 +397,7 @@ static char *getUciPv(const PrincipalVariation * pv, char *buffer, size_t buffer
  ******************************************************************************/
 static void postPv(Variation * var, bool sendAnyway) {
    const char *format =
-      "info depth %d seldepth %d time %.0f nodes %llu score %s %s tbhits %lu %s pv %s";
+      "info depth %d seldepth %d time %.0f nodes %llu nps %.0f score %s %s tbhits %lu %s pv %s";
    double time = getTimestamp() - var->startTime;
    char pvBuffer[2048];
    char pvMovesBuffer[1024];
@@ -407,6 +407,7 @@ static void postPv(Variation * var, bool sendAnyway) {
 
    if (time >= 250 || sendAnyway) {
       const UINT64 nodeCount = getNodeCount();
+      const double nps = (nodeCount / max((double) 0.001, (time / 1000.0)));
       const PrincipalVariation *pv = &var->pv[var->pvId];
 
       if (numPvs > 1) {
@@ -423,7 +424,7 @@ static void postPv(Variation * var, bool sendAnyway) {
       }
 
       snprintf(pvBuffer, sizeof(pvBuffer), format, var->iteration, var->selDepth, time,
-              nodeCount, scoreBuffer, scoreTypeBuffer, var->tbHits,
+              nodeCount, nps, scoreBuffer, scoreTypeBuffer, var->tbHits,
               multiPvBuffer, pvMovesBuffer);
 
       sendToUciNonDebug("%s", pvBuffer);
@@ -466,7 +467,7 @@ static void reportStatisticsUpdate(Variation * var) {
       (max((double) 1.0, (double) getSharedHashtable()->tableSize));
 
    sendToUciNonDebug
-      ("info time %0.f nodes %lld nps %.0f hashfull %.0f tbhits %lu",
+      ("info time %0.f nodes %llu nps %.0f hashfull %.0f tbhits %lu",
        time, nodeCount, nps, hashUsage, var->tbHits);
    reportBaseMoveUpdate(var);
 

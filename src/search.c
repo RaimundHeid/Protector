@@ -1631,7 +1631,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
    Movelist movelist;
    long timeTarget;
    int stableIterationCount = 0;
-   UINT64 nodeCount = 0;
    int iv1 = 0, iv2 = 0, iv3 = 0;
 
    if (resetSharedHashtable) {
@@ -1687,13 +1686,8 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
       if (acceptableSolutions != 0 &&
           listContainsMove(acceptableSolutions, variation->bestBaseMove)) {
          stableIterationCount++;
-
-         if (stableIterationCount == 1) {
-            nodeCount = variation->nodes;
-         }
       } else {
          stableIterationCount = 0;
-         nodeCount = variation->nodes;
       }
 
       /* Check for a fail low. */
@@ -1769,8 +1763,6 @@ Move search(Variation * variation, Movelist * acceptableSolutions) {
 
       releaseGuiSearchMutex();
    }
-
-   variation->nodes = nodeCount;
 
    if (statCount1 != 0 || statCount2 != 0) {
       logReport("statCount1=%lld statCount2=%lld (%lld%%) \n",
