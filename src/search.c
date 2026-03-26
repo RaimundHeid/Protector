@@ -510,6 +510,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     int hashEntryValue = 0;
     const UINT64 hashKey = position->hashKey;
     const bool cutsAreAllowed = (bool)(abs(beta) < -(VALUE_ALMOST_MATED));
+    bool tryRazoring;
     int variationType = (ply < 2 ? 1 : 0);
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
@@ -667,23 +668,16 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         goto checkAvailableMoves;
     }
 
+    tryRazoring = pvNode == FALSE && inCheck == FALSE && hashmove == NO_MOVE && cutsAreAllowed;
+
     /* Razoring */
-    if (pvNode == FALSE && restDepth < 4 * DEPTH_RESOLUTION && inCheck == FALSE && hashmove == NO_MOVE &&
-        cutsAreAllowed) {
-        const int limit = alpha - (110 + 12 * restDepth);
-
-        if (getRefinedStaticValue(variation, ply) < limit) {
-            const int qsValue = searchBestQuiescence(variation, limit - 1, limit, ply, 0, bestMove, pvNode);
-
-            if (qsValue < limit) {
-                return qsValue;
-            }
-        }
+    if (tryRazoring && getRefinedStaticValue(variation, ply) < alpha - 132 - 8 * restDepth * restDepth) {
+        return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
     }
 
     /* Static nullmove pruning */
-    if (pvNode == FALSE && restDepth < 4 * DEPTH_RESOLUTION && inCheck == FALSE && cutsAreAllowed &&
-        excludeMove == NO_MOVE && numPieces >= 2 && !hasDangerousPawns(position, opponent(position->activeColor))) {
+    if (tryRazoring && restDepth < 4 * DEPTH_RESOLUTION && numPieces >= 2 &&
+        hasDangerousPawns(position, opponent(position->activeColor)) == FALSE) {
         const int staticValue = getRefinedStaticValue(variation, ply);
         const bool improving = (ply >= 2 && staticValue > variation->plyInfo[ply - 2].staticValue);
         const int margin = (22 + 22 * restDepth) - (improving ? 22 : 0);
