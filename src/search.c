@@ -692,7 +692,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         excludeMove == NO_MOVE && numPieces >= 2 && getRefinedStaticValue(variation, ply) >= beta &&
         cutNode) { /* 16-32% */
         const int diff = getRefinedStaticValue(variation, ply) - beta;
-        const int additionalReduction = min(diff / 59, 3) * DEPTH_RESOLUTION;
+        const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
         const int verificationDepth = (numPieces >= 3 ? 12 : 6) * DEPTH_RESOLUTION;
         int nullValue;
