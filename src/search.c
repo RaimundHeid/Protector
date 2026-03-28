@@ -490,6 +490,11 @@ static int getSingleMoveExtensionDepth(const bool pvNode)
     return (pvNode ? 6 : 8) * DEPTH_RESOLUTION;
 }
 
+static bool isImproving(Variation *variation, int ply)
+{
+    return ply >= 2 && getRefinedStaticValue(variation, ply) > variation->plyInfo[ply - 2].staticValue;
+}
+
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, const bool pvNode,
                       const bool cutNode, Move *bestMove, Move excludeMove, const bool tryEarlyPrunings)
 {
@@ -679,8 +684,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     if (tryRazoring && restDepth <= 4 * DEPTH_RESOLUTION && numPieces >= 2 &&
         hasDangerousPawns(position, opponent(position->activeColor)) == FALSE) {
         const int staticValue = getRefinedStaticValue(variation, ply);
-        const bool improving = (ply >= 2 && staticValue > variation->plyInfo[ply - 2].staticValue);
-        const int margin = (22 + 22 * restDepth) - (improving ? 24 : 0);
+        const int margin = (22 + 22 * restDepth) - (isImproving(variation, ply) ? 24 : 0);
 
         if (staticValue - margin >= beta) {
             return beta;
@@ -694,7 +698,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int diff = getRefinedStaticValue(variation, ply) - beta;
         const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
-        const int verificationDepth = (numPieces >= 3 ? 12 : 6) * DEPTH_RESOLUTION;
         int nullValue;
 
         assert(flipTest(position));
@@ -709,7 +712,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             nullValue = beta;
         }
 
-        if (nullValue >= beta && newDepth >= DEPTH_RESOLUTION && restDepth >= verificationDepth) { /* 2% */
+        if (nullValue >= beta && newDepth >= DEPTH_RESOLUTION && restDepth >= 10) { /* 2% */
             const int noNullValue =
                 searchBest(variation, alpha, beta, ply, newDepth, FALSE, FALSE, &bestReply, NULLMOVE, FALSE);
 
