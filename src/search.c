@@ -92,27 +92,13 @@ static int getStaticValue(Variation *variation, const int ply)
     PlyInfo *pi = &variation->plyInfo[ply];
 
     if (pi->staticValueAvailable == FALSE) {
-        pi->staticValue = pi->refinedStaticValue = getValue(&variation->singlePosition, &pi->accumulator, 0);
+        pi->staticValue = getValue(&variation->singlePosition, &pi->accumulator, 0);
         pi->staticValueAvailable = TRUE;
     } else {
         assert(pi->staticValue == getEvalValue(variation));
     }
 
     return pi->staticValue;
-}
-
-static int getRefinedStaticValue(Variation *variation, const int ply)
-{
-    PlyInfo *pi = &variation->plyInfo[ply];
-
-    if (pi->staticValueAvailable == FALSE) {
-        pi->staticValue = pi->refinedStaticValue = getValue(&variation->singlePosition, &pi->accumulator, 0);
-        pi->staticValueAvailable = TRUE;
-    } else {
-        assert(pi->staticValue == getEvalValue(variation));
-    }
-
-    return pi->refinedStaticValue;
 }
 
 static void updateGains(Variation *variation, const int ply)
@@ -179,7 +165,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
         assert(getHashentryStaticValue(tableHit) == getStaticValue(variation, ply));
 
         if (pi->staticValueAvailable == FALSE && pvNode == FALSE) {
-            pi->staticValue = pi->refinedStaticValue = getHashentryStaticValue(tableHit);
+            pi->staticValue = getHashentryStaticValue(tableHit);
             pi->staticValueAvailable = TRUE;
 
             if (updateGainValues) {
@@ -200,7 +186,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
                 }
 
                 if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue < getStaticValue(variation, ply)) {
-                    variation->plyInfo[ply].refinedStaticValue = hashEntryValue;
+                    variation->plyInfo[ply].staticValue = hashEntryValue;
                 }
                 break;
 
@@ -217,7 +203,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
                 }
 
                 if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue > getStaticValue(variation, ply)) {
-                    variation->plyInfo[ply].refinedStaticValue = hashEntryValue;
+                    variation->plyInfo[ply].staticValue = hashEntryValue;
                 }
                 break;
 
@@ -319,7 +305,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
 
         if (staticValueAvailable == FALSE) {
             best = getValue(position, &variation->plyInfo[ply].accumulator, 0);
-            variation->plyInfo[ply].staticValue = variation->plyInfo[ply].refinedStaticValue = best;
+            variation->plyInfo[ply].staticValue = best;
             variation->plyInfo[ply].staticValueAvailable = TRUE;
         } else {
             best = variation->plyInfo[ply].staticValue;
@@ -492,7 +478,7 @@ static int getSingleMoveExtensionDepth(const bool pvNode)
 
 static bool isImproving(Variation *variation, int ply)
 {
-    return ply >= 2 && getRefinedStaticValue(variation, ply) > variation->plyInfo[ply - 2].staticValue;
+    return ply >= 2 && getStaticValue(variation, ply) > variation->plyInfo[ply - 2].staticValue;
 }
 
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, const bool pvNode,
@@ -676,14 +662,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     tryRazoring = pvNode == FALSE && inCheck == FALSE && hashmove == NO_MOVE && cutsAreAllowed;
 
     /* Razoring */
-    if (tryRazoring && getRefinedStaticValue(variation, ply) < alpha - 132 - 8 * restDepth * restDepth) {
+    if (tryRazoring && getStaticValue(variation, ply) < alpha - 132 - 8 * restDepth * restDepth) {
         return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
     }
 
     /* Static pruning */
     if (tryRazoring && restDepth <= 4 * DEPTH_RESOLUTION && numPieces >= 2 &&
         hasDangerousPawns(position, opponent(position->activeColor)) == FALSE) {
-        const int staticValue = getRefinedStaticValue(variation, ply);
+        const int staticValue = getStaticValue(variation, ply);
         const int margin = (22 + 22 * restDepth) - (isImproving(variation, ply) ? 24 : 0);
 
         if (staticValue - margin >= beta) {
@@ -693,9 +679,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Nullmove pruning with verification */
     if (restDepth >= 2 * DEPTH_RESOLUTION && inCheck == FALSE && pvNode == FALSE && cutsAreAllowed &&
-        excludeMove == NO_MOVE && numPieces >= 2 && getRefinedStaticValue(variation, ply) >= beta &&
+        excludeMove == NO_MOVE && numPieces >= 2 && getStaticValue(variation, ply) >= beta &&
         cutNode) { /* 16-32% */
-        const int diff = getRefinedStaticValue(variation, ply) - beta;
+        const int diff = getStaticValue(variation, ply) - beta;
         const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
         int nullValue;
@@ -732,7 +718,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     if (pvNode == FALSE && cutsAreAllowed && restDepth >= 5 * DEPTH_RESOLUTION && excludeMove == NO_MOVE &&
         inCheck == FALSE) {
         const int limit = beta + 96;
-        const int staticValue = getRefinedStaticValue(variation, ply);
+        const int staticValue = getStaticValue(variation, ply);
         const Move qrHashmove =
             (hashmove != NO_MOVE && position->piece[getToSquare(hashmove)] != NO_PIECE ? hashmove : NO_MOVE);
 
@@ -780,7 +766,7 @@ checkAvailableMoves:
     /* Internal iterative deepening. */
     /* ----------------------------- */
     if (hashmove == NO_MOVE && restDepth >= (pvNode ? 3 : 7) * DEPTH_RESOLUTION &&
-        (pvNode || (inCheck == FALSE && getRefinedStaticValue(variation, ply) >= beta - 49))) {
+        (pvNode || (inCheck == FALSE && getStaticValue(variation, ply) >= beta - 49))) {
         const Move excludeHere = (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
         const int searchDepth = (pvNode ? restDepth - 2 * DEPTH_RESOLUTION : restDepth / 2);
 
@@ -889,7 +875,7 @@ checkAvailableMoves:
             }
 
             if (moveIsRelevant == FALSE && predictedDepth <= NUM_FUTILITY_MARGIN_VALUES) {
-                const int futLimit = getRefinedStaticValue(variation, ply) + gain + futilityMargin[predictedDepth];
+                const int futLimit = getStaticValue(variation, ply) + gain + futilityMargin[predictedDepth];
 
                 if (futLimit < beta) {
                     if (simpleMoveIsCheck(position, currentMove)) {

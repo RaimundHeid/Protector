@@ -83,7 +83,7 @@ typedef struct {
     BYTE castlingRights;
     int halfMoveClock;
     Bitboard allPieces, whitePieces, blackPieces, hashKey;
-    int staticValue, refinedStaticValue;
+    int staticValue;
     bool staticValueAvailable, gainsUpdated;
     bool quietMove, isHashMove;
     Accumulator accumulator;
