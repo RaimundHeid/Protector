@@ -717,8 +717,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Try to find a quick refutation of the opponent's previous move */
     if (pvNode == FALSE && cutsAreAllowed && restDepth >= 5 * DEPTH_RESOLUTION && excludeMove == NO_MOVE &&
         inCheck == FALSE) {
-        const int limit = beta + 96;
         const int staticValue = getStaticValue(variation, ply);
+        const int limit = beta + (staticValue >= beta ? 70 : 96);
         const Move qrHashmove =
             (hashmove != NO_MOVE && position->piece[getToSquare(hashmove)] != NO_PIECE ? hashmove : NO_MOVE);
 
