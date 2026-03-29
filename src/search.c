@@ -473,7 +473,7 @@ static bool isPassedPawnMove(const Square pawnSquare, const Square targetSquare,
 
 static int getSingleMoveExtensionDepth(const bool pvNode)
 {
-    return (pvNode ? 6 : 8) * DEPTH_RESOLUTION;
+    return (pvNode ? 4 : 8) * DEPTH_RESOLUTION;
 }
 
 static bool isImproving(Variation *variation, int ply)
@@ -730,7 +730,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             const Piece capturedPiece = position->piece[toSquare];
             int moveValue;
 
-            if (staticValue + basicValue[capturedPiece] < beta + 75) {
+            if (staticValue + basicValue[capturedPiece] < beta + 78) {
                 continue;
             }
 
@@ -763,10 +763,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
 checkAvailableMoves:
 
-    /* Internal iterative deepening. */
+    /* Internal iterative deepening */
     /* ----------------------------- */
     if (hashmove == NO_MOVE && restDepth >= (pvNode ? 3 : 7) * DEPTH_RESOLUTION &&
-        (pvNode || (inCheck == FALSE && getStaticValue(variation, ply) >= beta - 49))) {
+        (pvNode || (inCheck == FALSE && getStaticValue(variation, ply) >= beta - 51))) {
         const Move excludeHere = (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
         const int searchDepth = (pvNode ? restDepth - 2 * DEPTH_RESOLUTION : restDepth / 2);
 
@@ -785,7 +785,7 @@ checkAvailableMoves:
         }
     }
 
-    /* Check if the conditions for a singular extension are met */
+    /* Check the conditions for a singular extension */
     if (bestTableHit != 0 && excludeMove == NO_MOVE && hashmove != NO_MOVE) {
         const int singleMoveExtensionDepth = getSingleMoveExtensionDepth(pvNode);
         const int importance = getHashentryImportance(bestTableHit) - HASH_DEPTH_OFFSET;
