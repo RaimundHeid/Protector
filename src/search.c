@@ -154,14 +154,6 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
         *bestTableHit = tableHit;
         *value = hashEntryValue;
 
-        /*
-           if (getHashentryStaticValue(tableHit) != getStaticValue(variation, ply)) {
-           logDebug("hv=%d sv=%d ev=%d\n", getHashentryStaticValue(tableHit),
-           getStaticValue(variation, ply), getEvalValue(variation));
-           dumpVariation(variation);
-           }
-         */
-
         assert(getHashentryStaticValue(tableHit) == getStaticValue(variation, ply));
 
         if (pi->staticValueAvailable == FALSE && pvNode == FALSE) {
@@ -185,7 +177,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
                     return TRUE;
                 }
 
-                if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue < getStaticValue(variation, ply)) {
+                if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue < pi->staticValue) {
                     variation->plyInfo[ply].staticValue = hashEntryValue;
                 }
                 break;
@@ -202,7 +194,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
                     return TRUE;
                 }
 
-                if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue > getStaticValue(variation, ply)) {
+                if (restDepth >= HASH_DEPTH_OFFSET && hashEntryValue > pi->staticValue) {
                     variation->plyInfo[ply].staticValue = hashEntryValue;
                 }
                 break;
@@ -300,16 +292,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
 
     if (inCheck == FALSE) {
         const bool staticValueAvailable = variation->plyInfo[ply].staticValueAvailable;
-
-        assert(flipTest(position));
-
-        if (staticValueAvailable == FALSE) {
-            best = getValue(position, &variation->plyInfo[ply].accumulator, 0);
-            variation->plyInfo[ply].staticValue = best;
-            variation->plyInfo[ply].staticValueAvailable = TRUE;
-        } else {
-            best = variation->plyInfo[ply].staticValue;
-        }
+        best = getStaticValue(variation, ply);
 
         if (bestTableHit != 0) {
             const int flag = getHashentryFlag(bestTableHit);
@@ -328,7 +311,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
                     UINT8 hashentryFlag = HASHVALUE_EVAL;
 
                     setHashentry(getSharedHashtable(), position->hashKey, calcHashtableValue(best, ply), 0,
-                                 packedMove(NO_MOVE), hashentryFlag, (INT16)getStaticValue(variation, ply));
+                                 packedMove(NO_MOVE), hashentryFlag, (INT16)best);
                 }
 
                 return best;
