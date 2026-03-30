@@ -917,10 +917,8 @@ checkAvailableMoves:
         /* ------------------------------------------------------ */
         variation->plyInfo[ply].currentMoveIsCheck = check = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        if (check && pvNode) {
-            extension = DEPTH_RESOLUTION;
-        } else if (pvNode && capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
-                   numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)) {
+        if (pvNode && (check || (capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
+                                 numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)))) {
             extension = DEPTH_RESOLUTION;
         }
 
