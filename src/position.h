@@ -161,6 +161,7 @@ typedef struct {
     long numPvUpdates;
     unsigned int threadNumber;
     Color ownColor;
+    int optimism;
 } Variation;
 
 #define TIME_CHECK_INTERVALL_IN_MS 100

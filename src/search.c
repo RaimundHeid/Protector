@@ -84,7 +84,10 @@ static bool hasDangerousPawns(const Position *position, const Color color)
 
 int getEvalValue(Variation *variation)
 {
-    return getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, 0);
+    const int opt = (variation->singlePosition.activeColor == variation->startPosition.activeColor)
+                        ? variation->optimism
+                        : -variation->optimism;
+    return getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, opt);
 }
 
 static int getStaticValue(Variation *variation, const int ply)
@@ -92,7 +95,7 @@ static int getStaticValue(Variation *variation, const int ply)
     PlyInfo *pi = &variation->plyInfo[ply];
 
     if (pi->staticValueAvailable == FALSE) {
-        pi->staticValue = getValue(&variation->singlePosition, &pi->accumulator, 0);
+        pi->staticValue = getEvalValue(variation);
         pi->staticValueAvailable = TRUE;
     } else {
         assert(pi->staticValue == getEvalValue(variation));
@@ -1235,6 +1238,9 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
     const int ply = 0;
     Position *position = &variation->singlePosition;
     const bool fullWindow = (bool)(variation->iteration <= 3);
+
+    // Adjust optimism based on root move's score (Stockfish formula)
+    variation->optimism = 142 * previousBest / (abs(previousBest) + 86);
     int window = aspirationWindow, best;
     bool exactValueFound = FALSE;
     const int staticValue = getEvalValue(variation);
@@ -1412,6 +1418,7 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
     resetFinnyTable(&variation->finnyTable);
     refreshAccumulator(&variation->singlePosition, &variation->plyInfo[0].accumulator, &variation->finnyTable);
     variation->ownColor = variation->singlePosition.activeColor;
+    variation->optimism = 0;
     variation->nodes = variation->nodesAtTimeCheck = 0;
     variation->startTimeProcess = getProcessTimestamp();
     variation->timestamp = variation->startTime + 1;
