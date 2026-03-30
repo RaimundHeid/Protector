@@ -481,6 +481,11 @@ static bool isImproving(Variation *variation, int ply)
     return ply >= 2 && getStaticValue(variation, ply) > variation->plyInfo[ply - 2].staticValue;
 }
 
+static bool isSpecialMove(Position *position, Move move)
+{
+    return simpleMoveIsCheck(position, move) || isPassedPawnMove(getFromSquare(move), getToSquare(move), position);
+}
+
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, const bool pvNode,
                       const bool cutNode, Move *bestMove, Move excludeMove, const bool tryEarlyPrunings)
 {
@@ -862,38 +867,27 @@ checkAvailableMoves:
         assert(hashmove == NO_MOVE || numMovesPlayed > 0 || movesAreEqual(currentMove, hashmove));
 
         /* Optimistic futility cuts */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove &&
-            !isPassedPawnMove(getFromSquare(currentMove), toSquare, position) && best > VALUE_ALMOST_MATED &&
-            cutsAreAllowed && restDepth < 32) {
-            bool moveIsRelevant = FALSE;
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && cutsAreAllowed &&
+            restDepth < 32 && isSpecialMove(position, currentMove) == FALSE) {
             const int predictedDepth = restDepth - reduction;
 
             if (numMovesPlayed >= quietMoveCountLimit[moveCountLimitType][restDepth]) {
-                if (simpleMoveIsCheck(position, currentMove)) {
-                    moveIsRelevant = TRUE;
-                } else {
+                continue;
+            }
+
+            if (predictedDepth <= NUM_FUTILITY_MARGIN_VALUES) {
+                const int futLimit = getStaticValue(variation, ply) + gain + futilityMargin[predictedDepth];
+
+                if (futLimit < beta) {
+                    if (futLimit > best) {
+                        best = futLimit;
+                    }
+
                     continue;
                 }
             }
 
-            if (moveIsRelevant == FALSE && predictedDepth <= NUM_FUTILITY_MARGIN_VALUES) {
-                const int futLimit = getStaticValue(variation, ply) + gain + futilityMargin[predictedDepth];
-
-                if (futLimit < beta) {
-                    if (simpleMoveIsCheck(position, currentMove)) {
-                        moveIsRelevant = TRUE;
-                    } else {
-                        if (futLimit > best) {
-                            best = futLimit;
-                        }
-
-                        continue;
-                    }
-                }
-            }
-
-            if (moveIsRelevant == FALSE && predictedDepth < 4 * DEPTH_RESOLUTION &&
-                seeMove(position, currentMove) < 0 && simpleMoveIsCheck(position, currentMove) == FALSE) {
+            if (predictedDepth < 4 * DEPTH_RESOLUTION && seeMove(position, currentMove) < 0) {
                 continue;
             }
         }
