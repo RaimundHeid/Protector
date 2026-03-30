@@ -505,6 +505,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     int variationType = (ply < 2 ? 1 : 0);
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
+    int moveCountLimitType = 0;
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].quietMove = FALSE; /* avoid subsequent gain updates */
@@ -679,8 +680,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Nullmove pruning with verification */
     if (restDepth >= 2 * DEPTH_RESOLUTION && inCheck == FALSE && pvNode == FALSE && cutsAreAllowed &&
-        excludeMove == NO_MOVE && numPieces >= 2 && getStaticValue(variation, ply) >= beta &&
-        cutNode) { /* 16-32% */
+        excludeMove == NO_MOVE && numPieces >= 2 && getStaticValue(variation, ply) >= beta && cutNode) { /* 16-32% */
         const int diff = getStaticValue(variation, ply) - beta;
         const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
@@ -821,8 +821,10 @@ checkAvailableMoves:
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
                          hashmove, inCheck);
 
-    /* Ensure that a static value for this ply is available. */
-    getStaticValue(variation, ply);
+    /* Ensure that a static value for this ply is available and adapt moveCountLimitType */
+    if (getStaticValue(variation, ply) >= beta || isImproving(variation, ply)) {
+        moveCountLimitType = 1;
+    }
 
     /* Loop through all moves in this node. */
     /* ------------------------------------ */
@@ -866,7 +868,7 @@ checkAvailableMoves:
             bool moveIsRelevant = FALSE;
             const int predictedDepth = restDepth - reduction;
 
-            if (numMovesPlayed >= quietMoveCountLimit[variationType][restDepth]) {
+            if (numMovesPlayed >= quietMoveCountLimit[moveCountLimitType][restDepth]) {
                 if (simpleMoveIsCheck(position, currentMove)) {
                     moveIsRelevant = TRUE;
                 } else {
@@ -1576,8 +1578,8 @@ static void initializeArrays(void)
     }
 
     for (i = 0; i < 32; i++) {
-        quietMoveCountLimit[0][i] = (int)(2.4 + 0.228 * pow(i, 1.7908));
-        quietMoveCountLimit[1][i] = (int)(3.1 + 0.344 * pow(i + 0.78, 1.7908));
+        quietMoveCountLimit[0][i] = (int)((3 + i * i / 4) / 2);
+        quietMoveCountLimit[1][i] = (int)(3 + i * i / 4);
     }
 
     for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++) {
