@@ -524,13 +524,15 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Check for a draw by repetition. */
     /* ------------------------------- */
-    historyLimit = POSITION_HISTORY_OFFSET + variation->ply - position->halfMoveClock;
+    if (position->halfMoveClock >= 4) {
+        historyLimit = POSITION_HISTORY_OFFSET + variation->ply - position->halfMoveClock;
 
-    assert(historyLimit >= 0);
+        assert(historyLimit >= 0);
 
-    for (i = POSITION_HISTORY_OFFSET + variation->ply - 4; i >= historyLimit; i -= 2) {
-        if (position->hashKey == variation->positionHistory[i]) {
-            return variation->drawScore[position->activeColor];
+        for (i = POSITION_HISTORY_OFFSET + variation->ply - 4; i >= historyLimit; i -= 2) {
+            if (position->hashKey == variation->positionHistory[i]) {
+                return variation->drawScore[position->activeColor];
+            }
         }
     }
 
