@@ -50,11 +50,28 @@ int futilityMargin[NUM_FUTILITY_MARGIN_VALUES + 1]; /* [restDepth] */
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, const bool pvNode,
                       const bool cutNode, Move *bestMove, Move excludeMove, bool tryEarlyPrunings);
 
-static bool moveIsQuiet(const Move move, const Position *position)
+static bool moveIsQuietInPosition(const Move move, const Position *position)
 {
     return (bool)(position->piece[getToSquare(move)] == NO_PIECE && getNewPiece(move) == NO_PIECE &&
                   (getToSquare(move) != position->enPassantSquare ||
                    pieceType(position->piece[getFromSquare(move)]) != PAWN));
+}
+
+static bool moveIsQuiet(const Move move, const Position *position, const MovegenerationStage stage)
+{
+    switch (stage) {
+    case MGS_REST:
+    case MGS_KILLER_MOVES:
+    case MGS_DANGEROUS_PAWN_ADVANCES:
+        return TRUE;
+    case MGS_GOOD_CAPTURES_AND_PROMOTIONS:
+    case MGS_GOOD_CAPTURES_AND_PROMOTIONS_PURE:
+    case MGS_GOOD_CAPTURES:
+    case MGS_BAD_CAPTURES:
+        return FALSE;
+    default:
+        return moveIsQuietInPosition(move, position);
+    }
 }
 
 static void checkTerminationConditions(Variation *variation)
@@ -289,7 +306,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
         return hashValue;
     }
 
-    if (hashmove != NO_MOVE && inCheck == FALSE && moveIsQuiet(hashmove, position)) {
+    if (hashmove != NO_MOVE && inCheck == FALSE && moveIsQuietInPosition(hashmove, position)) {
         hashmove = NO_MOVE;
     }
 
@@ -603,7 +620,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                                 &hashValue)) {
             *bestMove = hashmove;
 
-            if (hashValue >= beta && *bestMove != NO_MOVE && moveIsQuiet(*bestMove, position)) {
+            if (hashValue >= beta && *bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
                 Move killerMove = *bestMove;
                 const Piece movingPiece = position->piece[getFromSquare(killerMove)];
 
@@ -822,7 +839,7 @@ checkAvailableMoves:
     /* Loop through all moves in this node. */
     /* ------------------------------------ */
     while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
-        const int stage = moveGenerationStage[movelist.currentStage];
+        const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value = 0, newDepth;
         int extension = 0;
         const int moveIndex = min(63, numMovesPlayed);
@@ -832,7 +849,7 @@ checkAvailableMoves:
                                       : quietMoveReduction[variationType][depthIndex][moveIndex] +
                                             (cutNode /* || gain < 0 */ ? DEPTH_RESOLUTION : 0));
         bool check;
-        const bool quietMove = moveIsQuiet(currentMove, position);
+        const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
         const Piece capturedPiece = position->piece[toSquare];
         bool reduce = FALSE, nodeWasBlocked = FALSE;
@@ -1034,7 +1051,7 @@ checkAvailableMoves:
 
     /* Calculate the parameters controlling the move ordering. */
     /* ------------------------------------------------------- */
-    if (*bestMove != NO_MOVE && moveIsQuiet(*bestMove, position) && inCheck == FALSE &&
+    if (*bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position) && inCheck == FALSE &&
         (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
         Move killerMove = *bestMove;
         const Piece movingPiece = position->piece[getFromSquare(killerMove)];
