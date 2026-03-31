@@ -1239,8 +1239,7 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
     Position *position = &variation->singlePosition;
     const bool fullWindow = (bool)(variation->iteration <= 3);
 
-    // Adjust optimism based on root move's score (Stockfish formula)
-    variation->optimism = 142 * previousBest / (abs(previousBest) + 86);
+    variation->optimism = 36 * previousBest / (abs(previousBest) + 22);
     int window = aspirationWindow, best;
     bool exactValueFound = FALSE;
     const int staticValue = getEvalValue(variation);
