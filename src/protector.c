@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *programVersionNumber = "2.1";
+const char *programVersionNumber = "2.2";
 
 int _distance[_64_][_64_];
 int _horizontalDistance[_64_][_64_];
