@@ -16,7 +16,7 @@
 
 #define LAYER_STACKS 8
 
-#include "position_struct.h"
+typedef struct Position Position;
 
 #define MAX_ACTIVE_FEATURES 32
 
