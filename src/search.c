@@ -40,8 +40,6 @@ const int HASH_DEPTH_OFFSET = 3;
 const UINT64 GUI_NODE_COUNT_MIN = 250000;
 
 #define NUM_FUTILITY_MARGIN_VALUES 13
-#define NUM_LOG_VALUES 256
-INT32 checkTimeCount = 0;
 
 int quietMoveCountLimit[2][32];                     /* number of quiet moves to be examined @ specific restDepth */
 int quietPvMoveReduction[64][64];                   /* [restDepth][moveCount] */
@@ -269,13 +267,15 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
 
     /* Check for a draw by repetition. */
     /* ------------------------------- */
-    historyLimit = POSITION_HISTORY_OFFSET + variation->ply - position->halfMoveClock;
+    if (position->halfMoveClock >= 4) {
+        historyLimit = POSITION_HISTORY_OFFSET + variation->ply - position->halfMoveClock;
 
-    assert(historyLimit >= 0);
+        assert(historyLimit >= 0);
 
-    for (i = POSITION_HISTORY_OFFSET + variation->ply - 4; i >= historyLimit; i -= 2) {
-        if (position->hashKey == variation->positionHistory[i]) {
-            return variation->drawScore[position->activeColor];
+        for (i = POSITION_HISTORY_OFFSET + variation->ply - 4; i >= historyLimit; i -= 2) {
+            if (position->hashKey == variation->positionHistory[i]) {
+                return variation->drawScore[position->activeColor];
+            }
         }
     }
 
