@@ -367,14 +367,16 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
                            hashmove, restDepth, inCheck);
     initializePlyInfo(variation);
 
+    const int newDepth = (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
+    const int futilityBase = currentValue + 199;
+    const bool skipFutility = (bool)(pvNode || inCheck || numberOfNonPawnPieces(position, position->activeColor) <= 1);
+
     while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
-        int value, newDepth = (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
-        int optValue = currentValue + 199 + basicValue[position->piece[getToSquare(currentMove)]];
+        int value, optValue = futilityBase + basicValue[position->piece[getToSquare(currentMove)]];
         const Square toSquare = getToSquare(currentMove);
 
-        if (pvNode == FALSE && inCheck == FALSE && optValue < alpha && optValue > VALUE_ALMOST_MATED &&
+        if (skipFutility == FALSE && optValue < alpha && optValue > VALUE_ALMOST_MATED &&
             movesAreEqual(currentMove, hashmove) == FALSE && getNewPiece(currentMove) != (Piece)QUEEN &&
-            numberOfNonPawnPieces(position, position->activeColor) > 1 &&
             (pieceType(position->piece[getFromSquare(currentMove)]) != PAWN ||
              colorRank(position->activeColor, toSquare) != RANK_7)) {
             const bool enPassant = (bool)(toSquare == position->enPassantSquare &&
