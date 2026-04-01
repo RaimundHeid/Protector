@@ -1543,7 +1543,7 @@ static void initializeArrays(void)
             } else {
                 const double baseFactor = log((double)(i)) * log((double)(j));
                 const double pvReduction = baseFactor / 2.93;
-                const double nonPvReduction = baseFactor / 2.12;
+                const double nonPvReduction = 0.33 + baseFactor / 2.21;
 
                 quietPvMoveReduction[i][j] = (int)(pvReduction >= 1.0 ? floor(pvReduction * DEPTH_RESOLUTION) : 0);
                 quietMoveReduction[0][i][j] = quietMoveReduction[1][i][j] =
@@ -1564,7 +1564,7 @@ static void initializeArrays(void)
     }
 
     for (i = 0; i <= NUM_FUTILITY_MARGIN_VALUES; i++) {
-        futilityMargin[i] = 31 * i - 27;
+        futilityMargin[i] = (1957 * i) / 64 - 27;
     }
 }
 
