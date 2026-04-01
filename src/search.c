@@ -1563,7 +1563,7 @@ static void initializeArrays(void)
                 quietPvMoveReduction[i][j] = quietMoveReduction[0][i][j] = quietMoveReduction[1][i][j] = 0;
             } else {
                 const double baseFactor = log((double)(i)) * log((double)(j));
-                const double pvReduction = baseFactor / 2.93;
+                const double pvReduction = 0.04 + baseFactor / 2.90;
                 const double nonPvReduction = 0.33 + baseFactor / 2.21;
 
                 quietPvMoveReduction[i][j] = (int)(pvReduction >= 1.0 ? floor(pvReduction * DEPTH_RESOLUTION) : 0);
