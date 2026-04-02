@@ -849,7 +849,7 @@ checkAvailableMoves:
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
         const int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
                                       : quietMoveReduction[variationType][depthIndex][moveIndex] +
-                                            (cutNode /* || gain < 0 */ ? DEPTH_RESOLUTION : 0));
+                                            (cutNode /* || gain < 0 */ ? 2 * DEPTH_RESOLUTION : 0));
         bool check;
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
