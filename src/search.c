@@ -43,7 +43,7 @@ const UINT64 GUI_NODE_COUNT_MIN = 250000;
 
 int quietMoveCountLimit[2][32];                     /* number of quiet moves to be examined @ specific restDepth */
 int quietPvMoveReduction[64][64];                   /* [restDepth][moveCount] */
-int quietMoveReduction[2][64][64];                  /* [variationType][restDepth][moveCount] */
+int quietMoveReduction[64][64];                      /* [restDepth][moveCount] */
 int futilityMargin[NUM_FUTILITY_MARGIN_VALUES + 1]; /* [restDepth] */
 
 /* Prototypes */
@@ -512,7 +512,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const UINT64 hashKey = position->hashKey;
     const bool cutsAreAllowed = (bool)(abs(beta) < -(VALUE_ALMOST_MATED));
     bool tryRazoring;
-    int variationType = (ply < 2 ? 1 : 0);
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
     int moveCountLimitType = 0;
@@ -636,14 +635,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     if (inCheck == FALSE) {
         updateGains(variation, ply);
-    }
-
-    if (ply >= 2) {
-        if (variation->plyInfo[ply].staticValue >= variation->plyInfo[ply - 2].staticValue ||
-            variation->plyInfo[ply].staticValueAvailable == FALSE ||
-            variation->plyInfo[ply - 2].staticValueAvailable == FALSE) {
-            variationType = 1;
-        }
     }
 
     if (ply >= MAX_DEPTH) {
@@ -847,9 +838,9 @@ checkAvailableMoves:
         const int moveIndex = min(63, numMovesPlayed);
         const int depthIndex = min(63, rdBasic);
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
-        const int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                                      : quietMoveReduction[variationType][depthIndex][moveIndex] +
-                                            (cutNode /* || gain < 0 */ ? 2 * DEPTH_RESOLUTION : 0));
+        const int reduction =
+            (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
+                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 2 * DEPTH_RESOLUTION : 0));
         bool check;
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
@@ -1560,20 +1551,20 @@ static void initializeArrays(void)
     for (i = 0; i < 64; i++) {
         for (j = 0; j < 64; j++) {
             if (i == 0 || j == 0) {
-                quietPvMoveReduction[i][j] = quietMoveReduction[0][i][j] = quietMoveReduction[1][i][j] = 0;
+                quietPvMoveReduction[i][j] = quietMoveReduction[i][j] = 0;
             } else {
                 const double baseFactor = log((double)(i)) * log((double)(j));
                 const double pvReduction = 0.04 + baseFactor / 2.90;
                 const double nonPvReduction = 0.33 + baseFactor / 2.21;
 
                 quietPvMoveReduction[i][j] = (int)(pvReduction >= 1.0 ? floor(pvReduction * DEPTH_RESOLUTION) : 0);
-                quietMoveReduction[0][i][j] = quietMoveReduction[1][i][j] =
+                quietMoveReduction[i][j] =
                     (int)(nonPvReduction >= 1.0 ? floor(nonPvReduction * DEPTH_RESOLUTION) : 0);
 
-                if (quietMoveReduction[0][i][j] > 2 * DEPTH_RESOLUTION) {
-                    quietMoveReduction[0][i][j] += DEPTH_RESOLUTION;
-                } else if (quietMoveReduction[0][i][j] > DEPTH_RESOLUTION) {
-                    quietMoveReduction[0][i][j] += DEPTH_RESOLUTION / 2;
+                if (quietMoveReduction[i][j] > 2 * DEPTH_RESOLUTION) {
+                    quietMoveReduction[i][j] += DEPTH_RESOLUTION;
+                } else if (quietMoveReduction[i][j] > DEPTH_RESOLUTION) {
+                    quietMoveReduction[i][j] += DEPTH_RESOLUTION / 2;
                 }
             }
         }
