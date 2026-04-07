@@ -59,7 +59,11 @@ void evaluateBigNnueWithAccumulatorFull(Position *pos, Accumulator *acc, int *ps
 int win_rate_scaling(Position *pos);
 
 void resetFinnyTable(FinnyTable *finny);
+void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finny, int p);
 void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny);
+void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
+                               int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
+                               FinnyTable *finny, int p);
 void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny);
