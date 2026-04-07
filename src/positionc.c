@@ -148,61 +148,27 @@ int makeBlackMove(Variation *variation, const Move move)
     setSquare(position->piecesOfType[position->piece[to]], to);
     position->allPieces = position->piecesOfColor[WHITE] | position->piecesOfColor[BLACK];
     {
-        bool needsRefreshFor[2] = { FALSE, FALSE };
+        /* Lazy Evaluation: just record the change.
+           The actual computation happens in finalizeAccumulator(). */
+        DirtyPiece *dp = &plyInfo->dirtyPiece;
 
-        if (pieceType(movingPiece) == KING) {
-            if (distance(from, to) == 2) {
-                needsRefreshFor[0] = needsRefreshFor[1] = TRUE; /* castling: both sides refresh (rook also moves) */
-            } else if (!kingStaysInSameBucket(from, to, COLOR)) {
-                needsRefreshFor[COLOR] = TRUE; /* king moved to a different bucket/orientation */
-            }
-        } else if (to == plyInfo->enPassantSquare && pieceType(movingPiece) == PAWN) {
-            needsRefreshFor[0] = needsRefreshFor[1] = TRUE; /* en-passant */
-        } else if (newPiece != NO_PIECE) {
-            needsRefreshFor[0] = needsRefreshFor[1] = TRUE; /* promotion */
+        dp->from = from;
+        dp->to = to;
+        dp->pc = movingPiece;
+        dp->captured = capturedPiece;
+        dp->promoted_to = newPiece != NO_PIECE ? (Piece)(newPiece | COLOR) : NO_PIECE;
+        dp->ep_sq = NO_SQUARE;
+        dp->rook_from = dp->rook_to = NO_SQUARE;
+
+        if (pieceType(movingPiece) == PAWN && to == plyInfo->enPassantSquare) {
+            dp->ep_sq = (Square)(to + (rank(from) - rank(to)) * 8);
+        } else if (pieceType(movingPiece) == KING && distance(from, to) == 2) {
+            dp->rook_from = rookOrigin[to];
+            dp->rook_to = (Square)((from + to) >> 1);
         }
 
-        Accumulator *nextAcc = &variation->plyInfo[variation->ply].accumulator;
-
-        if (needsRefreshFor[0] && needsRefreshFor[1]) {
-            refreshAccumulator(position, nextAcc, &variation->finnyTable);
-        } else if (needsRefreshFor[COLOR]) {
-            /* King moved to different bucket: Finny refresh for active side, incremental for opponent. */
-            Square opp_added_sq[1], opp_removed_sq[2];
-            Piece opp_added_pc[1], opp_removed_pc[2];
-            int opp_added_cnt = 0, opp_removed_cnt = 0;
-
-            opp_removed_sq[opp_removed_cnt] = from;
-            opp_removed_pc[opp_removed_cnt++] = movingPiece;
-            if (capturedPiece != NO_PIECE) {
-                opp_removed_sq[opp_removed_cnt] = to;
-                opp_removed_pc[opp_removed_cnt++] = capturedPiece;
-            }
-            opp_added_sq[opp_added_cnt] = to;
-            opp_added_pc[opp_added_cnt++] = position->piece[to];
-
-            memcpy(nextAcc, &plyInfo->accumulator, sizeof(Accumulator));
-            refreshAccumulatorOneSide(position, nextAcc, &variation->finnyTable, COLOR);
-            updateAccumulatorOneSide(nextAcc, opp_added_cnt, opp_added_sq, opp_added_pc,
-                                     opp_removed_cnt, opp_removed_sq, opp_removed_pc,
-                                     position->king, position, &variation->finnyTable, OPPCOLOR);
-        } else {
-            Square added_sq[2], removed_sq[3];
-            Piece added_pc[2], removed_pc[3];
-            int added_cnt = 0, removed_cnt = 0;
-
-            removed_sq[removed_cnt] = from;
-            removed_pc[removed_cnt++] = movingPiece;
-            if (capturedPiece != NO_PIECE) {
-                removed_sq[removed_cnt] = to;
-                removed_pc[removed_cnt++] = capturedPiece;
-            }
-            added_sq[added_cnt] = to;
-            added_pc[added_cnt++] = position->piece[to];
-            updateAccumulator(&plyInfo->accumulator, nextAcc, added_cnt,
-                              added_sq, added_pc, removed_cnt, removed_sq, removed_pc, position->king, position,
-                              &variation->finnyTable);
-        }
+        variation->plyInfo[variation->ply].accumulator.computed[0] = FALSE;
+        variation->plyInfo[variation->ply].accumulator.computed[1] = FALSE;
     }
 
     assert(checkVariation(variation) == 0);

@@ -17,6 +17,7 @@
 #define LAYER_STACKS 8
 
 typedef struct Position Position;
+typedef struct Variation Variation;
 
 #define MAX_ACTIVE_FEATURES 32
 
@@ -27,6 +28,7 @@ typedef struct __attribute__((aligned(64))) {
     int32_t small_psqtAccumulation[2][8];
     int32_t big_psqtAccumulation[2][8];
     int32_t big_threat_psqtAccumulation[2][8];
+    bool computed[2];
 } Accumulator;
 
 typedef struct {
@@ -70,5 +72,6 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny);
 bool kingStaysInSameBucket(Square from, Square to, Color color);
+void finalizeAccumulator(Variation *var, int p);
 
 #endif

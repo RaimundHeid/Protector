@@ -2675,8 +2675,11 @@ static int testRefreshAccumulator(void)
     return 0;
     }
 
-    static int compareAccumulators(Accumulator *current, Accumulator *refreshed, int ply, const char *moveType)
+    static int compareAccumulators(Variation *variation, Accumulator *refreshed, int ply, const char *moveType)
     {
+    finalizeAccumulator(variation, WHITE);
+    finalizeAccumulator(variation, BLACK);
+    Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
     for (int p = 0; p < 2; p++) {
         for (int j = 0; j < L1_SMALL; j++) {
             if (current->small_v[p][j] != refreshed->small_v[p][j]) {
@@ -2835,8 +2838,7 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
 
-        if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply,
-                                cases[i].desc) != 0) {
+        if (compareAccumulators(variation, refreshed, variation->ply, cases[i].desc) != 0) {
             logReport("Failure in %s for case: %s\n", moveTypeName, cases[i].desc);
             failures++;
         }
@@ -2846,8 +2848,7 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
 
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
-        if (compareAccumulators(&variation->plyInfo[variation->ply].accumulator, refreshed, variation->ply, "Unmake") !=
-            0) {
+        if (compareAccumulators(variation, refreshed, variation->ply, "Unmake") != 0) {
             logReport("Failure in %s after unmake for case: %s\n", moveTypeName, cases[i].desc);
             failures++;
         }
@@ -2908,6 +2909,8 @@ int testModuleNnue(void)
         Accumulator *refreshed = calloc(1, sizeof(Accumulator));
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
+        finalizeAccumulator(variation, WHITE);
+        finalizeAccumulator(variation, BLACK);
         int eval =
             evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
         logDebug("Ply %d eval: %d\n", variation->ply, eval);
@@ -2979,6 +2982,8 @@ int testModuleNnue(void)
         Accumulator *refreshed = calloc(1, sizeof(Accumulator));
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
+        finalizeAccumulator(variation, WHITE);
+        finalizeAccumulator(variation, BLACK);
         Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
         for (int p = 0; p < 2; p++) {
             for (int j = 0; j < L1_SMALL; j++) {

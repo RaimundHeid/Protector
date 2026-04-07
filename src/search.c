@@ -102,6 +102,8 @@ int getEvalValue(Variation *variation)
     const int opt = (variation->singlePosition.activeColor == variation->startPosition.activeColor)
                         ? variation->optimism
                         : -variation->optimism;
+    finalizeAccumulator(variation, WHITE);
+    finalizeAccumulator(variation, BLACK);
     return getValue(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator, opt);
 }
 

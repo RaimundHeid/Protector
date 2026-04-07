@@ -94,6 +94,15 @@ typedef struct {
 } PrincipalVariation;
 
 typedef struct {
+    Square from, to;
+    Piece pc;          /* moving piece */
+    Piece captured;    /* NO_PIECE if quiet */
+    Piece promoted_to; /* NO_PIECE if not promotion */
+    Square ep_sq;      /* en-passant captured pawn square, or NO_SQUARE */
+    Square rook_from, rook_to; /* for castling */
+} DirtyPiece;
+
+typedef struct {
     Move killerMove1, killerMove2, killerMove3, killerMove4, killerMove5, killerMove6;
     Move currentMove;
     int indexCurrentMove;
@@ -106,6 +115,7 @@ typedef struct {
     int staticValue;
     bool staticValueAvailable, gainsUpdated;
     bool quietMove, isHashMove;
+    DirtyPiece dirtyPiece;
     Accumulator accumulator;
     PrincipalVariation pv;
 } PlyInfo;
@@ -153,7 +163,7 @@ typedef enum {
 
 #define BONUS_HIDDEN_PASSER
 
-typedef struct {
+typedef struct Variation {
     int ply, iteration, selDepth;
     int numberOfBaseMoves, numberOfCurrentBaseMove;
     Move currentBaseMove, bestBaseMove;

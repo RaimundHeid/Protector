@@ -1009,6 +1009,7 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
     } else {
         applyThreatDirtyListOneSide(&dl, next, pos, p);
     }
+    next->computed[p] = TRUE;
 }
 
 void resetFinnyTable(FinnyTable *finny)
@@ -1142,6 +1143,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
     memcpy(entry->big_psqt, acc->big_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(entry->big_threat_psqt, acc->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
     entry->valid = TRUE;
+    acc->computed[p] = TRUE;
 }
 
 void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny)
@@ -1195,6 +1197,8 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
     } else {
         applyThreatDirtyList(&dl, next, pos);
     }
+    next->computed[0] = TRUE;
+    next->computed[1] = TRUE;
 }
 
 static const uint8_t *read_data;
@@ -1375,9 +1379,92 @@ int win_rate_scaling(Position *pos)
     return (int)a;
 }
 
+static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, const DirtyPiece *dp, int p,
+                                   Position *pos, FinnyTable *finny)
+{
+    /* Copy parent's vectors for perspective p */
+    memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
+    memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
+    memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
+    memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
+    memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
+    memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+
+    Square added_sq[2], removed_sq[3], ksq[2];
+    Piece added_pc[2], removed_pc[3];
+    int added_cnt = 0, removed_cnt = 0;
+
+    ksq[0] = pos->king[0];
+    ksq[1] = pos->king[1];
+
+    removed_sq[removed_cnt] = dp->from;
+    removed_pc[removed_cnt++] = dp->pc;
+
+    if (dp->captured != NO_PIECE) {
+        removed_sq[removed_cnt] = dp->to;
+        removed_pc[removed_cnt++] = dp->captured;
+    }
+
+    if (dp->ep_sq != NO_SQUARE) {
+        removed_sq[removed_cnt] = dp->ep_sq;
+        removed_pc[removed_cnt++] = (Piece)(PAWN | opponent(pieceColor(dp->pc)));
+    }
+
+    added_sq[added_cnt] = dp->to;
+    added_pc[added_cnt++] = (dp->promoted_to != NO_PIECE ? dp->promoted_to : dp->pc);
+
+    if (dp->rook_from != NO_SQUARE) {
+        Piece rook = (Piece)(ROOK | pieceColor(dp->pc));
+        removed_sq[removed_cnt] = dp->rook_from;
+        removed_pc[removed_cnt++] = rook;
+        added_sq[added_cnt] = dp->rook_to;
+        added_pc[added_cnt++] = rook;
+    }
+
+    updateAccumulatorOneSide(next, added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, ksq, pos,
+                             finny, p);
+}
+
+void finalizeAccumulator(Variation *var, int p)
+{
+    int ply = var->ply;
+    Accumulator *acc = &var->plyInfo[ply].accumulator;
+    if (acc->computed[p])
+        return;
+
+    if (ply > 0) {
+        const Accumulator *prev = &var->plyInfo[ply - 1].accumulator;
+        if (prev->computed[p]) {
+            const DirtyPiece *dp = &var->plyInfo[ply - 1].dirtyPiece;
+
+            /* Incremental update is only safe for simple moves that buildThreatDirtyList handles correctly.
+               EP, Castling, and Promotion require a full refresh for threats. */
+            bool can_do_incremental = TRUE;
+            if (pieceColor(dp->pc) == (Color)p && pieceType(dp->pc) == KING) {
+                /* Our king moved: bucket might change. */
+                can_do_incremental = FALSE;
+            } else if (dp->rook_from != NO_SQUARE || dp->ep_sq != NO_SQUARE || dp->promoted_to != NO_PIECE) {
+                /* Complex move. */
+                can_do_incremental = FALSE;
+            }
+
+            if (can_do_incremental) {
+                applyDirtyPieceOneSide(acc, prev, dp, p, &var->singlePosition, &var->finnyTable);
+                return;
+            }
+        }
+    }
+
+    /* Fallback: full refresh (delta scan against Finny cache) */
+    refreshAccumulatorOneSide(&var->singlePosition, acc, &var->finnyTable, p);
+}
+
 int evaluateNnueWithAccumulator(Position *pos, Accumulator *acc)
 {
     assert(acc != NULL);
+    /* Note: if using lazy evaluation, finalizeAccumulator should have been called before this.
+       However, evaluateNnueWithAccumulator only takes pos and acc, not var.
+       We'll ensure it's called in the search/eval path. */
     int p, v;
     evaluateNnueWithAccumulatorFull(pos, acc, &p, &v);
     int a = win_rate_scaling(pos);
