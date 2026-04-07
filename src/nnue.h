@@ -40,8 +40,10 @@ typedef struct {
     Piece piece[64];           /* board state that produced this entry   */
     int16_t small_v[L1_SMALL]; /* small-net L1 for this perspective      */
     int16_t big_v[L1_BIG];     /* big-net L1 for this perspective        */
+    int16_t big_threat_v[L1_BIG]; /* big-net threat L1 for this perspective */
     int32_t small_psqt[8];
     int32_t big_psqt[8];
+    int32_t big_threat_psqt[8];
     bool valid; /* false until first computed             */
 } FinnyEntry;
 

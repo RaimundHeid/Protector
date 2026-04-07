@@ -281,13 +281,17 @@ static int testRefreshAccumulator(void)
     logDebug("Testing refreshAccumulator...\n");
     Accumulator acc;
     Position pos;
-    FinnyTable finny;
+    FinnyTable *finny = malloc(sizeof(FinnyTable));
+    if (!finny) {
+        logReport("Failed to allocate FinnyTable in testRefreshAccumulator\n");
+        return -1;
+    }
 
     // Case 0: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
     readFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_0_0[] = {
         -675, -1080, 172,  -10,  294,  68,   48,  -68,  979,  -100, -419, -29,  496,  94,   155, -18,
@@ -628,8 +632,8 @@ static int testRefreshAccumulator(void)
     // Case 1: r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3
     readFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_1_0[] = {
         -675, -761, 18,   -148, 248, 66,   80,   -8,   1017, -269, -581, -15,  538,  16,   155,  4,    -163, -253, 84,
@@ -968,8 +972,8 @@ static int testRefreshAccumulator(void)
     // Case 2: r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
     readFen("r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_2_0[] = {
         -671, -763, 108,  -146, 262, 70,   42,   -34,  1003, -132, -591, 7,    526,  32,   155,  2,    -145, -263, 96,
@@ -1308,8 +1312,8 @@ static int testRefreshAccumulator(void)
     // Case 3: r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9
     readFen("r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_3_0[] = {
         -686, -568, 736, -296, 204, 142,  114,  68,   761,  -423, -720, -489, 94,   202,  127,  -2,   -483, 4,    98,
@@ -1649,8 +1653,8 @@ static int testRefreshAccumulator(void)
     // Case 4: r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12
     readFen("r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_4_0[] = {
         -1001, -564, 1337, 18,   180,  80,   110,  100,  1932, 255,  -72,  1247, 123, 138, -8,   30,
@@ -1990,8 +1994,8 @@ static int testRefreshAccumulator(void)
     // Case 5: r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1
     readFen("r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_5_0[] = {
         -597, -392, 176, 34,  78,  52,   14,   -32,  1263, -325, -637, 25,   586,  142, -18,  40,   -302, -38,  -9,
@@ -2330,8 +2334,8 @@ static int testRefreshAccumulator(void)
     // Case 6: 2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1
     readFen("2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", &pos);
     initializePosition(&pos);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&pos, &acc, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&pos, &acc, finny);
 
     int16_t expected_small_v_6_0[] = {
         -855, -543, 1399, 64,   178,  90,   98,   122,  488, 227,  -72,  327,  68,   66,  269,  92,   -283, -191, 795,
@@ -2667,10 +2671,12 @@ static int testRefreshAccumulator(void)
         }
     }
 
+    free(finny);
     return 0;
-}
-static int compareAccumulators(Accumulator *current, Accumulator *refreshed, int ply, const char *moveType)
-{
+    }
+
+    static int compareAccumulators(Accumulator *current, Accumulator *refreshed, int ply, const char *moveType)
+    {
     for (int p = 0; p < 2; p++) {
         for (int j = 0; j < L1_SMALL; j++) {
             if (current->small_v[p][j] != refreshed->small_v[p][j]) {
@@ -2683,6 +2689,11 @@ static int compareAccumulators(Accumulator *current, Accumulator *refreshed, int
             if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                 logReport("%s: Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", moveType,
                           ply, p, j, current->big_v[p][j], refreshed->big_v[p][j]);
+                return -1;
+            }
+            if (current->big_threat_v[p][j] != refreshed->big_threat_v[p][j]) {
+                logReport("%s: Big Threat Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
+                          moveType, ply, p, j, current->big_threat_v[p][j], refreshed->big_threat_v[p][j]);
                 return -1;
             }
         }
@@ -2699,10 +2710,16 @@ static int compareAccumulators(Accumulator *current, Accumulator *refreshed, int
                           refreshed->big_psqtAccumulation[p][j]);
                 return -1;
             }
+            if (current->big_threat_psqtAccumulation[p][j] != refreshed->big_threat_psqtAccumulation[p][j]) {
+                logReport("%s: Big Threat PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
+                          moveType, ply, p, j, current->big_threat_psqtAccumulation[p][j],
+                          refreshed->big_threat_psqtAccumulation[p][j]);
+                return -1;
+            }
         }
     }
     return 0;
-}
+    }
 
 typedef int (*MoveFunc)(Variation *, Move);
 

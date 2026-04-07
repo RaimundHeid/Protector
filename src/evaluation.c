@@ -184,18 +184,23 @@ bool flipTest(Position *position)
     int v1, v2;
     Position flippedPosition;
     Accumulator acc1, acc2;
-    FinnyTable finny;
+    FinnyTable *finny = malloc(sizeof(FinnyTable));
+    if (!finny) {
+        logReport("Failed to allocate FinnyTable in flipTest\n");
+        return FALSE;
+    }
 
-    resetFinnyTable(&finny);
-    refreshAccumulator(position, &acc1, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(position, &acc1, finny);
     v1 = getValue(position, &acc1, 0);
 
     memcpy(&flippedPosition, position, sizeof(Position));
     flipPosition(&flippedPosition);
-    resetFinnyTable(&finny);
-    refreshAccumulator(&flippedPosition, &acc2, &finny);
+    resetFinnyTable(finny);
+    refreshAccumulator(&flippedPosition, &acc2, finny);
     v2 = getValue(&flippedPosition, &acc2, 0);
 
+    free(finny);
     return (bool)(v1 == v2);
 }
 

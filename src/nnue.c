@@ -1027,8 +1027,14 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         /* Incremental update from cached state */
         memcpy(acc->small_v[p], entry->small_v, sizeof(int16_t) * L1_SMALL);
         memcpy(acc->big_v[p], entry->big_v, sizeof(int16_t) * L1_BIG);
+        memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
         memcpy(acc->small_psqtAccumulation[p], entry->small_psqt, sizeof(int32_t) * 8);
         memcpy(acc->big_psqtAccumulation[p], entry->big_psqt, sizeof(int32_t) * 8);
+        memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
+
+        int added_count = 0, removed_count = 0;
+        Square added_sq[8], removed_sq[8];
+        Piece added_pc[8], removed_pc[8];
 
         for (Square s = A1; s <= H8; s++) {
             Piece cached_pc = entry->piece[s];
@@ -1046,6 +1052,10 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
                     for (int i = 0; i < 8; i++)
                         acc->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
                 }
+                if (removed_count < 8) {
+                    removed_sq[removed_count] = s;
+                    removed_pc[removed_count++] = cached_pc;
+                }
             }
             if (curr_pc != NO_PIECE) {
                 int idx = get_feature_index(s, curr_pc, ksq, p);
@@ -1057,43 +1067,81 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
                     for (int i = 0; i < 8; i++)
                         acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
                 }
+                if (added_count < 8) {
+                    added_sq[added_count] = s;
+                    added_pc[added_count++] = curr_pc;
+                }
             }
+        }
+
+        /* Update threat accumulator incrementally from cached state if delta is a simple move */
+        bool use_incremental_threat = FALSE;
+        if (added_count == 1 && removed_count == 1) {
+            use_incremental_threat = TRUE;
+        } else if (added_count == 1 && removed_count == 2) {
+            /* Normal capture: one of the removed pieces was at the added square */
+            if (removed_sq[0] == added_sq[0] || removed_sq[1] == added_sq[0]) {
+                use_incremental_threat = TRUE;
+                /* Ensure removed_sq[0] is the 'from' square and removed_sq[1] is the 'to' square for buildThreatDirtyList */
+                if (removed_sq[0] == added_sq[0]) {
+                    Square tmp_sq = removed_sq[0]; Piece tmp_pc = removed_pc[0];
+                    removed_sq[0] = removed_sq[1]; removed_pc[0] = removed_pc[1];
+                    removed_sq[1] = tmp_sq; removed_pc[1] = tmp_pc;
+                }
+            }
+        }
+
+        if (use_incremental_threat) {
+            ThreatDirtyList dl;
+            buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
+            if (dl.overflow) {
+                memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+                memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+                computeThreatAccumulator(pos, acc, p);
+            } else {
+                applyThreatDirtyListOneSide(&dl, acc, pos, p);
+            }
+        } else if (added_count > 0 || removed_count > 0) {
+            /* Complex delta (castling, en-passant, etc.): recompute from scratch */
+            memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+            memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+            computeThreatAccumulator(pos, acc, p);
         }
     } else {
         /* Full refresh from biases */
         memcpy(acc->small_v[p], small_ft_biases, sizeof(int16_t) * L1_SMALL);
         memcpy(acc->big_v[p], big_ft_biases, sizeof(int16_t) * L1_BIG);
+        memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
         memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+        memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
 
         for (Square s = A1; s <= H8; s++) {
             Piece pc = pos->piece[s];
             if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
-                if (idx < 0)
-                    continue;
-                add_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-                for (int i = 0; i < 8; i++)
-                    acc->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
-                add_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
-                for (int i = 0; i < 8; i++)
-                    acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
+                if (idx >= 0) {
+                    add_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
+                    for (int i = 0; i < 8; i++)
+                        acc->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
+                    add_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+                    for (int i = 0; i < 8; i++)
+                        acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
+                }
             }
         }
+        computeThreatAccumulator(pos, acc, p);
     }
 
     /* Update Finny cache with the freshly computed state */
     memcpy(entry->piece, pos->piece, sizeof(Piece) * 64);
     memcpy(entry->small_v, acc->small_v[p], sizeof(int16_t) * L1_SMALL);
     memcpy(entry->big_v, acc->big_v[p], sizeof(int16_t) * L1_BIG);
+    memcpy(entry->big_threat_v, acc->big_threat_v[p], sizeof(int16_t) * L1_BIG);
     memcpy(entry->small_psqt, acc->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(entry->big_psqt, acc->big_psqtAccumulation[p], sizeof(int32_t) * 8);
+    memcpy(entry->big_threat_psqt, acc->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
     entry->valid = TRUE;
-
-    /* Threat accumulator always recomputed from scratch */
-    memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
-    memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
-    computeThreatAccumulator(pos, acc, p);
 }
 
 void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny)
