@@ -975,9 +975,9 @@ static void applyThreatDirtyListOneSide(const ThreatDirtyList *dl, Accumulator *
     }
 }
 
-void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
-                               int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
-                               FinnyTable *finny, int p)
+void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc, int removed_count,
+                              Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos, FinnyTable *finny,
+                              int p)
 {
     for (int j = 0; j < removed_count; j++) {
         int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
@@ -1083,11 +1083,15 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
             /* Normal capture: one of the removed pieces was at the added square */
             if (removed_sq[0] == added_sq[0] || removed_sq[1] == added_sq[0]) {
                 use_incremental_threat = TRUE;
-                /* Ensure removed_sq[0] is the 'from' square and removed_sq[1] is the 'to' square for buildThreatDirtyList */
+                /* Ensure removed_sq[0] is the 'from' square and removed_sq[1] is the 'to' square for
+                 * buildThreatDirtyList */
                 if (removed_sq[0] == added_sq[0]) {
-                    Square tmp_sq = removed_sq[0]; Piece tmp_pc = removed_pc[0];
-                    removed_sq[0] = removed_sq[1]; removed_pc[0] = removed_pc[1];
-                    removed_sq[1] = tmp_sq; removed_pc[1] = tmp_pc;
+                    Square tmp_sq = removed_sq[0];
+                    Piece tmp_pc = removed_pc[0];
+                    removed_sq[0] = removed_sq[1];
+                    removed_pc[0] = removed_pc[1];
+                    removed_sq[1] = tmp_sq;
+                    removed_pc[1] = tmp_pc;
                 }
             }
         }
@@ -1150,12 +1154,6 @@ void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny)
 {
     for (int p = 0; p < 2; p++)
         refreshAccumulatorOneSide(pos, acc, finny, p);
-}
-
-bool kingStaysInSameBucket(Square from, Square to, Color color)
-{
-    int flip = 56 * color;
-    return KingBuckets[from ^ flip] == KingBuckets[to ^ flip] && OrientTBL[from] == OrientTBL[to];
 }
 
 void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
@@ -1421,8 +1419,8 @@ static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, c
         added_pc[added_cnt++] = rook;
     }
 
-    updateAccumulatorOneSide(next, added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, ksq, pos,
-                             finny, p);
+    updateAccumulatorOneSide(next, added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, ksq, pos, finny,
+                             p);
 }
 
 void finalizeAccumulator(Variation *var, int p)

@@ -95,10 +95,10 @@ typedef struct {
 
 typedef struct {
     Square from, to;
-    Piece pc;          /* moving piece */
-    Piece captured;    /* NO_PIECE if quiet */
-    Piece promoted_to; /* NO_PIECE if not promotion */
-    Square ep_sq;      /* en-passant captured pawn square, or NO_SQUARE */
+    Piece pc;                  /* moving piece */
+    Piece captured;            /* NO_PIECE if quiet */
+    Piece promoted_to;         /* NO_PIECE if not promotion */
+    Square ep_sq;              /* en-passant captured pawn square, or NO_SQUARE */
     Square rook_from, rook_to; /* for castling */
 } DirtyPiece;
 

@@ -39,9 +39,9 @@ typedef struct {
    Caches the non-threat L1 vectors so refreshes can update incrementally
    instead of recomputing from scratch. */
 typedef struct {
-    Piece piece[64];           /* board state that produced this entry   */
-    int16_t small_v[L1_SMALL]; /* small-net L1 for this perspective      */
-    int16_t big_v[L1_BIG];     /* big-net L1 for this perspective        */
+    Piece piece[64];              /* board state that produced this entry   */
+    int16_t small_v[L1_SMALL];    /* small-net L1 for this perspective      */
+    int16_t big_v[L1_BIG];        /* big-net L1 for this perspective        */
     int16_t big_threat_v[L1_BIG]; /* big-net threat L1 for this perspective */
     int32_t small_psqt[8];
     int32_t big_psqt[8];
@@ -65,9 +65,9 @@ int win_rate_scaling(Position *pos);
 void resetFinnyTable(FinnyTable *finny);
 void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finny, int p);
 void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny);
-void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
-                               int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
-                               FinnyTable *finny, int p);
+void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc, int removed_count,
+                              Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos, FinnyTable *finny,
+                              int p);
 void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny);

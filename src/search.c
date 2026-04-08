@@ -43,7 +43,7 @@ const UINT64 GUI_NODE_COUNT_MIN = 250000;
 
 int quietMoveCountLimit[2][32];                     /* number of quiet moves to be examined @ specific restDepth */
 int quietPvMoveReduction[64][64];                   /* [restDepth][moveCount] */
-int quietMoveReduction[64][64];                      /* [restDepth][moveCount] */
+int quietMoveReduction[64][64];                     /* [restDepth][moveCount] */
 int futilityMargin[NUM_FUTILITY_MARGIN_VALUES + 1]; /* [restDepth] */
 
 /* Prototypes */
@@ -1560,8 +1560,7 @@ static void initializeArrays(void)
                 const double nonPvReduction = 0.33 + baseFactor / 2.21;
 
                 quietPvMoveReduction[i][j] = (int)(pvReduction >= 1.0 ? floor(pvReduction * DEPTH_RESOLUTION) : 0);
-                quietMoveReduction[i][j] =
-                    (int)(nonPvReduction >= 1.0 ? floor(nonPvReduction * DEPTH_RESOLUTION) : 0);
+                quietMoveReduction[i][j] = (int)(nonPvReduction >= 1.0 ? floor(nonPvReduction * DEPTH_RESOLUTION) : 0);
 
                 if (quietMoveReduction[i][j] > 2 * DEPTH_RESOLUTION) {
                     quietMoveReduction[i][j] += DEPTH_RESOLUTION;

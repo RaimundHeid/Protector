@@ -2673,10 +2673,10 @@ static int testRefreshAccumulator(void)
 
     free(finny);
     return 0;
-    }
+}
 
-    static int compareAccumulators(Variation *variation, Accumulator *refreshed, int ply, const char *moveType)
-    {
+static int compareAccumulators(Variation *variation, Accumulator *refreshed, int ply, const char *moveType)
+{
     finalizeAccumulator(variation, WHITE);
     finalizeAccumulator(variation, BLACK);
     Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
@@ -2714,15 +2714,16 @@ static int testRefreshAccumulator(void)
                 return -1;
             }
             if (current->big_threat_psqtAccumulation[p][j] != refreshed->big_threat_psqtAccumulation[p][j]) {
-                logReport("%s: Big Threat PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
-                          moveType, ply, p, j, current->big_threat_psqtAccumulation[p][j],
-                          refreshed->big_threat_psqtAccumulation[p][j]);
+                logReport(
+                    "%s: Big Threat PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
+                    moveType, ply, p, j, current->big_threat_psqtAccumulation[p][j],
+                    refreshed->big_threat_psqtAccumulation[p][j]);
                 return -1;
             }
         }
     }
     return 0;
-    }
+}
 
 typedef int (*MoveFunc)(Variation *, Move);
 
@@ -2762,7 +2763,8 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
         {"8/3P4/8/8/8/8/8/k2r3K w - - 0 1", getPackedMove(D7, C8, WHITE_QUEEN), "White Promo-capture to Queen (left)"},
         {"8/3P4/8/8/8/8/8/k2r3K w - - 0 1", getPackedMove(D7, E8, WHITE_ROOK), "White Promo-capture to Rook (right)"},
         {"K2R3k/8/8/8/8/8/3p4/8 b - - 0 1", getPackedMove(D2, C1, BLACK_QUEEN), "Black Promo-capture to Queen (left)"},
-        {"K2R3k/8/8/8/8/8/3p4/8 b - - 0 1", getPackedMove(D2, E1, BLACK_KNIGHT), "Black Promo-capture to Knight (right)"},
+        {"K2R3k/8/8/8/8/8/3p4/8 b - - 0 1", getPackedMove(D2, E1, BLACK_KNIGHT),
+         "Black Promo-capture to Knight (right)"},
         // Captures of all piece types (white captures)
         {"rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1", getOrdinaryMove(D4, E5),
          "Capture of black pawn"},
@@ -2818,8 +2820,7 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
         {"r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1", NULLMOVE, "Null move with castling rights"},
         {"rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", NULLMOVE,
          "Null move clears en-passant square"},
-        {"r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 0 1", NULLMOVE,
-         "Null move in middlegame"},
+        {"r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 0 1", NULLMOVE, "Null move in middlegame"},
     };
 
     int numCases = sizeof(cases) / sizeof(cases[0]);
@@ -2834,7 +2835,6 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
 
         moveFunc(variation, cases[i].move);
 
-
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
 
@@ -2844,7 +2844,6 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
         }
 
         unmakeLastMove(variation);
-
 
         resetFinnyTable(&variation->finnyTable);
         refreshAccumulator(&variation->singlePosition, refreshed, &variation->finnyTable);
@@ -2897,14 +2896,13 @@ int testModuleNnue(void)
         getOrdinaryMove(G8, F6), getOrdinaryMove(D2, D4), getOrdinaryMove(E5, D4), // Capture
         getOrdinaryMove(F3, D4),                                                   // Capture back
         getOrdinaryMove(C8, D7), getOrdinaryMove(C1, G5), getOrdinaryMove(H7, H6), getOrdinaryMove(G5, H4),
-        getOrdinaryMove(G7, G5), // King-side pawn push (attacks H4)
+        getOrdinaryMove(G7, G5),                          // King-side pawn push (attacks H4)
         getOrdinaryMove(H4, G3), getOrdinaryMove(F6, E4), // Capture
     };
     int numMoves = sizeof(moves) / sizeof(moves[0]);
 
     for (int i = 0; i < numMoves; i++) {
         makeMove(variation, moves[i]);
-
 
         Accumulator *refreshed = calloc(1, sizeof(Accumulator));
         resetFinnyTable(&variation->finnyTable);
@@ -2953,9 +2951,10 @@ int testModuleNnue(void)
                     return -1;
                 }
                 if (current->big_threat_psqtAccumulation[p][j] != refreshed->big_threat_psqtAccumulation[p][j]) {
-                    logDebug("Big Threat PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
-                             variation->ply, p, j, current->big_threat_psqtAccumulation[p][j],
-                             refreshed->big_threat_psqtAccumulation[p][j]);
+                    logDebug(
+                        "Big Threat PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
+                        variation->ply, p, j, current->big_threat_psqtAccumulation[p][j],
+                        refreshed->big_threat_psqtAccumulation[p][j]);
                     free(refreshed);
                     free(variation);
                     return -1;
@@ -2977,7 +2976,6 @@ int testModuleNnue(void)
     // Unmake moves and check consistency
     while (variation->ply > 0) {
         unmakeLastMove(variation);
-
 
         Accumulator *refreshed = calloc(1, sizeof(Accumulator));
         resetFinnyTable(&variation->finnyTable);
