@@ -1441,8 +1441,9 @@ void finalizeAccumulator(Variation *var, int p)
                EP, Castling, and Promotion require a full refresh for threats. */
             bool can_do_incremental = TRUE;
             if (pieceColor(dp->pc) == (Color)p && pieceType(dp->pc) == KING) {
-                /* Our king moved: bucket might change. */
-                can_do_incremental = FALSE;
+                /* Our king moved: only fall back if the bucket changes. */
+                if (!kingStaysInSameBucket(dp->from, dp->to, (Color)p))
+                    can_do_incremental = FALSE;
             } else if (dp->rook_from != NO_SQUARE || dp->ep_sq != NO_SQUARE || dp->promoted_to != NO_PIECE) {
                 /* Complex move. */
                 can_do_incremental = FALSE;
