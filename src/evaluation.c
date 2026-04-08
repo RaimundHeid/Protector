@@ -23,6 +23,7 @@
 #include "fen.h"
 #include "io.h"
 #include "position.h"
+#include "search.h"
 #include "tablebase.h"
 #include "tools.h"
 
@@ -206,5 +207,89 @@ bool flipTest(Position *position)
 
 int testModuleEvaluation(void)
 {
+    typedef struct {
+        const char *fen;
+        Move moves[32];
+        int numMoves;
+        const char *description;
+        int expectedEval;
+    } TestCase;
+
+    TestCase cases[] = {
+        {FEN_GAMESTART,
+         {getOrdinaryMove(E2, E4), getOrdinaryMove(C7, C5), getOrdinaryMove(E4, E5), getOrdinaryMove(D7, D5),
+          getOrdinaryMove(E5, D6)},
+         5,
+         "Startpos - EP capture",
+         36},
+        {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+         {getOrdinaryMove(E1, G1), getOrdinaryMove(F8, E7), getOrdinaryMove(D2, D4), getOrdinaryMove(E5, D4)},
+         4,
+         "Spanish - Castling and capture",
+         58},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+         {getOrdinaryMove(D7, D6), getOrdinaryMove(D2, D4), getOrdinaryMove(C5, D4), getOrdinaryMove(F3, D4)},
+         4,
+         "Sicilian - Normal moves and capture",
+         -27},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9",
+         {getOrdinaryMove(H2, H3), getOrdinaryMove(H7, H6), getOrdinaryMove(G5, H4), getOrdinaryMove(F8, E8)},
+         4,
+         "QGD - Normal moves",
+         53},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12",
+         {getOrdinaryMove(A7, A6), getOrdinaryMove(A2, A3), getOrdinaryMove(H7, H6), getOrdinaryMove(H2, H3)},
+         4,
+         "Middle game - Normal moves",
+         -563},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1",
+         {getOrdinaryMove(E1, G1), getOrdinaryMove(E8, G8), getOrdinaryMove(A2, A3), getOrdinaryMove(A7, A6)},
+         4,
+         "Advantage - Castlings",
+         759},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1",
+         {getOrdinaryMove(C8, C7), getOrdinaryMove(C1, C2), getOrdinaryMove(F8, C8), getOrdinaryMove(F1, C1)},
+         4,
+         "Middle heavy - Normal moves",
+         -2},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1",
+         {getOrdinaryMove(E3, F4), getOrdinaryMove(E6, F6), getOrdinaryMove(F4, G4), getOrdinaryMove(F6, G6)},
+         4,
+         "Endgame Pawn - King moves",
+         4},
+        {"8/4P3/8/8/8/8/8/k6K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A1, B1), getOrdinaryMove(G1, F1), getOrdinaryMove(B1, C1),
+          getPackedMove(E7, E8, WHITE_QUEEN)},
+         5,
+         "Promotion - Pawn promotion",
+         -449},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1",
+         {getOrdinaryMove(D1, C2), getOrdinaryMove(C3, C2), getOrdinaryMove(B1, A2), getOrdinaryMove(C2, B2)},
+         4,
+         "Endgame Queen/Rook - Captures and king moves",
+         -24}};
+
+    Variation *variation = calloc(1, sizeof(Variation));
+    int i, j;
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        initializeVariation(variation, cases[i].fen);
+
+        for (j = 0; j < cases[i].numMoves; j++) {
+            makeMoveFast(variation, cases[i].moves[j]);
+            initializePlyInfo(variation);
+        }
+
+        int eval = getEvalValue(variation);
+
+        if (eval != cases[i].expectedEval) {
+            logReport("Eval value mismatch Test Case %d (%s): got %d, expected %d\n", i, cases[i].description, eval,
+                      cases[i].expectedEval);
+            free(variation);
+            return -1;
+        }
+    }
+
+    free(variation);
     return 0;
 }

@@ -46,6 +46,11 @@ Move search(Variation *variation, Movelist *acceptableSolutions);
 int initializeModuleSearch(void);
 
 /**
+ * Get the evaluation value of the current position in the specified variation.
+ */
+int getEvalValue(Variation *variation);
+
+/**
  * Test this module.
  *
  * @return 0 if all tests succeed.
