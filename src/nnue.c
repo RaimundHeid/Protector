@@ -1045,13 +1045,13 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
     FinnyEntry *entry = &finny->entry[p][(int)ksq];
 
     if (entry->valid) {
-        /* Incremental update from cached state */
+        /* Incremental PSQ update from cached state.
+           big_threat_v is deferred: copied only if incremental threat is
+           possible; otherwise zeroed and rebuilt by computeThreatAccumulator. */
         memcpy(acc->small_v[p], entry->small_v, sizeof(int16_t) * L1_SMALL);
         memcpy(acc->big_v[p], entry->big_v, sizeof(int16_t) * L1_BIG);
-        memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
         memcpy(acc->small_psqtAccumulation[p], entry->small_psqt, sizeof(int32_t) * 8);
         memcpy(acc->big_psqtAccumulation[p], entry->big_psqt, sizeof(int32_t) * 8);
-        memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
 
         int added_count = 0, removed_count = 0;
         Square added_sq[8], removed_sq[8];
@@ -1117,6 +1117,9 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         }
 
         if (use_incremental_threat) {
+            /* Copy threat base from Finny now that we know incremental is possible */
+            memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
+            memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
             ThreatDirtyList dl;
             buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
             if (dl.overflow) {
@@ -1127,10 +1130,15 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
                 applyThreatDirtyListOneSide(&dl, acc, pos, p);
             }
         } else if (added_count > 0 || removed_count > 0) {
-            /* Complex delta (castling, en-passant, etc.): recompute from scratch */
+            /* Complex delta (castling, en-passant, etc.): PSQ already correct above;
+               recompute threats from scratch without copying the Finny threat vector. */
             memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
             memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
             computeThreatAccumulator(pos, acc, p);
+        } else {
+            /* No board changes from cached state: copy threat directly from Finny. */
+            memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
+            memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
         }
     } else {
         /* Full refresh from biases */
@@ -1404,13 +1412,20 @@ int win_rate_scaling(Position *pos)
 static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, const DirtyPiece *dp, int p,
                                    Position *pos, FinnyTable *finny)
 {
-    /* Copy parent's vectors for perspective p */
+    /* Copy parent's PSQ vectors for perspective p */
     memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
     memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
-    memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
     memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
-    memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+
+    /* For EP and castling the threat accumulator will be fully recomputed by
+       computeThreatAccumulator in updateAccumulatorOneSide — skip copying it
+       from prev to avoid the immediately-overwritten memcpy.  For all other
+       moves (quiet, capture, promotion) copy it as the incremental base. */
+    if (dp->ep_sq == NO_SQUARE && dp->rook_from == NO_SQUARE) {
+        memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
+        memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+    }
 
     Square added_sq[2], removed_sq[3], ksq[2];
     Piece added_pc[2], removed_pc[3];
