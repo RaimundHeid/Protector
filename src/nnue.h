@@ -40,6 +40,7 @@ typedef struct {
    instead of recomputing from scratch. */
 typedef struct {
     Piece piece[64];              /* board state that produced this entry   */
+    UINT64 hashKey;               /* position hash that produced this entry */
     int16_t small_v[L1_SMALL];    /* small-net L1 for this perspective      */
     int16_t big_v[L1_BIG];        /* big-net L1 for this perspective        */
     int16_t big_threat_v[L1_BIG]; /* big-net threat L1 for this perspective */

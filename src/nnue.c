@@ -1189,6 +1189,18 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
     FinnyEntry *entry = &finny->entry[p][(int)ksq];
 
     if (entry->valid) {
+        /* Fast path: same position as when entry was last computed — zero diff. */
+        if (entry->hashKey == pos->hashKey) {
+            memcpy(acc->small_v[p], entry->small_v, sizeof(int16_t) * L1_SMALL);
+            memcpy(acc->big_v[p], entry->big_v, sizeof(int16_t) * L1_BIG);
+            memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
+            memcpy(acc->small_psqtAccumulation[p], entry->small_psqt, sizeof(int32_t) * 8);
+            memcpy(acc->big_psqtAccumulation[p], entry->big_psqt, sizeof(int32_t) * 8);
+            memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
+            acc->computed[p] = TRUE;
+            return; /* entry is already current; skip piece-board and Finny updates */
+        }
+
         /* Incremental PSQ update from cached state.
            big_threat_v is deferred: copied only if incremental threat is
            possible; otherwise zeroed and rebuilt by computeThreatAccumulator. */
@@ -1312,6 +1324,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
 
     /* Update Finny cache with the freshly computed state */
     memcpy(entry->piece, pos->piece, sizeof(Piece) * 64);
+    entry->hashKey = pos->hashKey;
     memcpy(entry->small_v, acc->small_v[p], sizeof(int16_t) * L1_SMALL);
     memcpy(entry->big_v, acc->big_v[p], sizeof(int16_t) * L1_BIG);
     memcpy(entry->big_threat_v, acc->big_threat_v[p], sizeof(int16_t) * L1_BIG);
