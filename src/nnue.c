@@ -1002,12 +1002,33 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
             next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
     }
 
-    ThreatDirtyList dl;
-    buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
-    if (dl.overflow) {
-        refreshAccumulatorOneSide(pos, next, finny, p);
+    /* buildThreatDirtyList only handles: one piece moved (quiet or capture at landing square).
+       EP captures at ep_sq != to_sq and castling moves two pieces simultaneously — both produce
+       wrong threat values without triggering overflow.  Detect those cases and fall back to a
+       full threat recompute rather than silently accumulating wrong data. */
+    bool use_incremental_threat = FALSE;
+    if (added_count == 1 && removed_count == 1) {
+        use_incremental_threat = TRUE;
+    } else if (added_count == 1 && removed_count == 2) {
+        /* Capture: the captured piece must be at the landing square */
+        if (removed_sq[0] == added_sq[0] || removed_sq[1] == added_sq[0])
+            use_incremental_threat = TRUE;
+    }
+
+    if (use_incremental_threat) {
+        ThreatDirtyList dl;
+        buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
+        if (dl.overflow) {
+            refreshAccumulatorOneSide(pos, next, finny, p);
+        } else {
+            applyThreatDirtyListOneSide(&dl, next, pos, p);
+        }
     } else {
-        applyThreatDirtyListOneSide(&dl, next, pos, p);
+        /* Complex move (EP, castling, etc.): piece features are already correct above;
+           recompute threats from scratch. */
+        memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+        memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+        computeThreatAccumulator(pos, next, p);
     }
     next->computed[p] = TRUE;
 }
@@ -1435,18 +1456,13 @@ void finalizeAccumulator(Variation *var, int p)
         if (prev->computed[p]) {
             const DirtyPiece *dp = &var->plyInfo[ply - 1].dirtyPiece;
 
-            /* Incremental update is only safe for simple moves that buildThreatDirtyList handles correctly.
-               EP, Castling, and Promotion require a full refresh for threats. */
-            bool can_do_incremental = TRUE;
-            if (pieceColor(dp->pc) == (Color)p && pieceType(dp->pc) == KING) {
-                /* Our king moved: bucket might change. */
-                can_do_incremental = FALSE;
-            } else if (dp->rook_from != NO_SQUARE || dp->ep_sq != NO_SQUARE || dp->promoted_to != NO_PIECE) {
-                /* Complex move. */
-                can_do_incremental = FALSE;
-            }
+            /* Skip incremental only when our own king moved — the feature space is keyed on the
+               king square, so all features change and we must fall back to the Finny cache.
+               EP, castling (opponent), and promotion are now handled correctly by
+               updateAccumulatorOneSide (incremental piece features + full threat recompute). */
+            bool king_moved = (pieceColor(dp->pc) == (Color)p && pieceType(dp->pc) == KING);
 
-            if (can_do_incremental) {
+            if (!king_moved) {
                 applyDirtyPieceOneSide(acc, prev, dp, p, &var->singlePosition, &var->finnyTable);
                 return;
             }
