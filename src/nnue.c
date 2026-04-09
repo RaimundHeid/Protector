@@ -1177,14 +1177,15 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
     if (!big_v_initialized)
         memcpy(next->big_v[p], prev_big_v, sizeof(int16_t) * L1_BIG);
 
-    /* buildThreatDirtyList handles quiet moves, regular captures, and EP.
+    /* buildThreatDirtyList handles quiet moves, regular captures, EP, and promotions.
+       Promotion: from_pc=pawn, new_pc=promoted piece; the function uses each correctly.
        Castling (added_count==2) always falls back to a full threat recompute. */
     bool use_incremental_threat = FALSE;
     if (added_count == 1 && removed_count == 1) {
         use_incremental_threat = TRUE;
     } else if (added_count == 1 && removed_count == 2) {
-        /* Regular capture (cap at to_sq) and EP (cap at ep_sq != to_sq) are both handled
-           by buildThreatDirtyList, which detects EP via cap_sq != to_sq internally. */
+        /* Regular capture (cap at to_sq), EP (cap at ep_sq != to_sq), and promotion
+           captures are all handled by buildThreatDirtyList. */
         use_incremental_threat = TRUE;
     }
 
@@ -1281,7 +1282,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         }
 
         /* Update threat accumulator incrementally from cached state.
-           buildThreatDirtyList handles quiet, regular capture, and EP. */
+           buildThreatDirtyList handles quiet, regular capture, EP, and promotion captures. */
         bool use_incremental_threat = FALSE;
         if (added_count == 1 && removed_count == 1) {
             use_incremental_threat = TRUE;
@@ -4382,11 +4383,11 @@ static int testUpdateAccumulatorGeneric(MoveFunc moveFunc, const char *moveTypeN
         {"k6K/8/8/8/8/8/4p3/8 b - - 0 1", getPackedMove(E2, E1, BLACK_ROOK), "Black Promotion to Rook"},
         {"k6K/8/8/8/8/8/4p3/8 b - - 0 1", getPackedMove(E2, E1, BLACK_BISHOP), "Black Promotion to Bishop"},
         {"k6K/8/8/8/8/8/4p3/8 b - - 0 1", getPackedMove(E2, E1, BLACK_KNIGHT), "Black Promotion to Knight"},
-        // Promotion captures
-        {"8/3P4/8/8/8/8/8/k2r3K w - - 0 1", getPackedMove(D7, C8, WHITE_QUEEN), "White Promo-capture to Queen (left)"},
-        {"8/3P4/8/8/8/8/8/k2r3K w - - 0 1", getPackedMove(D7, E8, WHITE_ROOK), "White Promo-capture to Rook (right)"},
-        {"K2R3k/8/8/8/8/8/3p4/8 b - - 0 1", getPackedMove(D2, C1, BLACK_QUEEN), "Black Promo-capture to Queen (left)"},
-        {"K2R3k/8/8/8/8/8/3p4/8 b - - 0 1", getPackedMove(D2, E1, BLACK_KNIGHT),
+        // Promotion captures (piece present at capture square so removed_count==2)
+        {"2r5/3P4/8/8/8/8/8/k6K w - - 0 1", getPackedMove(D7, C8, WHITE_QUEEN), "White Promo-capture to Queen (left)"},
+        {"4r3/3P4/8/8/8/8/8/k6K w - - 0 1", getPackedMove(D7, E8, WHITE_ROOK), "White Promo-capture to Rook (right)"},
+        {"K6k/8/8/8/8/8/3p4/2R5 b - - 0 1", getPackedMove(D2, C1, BLACK_QUEEN), "Black Promo-capture to Queen (left)"},
+        {"K6k/8/8/8/8/8/3p4/4R3 b - - 0 1", getPackedMove(D2, E1, BLACK_KNIGHT),
          "Black Promo-capture to Knight (right)"},
         // Captures of all piece types (white captures)
         {"rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1", getOrdinaryMove(D4, E5),
