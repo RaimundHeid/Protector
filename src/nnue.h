@@ -24,9 +24,9 @@ typedef struct Variation Variation;
 typedef struct __attribute__((aligned(64))) {
     int16_t small_v[2][L1_SMALL];
     int16_t big_v[2][L1_BIG];
-    int16_t big_threat_v[2][L1_BIG];
     int32_t small_psqtAccumulation[2][8];
     int32_t big_psqtAccumulation[2][8];
+    int16_t big_threat_v[2][L1_BIG];
     int32_t big_threat_psqtAccumulation[2][8];
     bool computed[2];
 } Accumulator;

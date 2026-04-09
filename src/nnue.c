@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1188,8 +1189,10 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny)
 {
-    /* Single contiguous copy instead of 6 separate memcpy calls per side */
-    memcpy(next, prev, sizeof(Accumulator));
+    /* Copy only the piece-feature accumulators initially.
+       Threat accumulators are either recomputed from scratch or
+       incrementally updated from parent (via another copy). */
+    memcpy(next, prev, offsetof(Accumulator, big_threat_v));
 
     for (int p = 0; p < 2; p++) {
         for (int j = 0; j < removed_count; j++) {
@@ -1225,6 +1228,10 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
             computeThreatAccumulator(pos, next, p);
         }
     } else {
+        /* Copy threat base only when doing incremental update */
+        memcpy(next->big_threat_v, prev->big_threat_v, sizeof(next->big_threat_v));
+        memcpy(next->big_threat_psqtAccumulation, prev->big_threat_psqtAccumulation,
+               sizeof(next->big_threat_psqtAccumulation));
         applyThreatDirtyList(&dl, next, pos);
     }
     next->computed[0] = TRUE;
