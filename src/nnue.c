@@ -1018,18 +1018,17 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
     if (use_incremental_threat) {
         ThreatDirtyList dl;
         buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
-        if (dl.overflow) {
-            refreshAccumulatorOneSide(pos, next, finny, p);
-        } else {
+        if (!dl.overflow) {
             applyThreatDirtyListOneSide(&dl, next, pos, p);
+            next->computed[p] = TRUE;
+            return;
         }
-    } else {
-        /* Complex move (EP, castling, etc.): piece features are already correct above;
-           recompute threats from scratch. */
-        memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
-        memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
-        computeThreatAccumulator(pos, next, p);
     }
+    /* Complex move or overflow: piece features are already correct above;
+       recompute threats from scratch. */
+    memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+    memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+    computeThreatAccumulator(pos, next, p);
     next->computed[p] = TRUE;
 }
 
@@ -1212,7 +1211,11 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
     ThreatDirtyList dl;
     buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
     if (dl.overflow) {
-        refreshAccumulator(pos, next, finny);
+        for (int p = 0; p < 2; p++) {
+            memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+            memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+            computeThreatAccumulator(pos, next, p);
+        }
     } else {
         applyThreatDirtyList(&dl, next, pos);
     }
