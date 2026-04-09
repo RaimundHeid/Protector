@@ -40,7 +40,6 @@ int initializeModuleTest(void);
  *
  * @return 0 if all tests succeed.
  */
-int testModuleNnue(void);
 int testModuleTest(void);
 
 #endif

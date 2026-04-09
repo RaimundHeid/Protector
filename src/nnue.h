@@ -55,6 +55,7 @@ typedef struct {
 } FinnyTable;
 
 int initializeModuleNnue(void);
+int testModuleNnue(void);
 int loadNnue(const char *filename);
 int evaluateNnueWithAccumulator(Position *pos, Accumulator *acc);
 int evaluateBigNnueWithAccumulator(Position *pos, Accumulator *acc);

@@ -205,6 +205,74 @@ bool flipTest(Position *position)
     return (bool)(v1 == v2);
 }
 
+int testGetValue(void)
+{
+    Variation *variation = calloc(1, sizeof(Variation));
+    initializeVariation(variation, FEN_GAMESTART);
+
+    typedef struct {
+        const char *fen;
+        const char *description;
+        int min_eval;
+        int max_eval;
+    } ValueTestCase;
+
+    ValueTestCase cases[] = {
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos White", 20, 22},
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1", "Startpos Black", 20, 22},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening White", 25, 27},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 2 3", "Spanish Opening Black", 5, 7},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2", "Sicilian Defense White", 29, 31},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense Black", 11, 13},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad White", 52, 54},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R b K - 3 9", "QGD Carlsbad Black", -25, -23},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn White", 4, 6},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 b - - 0 1", "Endgame Drawn Black", 4, 6},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 w - - 0 1", "Endgame White Winning White", 260, 262},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning Black", -191, -189},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook White", 252, 254},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 b - - 0 1", "Queen vs Rook Black", -202, -200}};
+
+    for (int i = 0; i < 14; i++) {
+        Variation *v = calloc(1, sizeof(Variation));
+        initializeVariation(v, cases[i].fen);
+        int eval = getValue(&v->singlePosition, &v->plyInfo[v->ply].accumulator, 0);
+        logDebug("Value Test Case %d (%s): eval %d (expected [%d, %d])\n", i, cases[i].description, eval,
+                 cases[i].min_eval, cases[i].max_eval);
+        if (eval < cases[i].min_eval || eval > cases[i].max_eval) {
+            logReport("Value Plausibility failed for case %d (%s): %d not in [%d, %d]\n", i, cases[i].description, eval,
+                      cases[i].min_eval, cases[i].max_eval);
+            free(v);
+            free(variation);
+            return -1;
+        }
+
+        // Symmetry check: score(pos) should be equal to score(flipped_pos)
+        // since getValue returns score relative to side to move.
+        Position *flipped = calloc(1, sizeof(Position));
+        Accumulator *flippedAcc = calloc(1, sizeof(Accumulator));
+        memcpy(flipped, &v->singlePosition, sizeof(Position));
+        flipPosition(flipped);
+        initializePosition(flipped); // Update redundant data after flip
+        resetFinnyTable(&v->finnyTable);
+        refreshAccumulator(flipped, flippedAcc, &v->finnyTable);
+        int evalFlipped = getValue(flipped, flippedAcc, 0);
+        if (eval != evalFlipped) {
+            logReport("Value Symmetry failed for case %d (%s): %d != %d\n", i, cases[i].description, eval, evalFlipped);
+            free(flipped);
+            free(flippedAcc);
+            free(v);
+            free(variation);
+            return -1;
+        }
+        free(flipped);
+        free(flippedAcc);
+        free(v);
+    }
+
+    return 0;
+}
+
 #define RETRACT_MOVE ((Move)0xFFFFFFFF)
 
 int testModuleEvaluation(void)
@@ -366,5 +434,5 @@ int testModuleEvaluation(void)
     }
 
     free(variation);
-    return 0;
+    return testGetValue();
 }
