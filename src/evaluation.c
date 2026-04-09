@@ -205,6 +205,8 @@ bool flipTest(Position *position)
     return (bool)(v1 == v2);
 }
 
+#define RETRACT_MOVE ((Move)0xFFFFFFFF)
+
 int testModuleEvaluation(void)
 {
     typedef struct {
@@ -233,20 +235,20 @@ int testModuleEvaluation(void)
          "Sicilian - Normal moves and capture",
          -27},
         {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9",
-         {getOrdinaryMove(H2, H3), getOrdinaryMove(H7, H6), getOrdinaryMove(G5, H4), getOrdinaryMove(F8, E8)},
-         4,
+         {getOrdinaryMove(H2, H3), NULLMOVE, getOrdinaryMove(H7, H6), getOrdinaryMove(G5, H4), getOrdinaryMove(F8, E8)},
+         5,
          "QGD - Normal moves",
-         53},
+         -7},
         {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12",
-         {getOrdinaryMove(A7, A6), getOrdinaryMove(A2, A3), getOrdinaryMove(H7, H6), getOrdinaryMove(H2, H3)},
-         4,
+         {getOrdinaryMove(A7, A6), getOrdinaryMove(A2, A3), NULLMOVE, getOrdinaryMove(H7, H6), getOrdinaryMove(H2, H3)},
+         5,
          "Middle game - Normal moves",
-         -563},
+         663},
         {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1",
-         {getOrdinaryMove(E1, G1), getOrdinaryMove(E8, G8), getOrdinaryMove(A2, A3), getOrdinaryMove(A7, A6)},
-         4,
+         {getOrdinaryMove(E1, G1), getOrdinaryMove(E8, G8), getOrdinaryMove(A2, A3), NULLMOVE, getOrdinaryMove(A7, A6)},
+         5,
          "Advantage - Castlings",
-         759},
+         -705},
         {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1",
          {getOrdinaryMove(C8, C7), getOrdinaryMove(C1, C2), getOrdinaryMove(F8, C8), getOrdinaryMove(F1, C1)},
          4,
@@ -267,7 +269,76 @@ int testModuleEvaluation(void)
          {getOrdinaryMove(D1, C2), getOrdinaryMove(C3, C2), getOrdinaryMove(B1, A2), getOrdinaryMove(C2, B2)},
          4,
          "Endgame Queen/Rook - Captures and king moves",
-         -24}};
+         -24},
+        {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+         {getOrdinaryMove(E1, G1), NULLMOVE, getOrdinaryMove(F8, E7), getOrdinaryMove(D2, D4), getOrdinaryMove(E5, D4)},
+         5,
+         "Spanish - Nullmove inclusion",
+         16},
+        {FEN_GAMESTART,
+         {getOrdinaryMove(E2, E4), getOrdinaryMove(E7, E5), getOrdinaryMove(G1, F3), RETRACT_MOVE, RETRACT_MOVE,
+          getOrdinaryMove(E7, E5), getOrdinaryMove(G1, F3)},
+         7,
+         "Repetition via retraction",
+         -28},
+        {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getOrdinaryMove(G1, F1),
+          getPackedMove(E7, E8, WHITE_QUEEN)},
+         4,
+         "White promotion to Queen",
+         -589},
+        {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getOrdinaryMove(G1, F1), getPackedMove(E7, E8, WHITE_ROOK)},
+         4,
+         "White promotion to Rook",
+         -569},
+        {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getOrdinaryMove(G1, F1),
+          getPackedMove(E7, E8, WHITE_BISHOP)},
+         4,
+         "White promotion to Bishop",
+         -5},
+        {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getOrdinaryMove(G1, F1),
+          getPackedMove(E7, E8, WHITE_KNIGHT)},
+         4,
+         "White promotion to Knight",
+         10},
+        {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
+         {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getOrdinaryMove(G8, F8),
+          getPackedMove(E2, E1, BLACK_QUEEN)},
+         4,
+         "Black promotion to Queen",
+         463},
+        {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
+         {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getOrdinaryMove(G8, F8), getPackedMove(E2, E1, BLACK_ROOK)},
+         4,
+         "Black promotion to Rook",
+         575},
+        {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
+         {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getOrdinaryMove(G8, F8),
+          getPackedMove(E2, E1, BLACK_BISHOP)},
+         4,
+         "Black promotion to Bishop",
+         -4},
+        {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
+         {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getOrdinaryMove(G8, F8),
+          getPackedMove(E2, E1, BLACK_KNIGHT)},
+         4,
+         "Black promotion to Knight",
+         -4},
+        {"3r4/4P3/8/k7/8/8/8/7K w - - 0 1",
+         {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getOrdinaryMove(G1, F1),
+          getPackedMove(E7, D8, WHITE_QUEEN)},
+         4,
+         "White promotion capture Queen",
+         -508},
+        {"7k/8/8/8/K7/8/4p3/3R4 b - - 0 1",
+         {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getOrdinaryMove(G8, F8),
+          getPackedMove(E2, D1, BLACK_QUEEN)},
+         4,
+         "Black promotion capture Queen",
+         471}};
 
     Variation *variation = calloc(1, sizeof(Variation));
     int i, j;
@@ -276,8 +347,12 @@ int testModuleEvaluation(void)
         initializeVariation(variation, cases[i].fen);
 
         for (j = 0; j < cases[i].numMoves; j++) {
-            makeMoveFast(variation, cases[i].moves[j]);
-            initializePlyInfo(variation);
+            if (cases[i].moves[j] == RETRACT_MOVE) {
+                unmakeLastMove(variation);
+            } else {
+                makeMoveFast(variation, cases[i].moves[j]);
+                initializePlyInfo(variation);
+            }
         }
 
         int eval = getEvalValue(variation);
