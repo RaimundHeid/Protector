@@ -67,7 +67,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
 void refreshAccumulator(Position *pos, Accumulator *acc, FinnyTable *finny);
 void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc, int removed_count,
                               Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos, FinnyTable *finny,
-                              int p);
+                              int p, const int16_t *prev_big_v, const int16_t *prev_big_threat_v);
 void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_count, Square *added_sq, Piece *added_pc,
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny);

@@ -56,6 +56,47 @@ static inline void sub_weights_int8_to_int16(int16_t *restrict acc, const int8_t
     }
 }
 
+/* Fused copy + op: dst[i] = src[i] ± w[i], one pass instead of memcpy + in-place op */
+static inline void copy_sub_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        __m256i s = _mm256_load_si256((const __m256i *)(src + i));
+        __m256i b = _mm256_load_si256((const __m256i *)(sub_w + i));
+        _mm256_store_si256((__m256i *)(dst + i), _mm256_sub_epi16(s, b));
+    }
+}
+
+static inline void copy_add_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        __m256i s = _mm256_load_si256((const __m256i *)(src + i));
+        __m256i a = _mm256_load_si256((const __m256i *)(add_w + i));
+        _mm256_store_si256((__m256i *)(dst + i), _mm256_add_epi16(s, a));
+    }
+}
+
+static inline void copy_sub_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        __m256i s = _mm256_load_si256((const __m256i *)(src + i));
+        __m128i b8 = _mm_load_si128((const __m128i *)(sub_w + i));
+        _mm256_store_si256((__m256i *)(dst + i), _mm256_sub_epi16(s, _mm256_cvtepi8_epi16(b8)));
+    }
+}
+
+static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        __m256i s = _mm256_load_si256((const __m256i *)(src + i));
+        __m128i a8 = _mm_load_si128((const __m128i *)(add_w + i));
+        _mm256_store_si256((__m256i *)(dst + i), _mm256_add_epi16(s, _mm256_cvtepi8_epi16(a8)));
+    }
+}
+
 static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
 {
     const __m256i zero = _mm256_setzero_si256();
@@ -165,6 +206,41 @@ static inline void sub_weights_int8_to_int16(int16_t *restrict acc, const int8_t
     }
 }
 
+/* Fused copy + op: dst[i] = src[i] ± w[i], one pass instead of memcpy + in-place op */
+static inline void copy_sub_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i += 8)
+        vst1q_s16(dst + i, vsubq_s16(vld1q_s16(src + i), vld1q_s16(sub_w + i)));
+}
+
+static inline void copy_add_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i += 8)
+        vst1q_s16(dst + i, vaddq_s16(vld1q_s16(src + i), vld1q_s16(add_w + i)));
+}
+
+static inline void copy_sub_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        int8x16_t b = vld1q_s8(sub_w + i);
+        vst1q_s16(dst + i, vsubq_s16(vld1q_s16(src + i), vmovl_s8(vget_low_s8(b))));
+        vst1q_s16(dst + i + 8, vsubq_s16(vld1q_s16(src + i + 8), vmovl_s8(vget_high_s8(b))));
+    }
+}
+
+static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i += 16) {
+        int8x16_t a = vld1q_s8(add_w + i);
+        vst1q_s16(dst + i, vaddq_s16(vld1q_s16(src + i), vmovl_s8(vget_low_s8(a))));
+        vst1q_s16(dst + i + 8, vaddq_s16(vld1q_s16(src + i + 8), vmovl_s8(vget_high_s8(a))));
+    }
+}
+
 static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
 {
     const int16x8_t vmax = vdupq_n_s16(255);
@@ -250,6 +326,35 @@ static inline void sub_weights_int8_to_int16(int16_t *restrict acc, const int8_t
 {
     for (int i = 0; i < n; i++)
         acc[i] -= w[i];
+}
+
+/* Fused copy + op: dst[i] = src[i] ± w[i], one pass instead of memcpy + in-place op */
+static inline void copy_sub_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i++)
+        dst[i] = src[i] - sub_w[i];
+}
+
+static inline void copy_add_weights_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                           const int16_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i++)
+        dst[i] = src[i] + add_w[i];
+}
+
+static inline void copy_sub_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict sub_w, int n)
+{
+    for (int i = 0; i < n; i++)
+        dst[i] = src[i] - sub_w[i];
+}
+
+static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const int16_t *restrict src,
+                                                   const int8_t *restrict add_w, int n)
+{
+    for (int i = 0; i < n; i++)
+        dst[i] = src[i] + add_w[i];
 }
 
 static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
@@ -956,8 +1061,13 @@ static void applyThreatDirtyList(const ThreatDirtyList *dl, Accumulator *next, P
 /* forward declaration — defined after resetFinnyTable */
 void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finny, int p);
 
-static void applyThreatDirtyListOneSide(const ThreatDirtyList *dl, Accumulator *next, Position *pos, int p)
+/* prev_big_threat_v: when non-NULL, fuse the copy from prev into the first weight operation
+   (one pass over 2 KB instead of memcpy + in-place op).  Pass NULL when big_threat_v[p] is
+   already initialised (e.g. from a Finny entry copy done by the caller). */
+static void applyThreatDirtyListOneSide(const ThreatDirtyList *dl, Accumulator *next, Position *pos, int p,
+                                         const int16_t *prev_big_threat_v)
 {
+    bool initialized = (prev_big_threat_v == NULL);
     for (int i = 0; i < dl->count; i++) {
         const ThreatDirty *e = &dl->entries[i];
         uint32_t idx =
@@ -965,21 +1075,41 @@ static void applyThreatDirtyListOneSide(const ThreatDirtyList *dl, Accumulator *
         if (idx >= THREAT_INPUT_DIMENSIONS)
             continue;
         if (e->add) {
-            add_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+            if (!initialized) {
+                copy_add_weights_int8_to_int16(next->big_threat_v[p], prev_big_threat_v,
+                                               big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+                initialized = TRUE;
+            } else {
+                add_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+            }
             for (int j = 0; j < 8; j++)
                 next->big_threat_psqtAccumulation[p][j] += big_ft_threat_psqt_weights[idx * 8 + j];
         } else {
-            sub_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+            if (!initialized) {
+                copy_sub_weights_int8_to_int16(next->big_threat_v[p], prev_big_threat_v,
+                                               big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+                initialized = TRUE;
+            } else {
+                sub_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
+            }
             for (int j = 0; j < 8; j++)
                 next->big_threat_psqtAccumulation[p][j] -= big_ft_threat_psqt_weights[idx * 8 + j];
         }
     }
+    /* No valid entries hit — plain copy from prev (rare: all indices out of range) */
+    if (!initialized)
+        memcpy(next->big_threat_v[p], prev_big_threat_v, sizeof(int16_t) * L1_BIG);
 }
 
+/* prev_big_v:        when non-NULL, fuse the copy of big_v from prev into the first weight op.
+   prev_big_threat_v: forwarded to applyThreatDirtyListOneSide for the same optimisation.
+   Pass NULL for either when the corresponding array is already initialised in next. */
 void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_sq, Piece *added_pc, int removed_count,
                               Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos, FinnyTable *finny,
-                              int p)
+                              int p, const int16_t *prev_big_v, const int16_t *prev_big_threat_v)
 {
+    bool big_v_initialized = (prev_big_v == NULL);
+
     for (int j = 0; j < removed_count; j++) {
         int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
         if (idx < 0)
@@ -987,7 +1117,12 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
         sub_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
         for (int i = 0; i < 8; i++)
             next->small_psqtAccumulation[p][i] -= small_ft_psqt_weights[idx * 8 + i];
-        sub_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+        if (!big_v_initialized) {
+            copy_sub_weights_int16(next->big_v[p], prev_big_v, big_ft_weights + idx * L1_BIG, L1_BIG);
+            big_v_initialized = TRUE;
+        } else {
+            sub_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+        }
         for (int i = 0; i < 8; i++)
             next->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
     }
@@ -998,10 +1133,18 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
         add_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
         for (int i = 0; i < 8; i++)
             next->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
-        add_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+        if (!big_v_initialized) {
+            copy_add_weights_int16(next->big_v[p], prev_big_v, big_ft_weights + idx * L1_BIG, L1_BIG);
+            big_v_initialized = TRUE;
+        } else {
+            add_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+        }
         for (int i = 0; i < 8; i++)
             next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
     }
+    /* No valid op touched big_v: plain copy from prev (rare: all indices out of range) */
+    if (!big_v_initialized)
+        memcpy(next->big_v[p], prev_big_v, sizeof(int16_t) * L1_BIG);
 
     /* buildThreatDirtyList only handles: one piece moved (quiet or capture at landing square).
        EP captures at ep_sq != to_sq and castling moves two pieces simultaneously — both produce
@@ -1020,7 +1163,7 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
         ThreatDirtyList dl;
         buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
         if (!dl.overflow) {
-            applyThreatDirtyListOneSide(&dl, next, pos, p);
+            applyThreatDirtyListOneSide(&dl, next, pos, p, prev_big_threat_v);
             next->computed[p] = TRUE;
             return;
         }
@@ -1118,8 +1261,8 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         }
 
         if (use_incremental_threat) {
-            /* Copy threat base from Finny now that we know incremental is possible */
-            memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
+            /* Copy the psqt base from Finny (32 bytes); the big_threat_v copy is fused into
+               the first weight operation inside applyThreatDirtyListOneSide. */
             memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
             ThreatDirtyList dl;
             buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
@@ -1128,7 +1271,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
                 memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
                 computeThreatAccumulator(pos, acc, p);
             } else {
-                applyThreatDirtyListOneSide(&dl, acc, pos, p);
+                applyThreatDirtyListOneSide(&dl, acc, pos, p, entry->big_threat_v);
             }
         } else if (added_count > 0 || removed_count > 0) {
             /* Complex delta (castling, en-passant, etc.): PSQ already correct above;
@@ -1419,19 +1562,21 @@ int win_rate_scaling(Position *pos)
 static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, const DirtyPiece *dp, int p,
                                    Position *pos, FinnyTable *finny)
 {
-    /* Copy parent's PSQ vectors for perspective p */
+    /* Copy the cheap arrays upfront: small_v (256 B) and three psqt arrays (32 B each).
+       big_v (2 KB) and big_threat_v (2 KB) are NOT copied here; instead their copy is
+       fused with the first weight add/sub inside updateAccumulatorOneSide /
+       applyThreatDirtyListOneSide (one pass instead of memcpy + in-place op). */
     memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
-    memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
     memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
 
-    /* For EP and castling the threat accumulator will be fully recomputed by
-       computeThreatAccumulator in updateAccumulatorOneSide — skip copying it
-       from prev to avoid the immediately-overwritten memcpy.  For all other
-       moves (quiet, capture, promotion) copy it as the incremental base. */
+    /* For EP and castling the threat accumulator will be fully recomputed — skip the psqt
+       copy too since it will be zeroed and rebuilt.  For all other moves pass the prev
+       psqt as the incremental base (big_threat_v copy is deferred to the fused path). */
+    const int16_t *prev_big_threat_v = NULL;
     if (dp->ep_sq == NO_SQUARE && dp->rook_from == NO_SQUARE) {
-        memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
         memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+        prev_big_threat_v = prev->big_threat_v[p];
     }
 
     Square added_sq[2], removed_sq[3], ksq[2];
@@ -1466,7 +1611,7 @@ static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, c
     }
 
     updateAccumulatorOneSide(next, added_cnt, added_sq, added_pc, removed_cnt, removed_sq, removed_pc, ksq, pos, finny,
-                             p);
+                             p, prev->big_v[p], prev_big_threat_v);
 }
 
 void finalizeAccumulator(Variation *var, int p)
