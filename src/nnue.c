@@ -992,49 +992,79 @@ static void buildThreatDirtyList(ThreatDirtyList *dl, Position *pos, int added_c
     Piece new_pc = added_pc[0];
     bool is_cap = (removed_cnt > 1);
     Piece cap_pc = is_cap ? removed_pc[1] : NO_PIECE;
+    Square cap_sq = is_cap ? removed_sq[1] : NO_SQUARE;
+    /* EP: captured pawn is not at the landing square but at a separate ep_sq */
+    bool is_ep = is_cap && (cap_sq != to_sq);
 
-    /* Reconstruct old occupancy */
+    /* Reconstruct old occupancy.
+       Quiet / EP: to_sq was empty before the move (clear it).
+       EP: the captured pawn was at cap_sq (restore it). */
     Bitboard new_occ = pos->allPieces;
     Bitboard old_occ = new_occ | minValue[from_sq];
-    if (!is_cap)
-        old_occ &= ~minValue[to_sq]; /* to_sq was empty before quiet move */
+    if (!is_cap || is_ep)
+        old_occ &= ~minValue[to_sq];
+    if (is_ep)
+        old_occ |= minValue[cap_sq];
 
     /* --- OLD threats to REMOVE --- */
 
-    /* (A) Outgoing from from_pc @ from_sq */
-    enumOutgoing(dl, from_pc, from_sq, old_occ, to_sq, cap_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
+    /* (A) Outgoing from from_pc @ from_sq.
+       Overrides: pos->piece[to_sq]=new_pc (was empty for EP/quiet) and
+       pos->piece[cap_sq]=NO_PIECE (was cap_pc for EP). */
+    if (is_ep)
+        enumOutgoing(dl, from_pc, from_sq, old_occ, to_sq, NO_PIECE, cap_sq, cap_pc, FALSE, pos);
+    else
+        enumOutgoing(dl, from_pc, from_sq, old_occ, to_sq, cap_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
 
-    /* (B) Incoming to from_pc @ from_sq; skip to_sq (covered by C for captures,
-       absent in old_occ for quiet moves) */
-    enumIncoming(dl, from_pc, from_sq, old_occ, to_sq, cap_pc, NO_SQUARE, NO_PIECE, to_sq, FALSE, pos);
+    /* (B) Incoming to from_pc @ from_sq.
+       Skip: cap square is covered by (C); use same overrides as (A). */
+    if (is_ep)
+        enumIncoming(dl, from_pc, from_sq, old_occ, to_sq, NO_PIECE, cap_sq, cap_pc, cap_sq, FALSE, pos);
+    else
+        enumIncoming(dl, from_pc, from_sq, old_occ, to_sq, cap_pc, NO_SQUARE, NO_PIECE, to_sq, FALSE, pos);
 
-    /* (C) Outgoing from cap_pc @ to_sq (capture only) */
+    /* (C) Outgoing from cap_pc @ its actual square (to_sq for regular cap, cap_sq for EP). */
     if (is_cap) {
-        enumOutgoing(dl, cap_pc, to_sq, old_occ, from_sq, from_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
+        if (is_ep)
+            enumOutgoing(dl, cap_pc, cap_sq, old_occ, from_sq, from_pc, to_sq, NO_PIECE, FALSE, pos);
+        else
+            enumOutgoing(dl, cap_pc, to_sq, old_occ, from_sq, from_pc, NO_SQUARE, NO_PIECE, FALSE, pos);
     }
 
-    /* (D) Incoming to cap_pc @ to_sq; skip from_sq (already in A) */
+    /* (D) Incoming to cap_pc @ its actual square; skip from_sq (already handled by A). */
     if (is_cap) {
-        enumIncoming(dl, cap_pc, to_sq, old_occ, from_sq, from_pc, NO_SQUARE, NO_PIECE, from_sq, FALSE, pos);
+        if (is_ep)
+            enumIncoming(dl, cap_pc, cap_sq, old_occ, from_sq, from_pc, to_sq, NO_PIECE, from_sq, FALSE, pos);
+        else
+            enumIncoming(dl, cap_pc, to_sq, old_occ, from_sq, from_pc, NO_SQUARE, NO_PIECE, from_sq, FALSE, pos);
     }
 
-    /* (E) Slider blocking (quiet move only): sliders that passed through to_sq */
-    if (!is_cap) {
-        enumBlockings(dl, to_sq, old_occ, new_occ, from_sq, /* skip if piece-beyond was at from_sq (covered by B) */
-                      pos);
-    }
+    /* (E) Slider blocking: to_sq newly occupied (quiet and EP both had to_sq empty before).
+       Targets at from_sq and cap_sq have pos->piece==NO_PIECE so pushThreatDirty drops them;
+       skip from_sq early to match the quiet-move path. */
+    if (!is_cap || is_ep)
+        enumBlockings(dl, to_sq, old_occ, new_occ, from_sq, pos);
 
     /* --- NEW threats to ADD --- */
 
     /* (F) Outgoing from new_pc @ to_sq */
     enumOutgoing(dl, new_pc, to_sq, new_occ, NO_SQUARE, NO_PIECE, NO_SQUARE, NO_PIECE, TRUE, pos);
 
-    /* (G) Incoming to new_pc @ to_sq; from_sq is empty in new_occ, no skip needed */
+    /* (G) Incoming to new_pc @ to_sq */
     enumIncoming(dl, new_pc, to_sq, new_occ, NO_SQUARE, NO_PIECE, NO_SQUARE, NO_PIECE, NO_SQUARE, TRUE, pos);
 
     /* (H) Slider discovery: from_sq vacated, sliders now see beyond it.
+       For EP, to_sq was not in old_occ so no ov1/pov1 override is needed.
        Skip revealed pieces at to_sq (covered by G). */
-    enumDiscoveries(dl, from_sq, old_occ, new_occ, to_sq, cap_pc, to_sq, pos);
+    if (is_ep)
+        enumDiscoveries(dl, from_sq, old_occ, new_occ, NO_SQUARE, NO_PIECE, to_sq, pos);
+    else
+        enumDiscoveries(dl, from_sq, old_occ, new_occ, to_sq, cap_pc, to_sq, pos);
+
+    /* (H') EP only: cap_sq also vacated — sliders that were blocked by it now see beyond.
+       Skip to_sq (covered by G). */
+    if (is_ep)
+        enumDiscoveries(dl, cap_sq, old_occ, new_occ, NO_SQUARE, NO_PIECE, to_sq, pos);
 }
 
 static void applyThreatDirtyList(const ThreatDirtyList *dl, Accumulator *next, Position *pos)
@@ -1147,17 +1177,15 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
     if (!big_v_initialized)
         memcpy(next->big_v[p], prev_big_v, sizeof(int16_t) * L1_BIG);
 
-    /* buildThreatDirtyList only handles: one piece moved (quiet or capture at landing square).
-       EP captures at ep_sq != to_sq and castling moves two pieces simultaneously — both produce
-       wrong threat values without triggering overflow.  Detect those cases and fall back to a
-       full threat recompute rather than silently accumulating wrong data. */
+    /* buildThreatDirtyList handles quiet moves, regular captures, and EP.
+       Castling (added_count==2) always falls back to a full threat recompute. */
     bool use_incremental_threat = FALSE;
     if (added_count == 1 && removed_count == 1) {
         use_incremental_threat = TRUE;
     } else if (added_count == 1 && removed_count == 2) {
-        /* Capture: the captured piece must be at the landing square */
-        if (removed_sq[0] == added_sq[0] || removed_sq[1] == added_sq[0])
-            use_incremental_threat = TRUE;
+        /* Regular capture (cap at to_sq) and EP (cap at ep_sq != to_sq) are both handled
+           by buildThreatDirtyList, which detects EP via cap_sq != to_sq internally. */
+        use_incremental_threat = TRUE;
     }
 
     if (use_incremental_threat) {
@@ -1252,17 +1280,29 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
             }
         }
 
-        /* Update threat accumulator incrementally from cached state if delta is a simple move */
+        /* Update threat accumulator incrementally from cached state.
+           buildThreatDirtyList handles quiet, regular capture, and EP. */
         bool use_incremental_threat = FALSE;
         if (added_count == 1 && removed_count == 1) {
             use_incremental_threat = TRUE;
         } else if (added_count == 1 && removed_count == 2) {
-            /* Normal capture: one of the removed pieces was at the added square */
+            use_incremental_threat = TRUE;
+            /* Ensure removed_sq[0] is the mover ('from' square) for buildThreatDirtyList.
+               Regular capture: mover is the one NOT at the landing square.
+               EP: neither removed piece is at the landing square; identify mover by color. */
             if (removed_sq[0] == added_sq[0] || removed_sq[1] == added_sq[0]) {
-                use_incremental_threat = TRUE;
-                /* Ensure removed_sq[0] is the 'from' square and removed_sq[1] is the 'to' square for
-                 * buildThreatDirtyList */
+                /* Regular capture: swap so mover ('from') is at index 0 */
                 if (removed_sq[0] == added_sq[0]) {
+                    Square tmp_sq = removed_sq[0];
+                    Piece tmp_pc = removed_pc[0];
+                    removed_sq[0] = removed_sq[1];
+                    removed_pc[0] = removed_pc[1];
+                    removed_sq[1] = tmp_sq;
+                    removed_pc[1] = tmp_pc;
+                }
+            } else {
+                /* EP: swap so mover (same color as added piece) is at index 0 */
+                if (pieceColor(removed_pc[0]) != pieceColor(added_pc[0])) {
                     Square tmp_sq = removed_sq[0];
                     Piece tmp_pc = removed_pc[0];
                     removed_sq[0] = removed_sq[1];
@@ -1287,7 +1327,7 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
                 applyThreatDirtyListOneSide(&dl, acc, pos, p, entry->big_threat_v);
             }
         } else if (added_count > 0 || removed_count > 0) {
-            /* Complex delta (castling, en-passant, etc.): PSQ already correct above;
+            /* Complex delta (castling etc.): PSQ already correct above;
                recompute threats from scratch without copying the Finny threat vector. */
             memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
             memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
@@ -1584,11 +1624,10 @@ static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, c
     memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
 
-    /* For EP and castling the threat accumulator will be fully recomputed — skip the psqt
-       copy too since it will be zeroed and rebuilt.  For all other moves pass the prev
-       psqt as the incremental base (big_threat_v copy is deferred to the fused path). */
+    /* For castling (two pieces move simultaneously) the threat accumulator is fully recomputed.
+       EP is now handled incrementally by buildThreatDirtyList, so it uses the prev base. */
     const int16_t *prev_big_threat_v = NULL;
-    if (dp->ep_sq == NO_SQUARE && dp->rook_from == NO_SQUARE) {
+    if (dp->rook_from == NO_SQUARE) {
         memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
         prev_big_threat_v = prev->big_threat_v[p];
     }
@@ -1642,8 +1681,8 @@ void finalizeAccumulator(Variation *var, int p)
 
             /* Skip incremental only when our own king moved — the feature space is keyed on the
                king square, so all features change and we must fall back to the Finny cache.
-               EP, castling (opponent), and promotion are now handled correctly by
-               updateAccumulatorOneSide (incremental piece features + full threat recompute). */
+               EP, castling (opponent), and promotion are handled correctly by
+               applyDirtyPieceOneSide (incremental piece features; EP also incremental threat). */
             bool king_moved = (pieceColor(dp->pc) == (Color)p && pieceType(dp->pc) == KING);
 
             if (!king_moved) {
