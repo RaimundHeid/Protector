@@ -653,6 +653,7 @@ static int32_t big_fc2_biases[LAYER_STACKS][1] __attribute__((aligned(64)));
 static int8_t big_fc2_weights[LAYER_STACKS][1 * L3_BIG] __attribute__((aligned(64)));
 
 static int nnue_loaded = 0;
+static int win_rate_table[97]; /* indexed by winRateMaterial, precomputed in initializeModuleNnue */
 
 static const Square OrientTBL[64] = {H1, H1, H1, H1, A1, A1, A1, A1, H1, H1, H1, H1, A1, A1, A1, A1,
                                      H1, H1, H1, H1, A1, A1, A1, A1, H1, H1, H1, H1, A1, A1, A1, A1,
@@ -1426,10 +1427,11 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
             computeThreatAccumulator(pos, next, p);
         }
     } else {
-        /* Copy threat base only when doing incremental update */
-        memcpy(next->big_threat_v, prev->big_threat_v, sizeof(next->big_threat_v));
-        memcpy(next->big_threat_psqtAccumulation, prev->big_threat_psqtAccumulation,
-               sizeof(next->big_threat_psqtAccumulation));
+        /* Copy threat base only when doing incremental update.
+           big_threat_v and big_threat_psqtAccumulation are adjacent in the struct,
+           so a single memcpy covers both. */
+        memcpy(next->big_threat_v, prev->big_threat_v,
+               sizeof(next->big_threat_v) + sizeof(next->big_threat_psqtAccumulation));
         applyThreatDirtyList(&dl, next, pos);
     }
     next->computed[0] = TRUE;
@@ -1580,6 +1582,17 @@ int initializeModuleNnue(void)
 
     nnue_loaded = 1;
     initializeThreatLuts();
+
+    /* Precompute win_rate_scaling results for all valid material sums [0..96].
+       The formula clamps to [17, 78] before the polynomial, so entries outside
+       that range just use the clamped polynomial value. */
+    for (int mat = 0; mat <= 96; mat++) {
+        double m = (mat < 17 ? 17 : mat > 78 ? 78 : mat) / 58.0;
+        const double as[] = {-72.32565836, 185.93832038, -144.58862193, 416.44950446};
+        double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
+        win_rate_table[mat] = (int)a;
+    }
+
     return 0;
 }
 
@@ -1597,21 +1610,12 @@ static inline int32_t sqr_clipped_relu(int32_t x)
 
 int win_rate_scaling(Position *pos)
 {
-    int material = getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN]) +
-                   getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN]) +
-                   3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) +
-                        getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT])) +
-                   3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) +
-                        getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP])) +
-                   5 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_ROOK]) +
-                        getNumberOfSetSquares(pos->piecesOfType[BLACK_ROOK])) +
-                   9 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_QUEEN]) +
-                        getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN]));
-
-    double m = max(17.0, min(78.0, (double)material)) / 58.0;
-    const double as[] = {-72.32565836, 185.93832038, -144.58862193, 416.44950446};
-    double a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
-    return (int)a;
+    int material = pos->winRateMaterial;
+    if (material < 0)
+        material = 0;
+    else if (material > 96)
+        material = 96;
+    return win_rate_table[material];
 }
 
 static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, const DirtyPiece *dp, int p,

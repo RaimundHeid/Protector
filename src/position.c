@@ -60,6 +60,23 @@ static const int sfBalanceValue[16] = {
     [BLACK_PAWN] = -SFVAL_PAWN,
 };
 
+/* Classic piece values for win_rate_scaling: pawns=1, N/B=3, R=5, Q=9, kings=0 */
+static const int wrMaterialValue[16] = {
+    [NO_PIECE] = 0,
+    [WHITE_KING] = 0,
+    [BLACK_KING] = 0,
+    [WHITE_QUEEN] = 9,
+    [BLACK_QUEEN] = 9,
+    [WHITE_ROOK] = 5,
+    [BLACK_ROOK] = 5,
+    [WHITE_BISHOP] = 3,
+    [BLACK_BISHOP] = 3,
+    [WHITE_KNIGHT] = 3,
+    [BLACK_KNIGHT] = 3,
+    [WHITE_PAWN] = 1,
+    [BLACK_PAWN] = 1,
+};
+
 /* Piece contribution to materialCount: always positive, pawns use blend weight */
 static const int sfMaterialValue[16] = {
     [NO_PIECE] = 0,
@@ -641,6 +658,17 @@ void initializePosition(Position *position)
                               SFVAL_QUEEN * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
                                              getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
 
+    position->winRateMaterial =
+        (position->numberOfPawns[WHITE] + position->numberOfPawns[BLACK]) +
+        3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+             getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+        3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+             getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+        5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
+             getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+        9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
+             getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+
     position->hashKey = calculateHashKey(position);
 }
 
@@ -854,6 +882,7 @@ int makeMove(Variation *variation, const Move move)
         position->numberOfPieces[passiveColor]--;
         position->materialBalance -= sfBalanceValue[capturedPiece];
         position->materialCount -= sfMaterialValue[capturedPiece];
+        position->winRateMaterial -= wrMaterialValue[capturedPiece];
 
         if (pieceType(capturedPiece) == PAWN) {
             position->numberOfPawns[passiveColor]--;
@@ -883,6 +912,7 @@ int makeMove(Variation *variation, const Move move)
             position->numberOfPawns[passiveColor]--;
             position->materialBalance -= sfBalanceValue[capturedPawn];
             position->materialCount -= sfMaterialValue[capturedPawn];
+            position->winRateMaterial -= wrMaterialValue[capturedPawn];
         } else if (newPiece != NO_PIECE) {
             const Piece effectiveNewPiece = (Piece)(newPiece | activeColor);
 
@@ -892,6 +922,7 @@ int makeMove(Variation *variation, const Move move)
             position->numberOfPawns[activeColor]--;
             position->materialBalance += sfBalanceValue[effectiveNewPiece] - sfBalanceValue[movingPiece];
             position->materialCount += sfMaterialValue[effectiveNewPiece] - sfMaterialValue[movingPiece];
+            position->winRateMaterial += wrMaterialValue[effectiveNewPiece] - wrMaterialValue[movingPiece];
             position->hashKey ^= GENERATED_KEYTABLE[movingPiece][to] ^ GENERATED_KEYTABLE[effectiveNewPiece][to];
             setSquare(position->piecesOfType[position->piece[to]], to);
         }
@@ -1000,6 +1031,7 @@ void unmakeLastMove(Variation *variation)
             const Piece pawn = plyInfo->restorePiece1;
             position->materialBalance -= sfBalanceValue[promotedPiece] - sfBalanceValue[pawn];
             position->materialCount -= sfMaterialValue[promotedPiece] - sfMaterialValue[pawn];
+            position->winRateMaterial -= wrMaterialValue[promotedPiece] - wrMaterialValue[pawn];
         }
     }
 
@@ -1017,6 +1049,7 @@ void unmakeLastMove(Variation *variation)
         position->numberOfPieces[passiveColor]++;
         position->materialBalance += sfBalanceValue[plyInfo->captured];
         position->materialCount += sfMaterialValue[plyInfo->captured];
+        position->winRateMaterial += wrMaterialValue[plyInfo->captured];
 
         if (pieceType(plyInfo->captured) == PAWN) {
             position->numberOfPawns[passiveColor]++;
@@ -1030,6 +1063,7 @@ void unmakeLastMove(Variation *variation)
         position->numberOfPawns[passiveColor]++;
         position->materialBalance += sfBalanceValue[plyInfo->restorePiece1];
         position->materialCount += sfMaterialValue[plyInfo->restorePiece1];
+        position->winRateMaterial += wrMaterialValue[plyInfo->restorePiece1];
     } else if (distance(from, to) == 2 && pieceType(position->piece[from]) == KING) {
         position->piece[plyInfo->restoreSquare1] = plyInfo->restorePiece1;
         position->piece[plyInfo->restoreSquare2] = plyInfo->restorePiece2;
@@ -1271,8 +1305,19 @@ int checkConsistency(const Position *position)
                                                 getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
                                   SFVAL_QUEEN * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
                                                  getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+        const int expectedWrMat =
+            (numPawns[WHITE] + numPawns[BLACK]) +
+            3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+                 getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+            3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+                 getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+            5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
+                 getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+            9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
+                 getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
         assert(position->materialBalance == expectedBalance);
         assert(position->materialCount == expectedCount);
+        assert(position->winRateMaterial == expectedWrMat);
     }
 #endif
 
@@ -1837,6 +1882,20 @@ static int computeExpectedMaterialCount(const Position *pos)
                           getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN]));
 }
 
+static int computeExpectedWinRateMaterial(const Position *pos)
+{
+    return (getNumberOfSetSquares(pos->piecesOfType[WHITE_PAWN]) +
+            getNumberOfSetSquares(pos->piecesOfType[BLACK_PAWN])) +
+           3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_KNIGHT]) +
+                getNumberOfSetSquares(pos->piecesOfType[BLACK_KNIGHT])) +
+           3 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_BISHOP]) +
+                getNumberOfSetSquares(pos->piecesOfType[BLACK_BISHOP])) +
+           5 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_ROOK]) +
+                getNumberOfSetSquares(pos->piecesOfType[BLACK_ROOK])) +
+           9 * (getNumberOfSetSquares(pos->piecesOfType[WHITE_QUEEN]) +
+                getNumberOfSetSquares(pos->piecesOfType[BLACK_QUEEN]));
+}
+
 typedef int (*MoveFuncPos)(Variation *, Move);
 
 static int testMaterialCountersGeneric(MoveFuncPos moveFunc, const char *moveTypeName)
@@ -1869,13 +1928,16 @@ static int testMaterialCountersGeneric(MoveFuncPos moveFunc, const char *moveTyp
 
         const int balanceBefore = variation->singlePosition.materialBalance;
         const int countBefore = variation->singlePosition.materialCount;
+        const int wrMatBefore = variation->singlePosition.winRateMaterial;
         assert(balanceBefore == computeExpectedMaterialBalance(&variation->singlePosition));
         assert(countBefore == computeExpectedMaterialCount(&variation->singlePosition));
+        assert(wrMatBefore == computeExpectedWinRateMaterial(&variation->singlePosition));
 
         moveFunc(variation, cases[i].move);
 
         const int expectedBalance = computeExpectedMaterialBalance(&variation->singlePosition);
         const int expectedCount = computeExpectedMaterialCount(&variation->singlePosition);
+        const int expectedWrMat = computeExpectedWinRateMaterial(&variation->singlePosition);
 
         if (variation->singlePosition.materialBalance != expectedBalance) {
             logReport("%s materialBalance wrong after %s: got %d expected %d\n", moveTypeName, cases[i].desc,
@@ -1885,6 +1947,11 @@ static int testMaterialCountersGeneric(MoveFuncPos moveFunc, const char *moveTyp
         if (variation->singlePosition.materialCount != expectedCount) {
             logReport("%s materialCount wrong after %s: got %d expected %d\n", moveTypeName, cases[i].desc,
                       variation->singlePosition.materialCount, expectedCount);
+            failures++;
+        }
+        if (variation->singlePosition.winRateMaterial != expectedWrMat) {
+            logReport("%s winRateMaterial wrong after %s: got %d expected %d\n", moveTypeName, cases[i].desc,
+                      variation->singlePosition.winRateMaterial, expectedWrMat);
             failures++;
         }
 
@@ -1898,6 +1965,11 @@ static int testMaterialCountersGeneric(MoveFuncPos moveFunc, const char *moveTyp
         if (variation->singlePosition.materialCount != countBefore) {
             logReport("%s materialCount wrong after unmake %s: got %d expected %d\n", moveTypeName, cases[i].desc,
                       variation->singlePosition.materialCount, countBefore);
+            failures++;
+        }
+        if (variation->singlePosition.winRateMaterial != wrMatBefore) {
+            logReport("%s winRateMaterial wrong after unmake %s: got %d expected %d\n", moveTypeName, cases[i].desc,
+                      variation->singlePosition.winRateMaterial, wrMatBefore);
             failures++;
         }
     }

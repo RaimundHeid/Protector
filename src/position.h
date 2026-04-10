@@ -41,8 +41,9 @@ typedef struct Position {
     Square king[2];
     int numberOfPieces[2];
     int numberOfPawns[2];
-    int materialBalance; /* White material minus black material (Stockfish values) */
-    int materialCount;   /* Total material for NNUE blend formula */
+    int materialBalance;    /* White material minus black material (Stockfish values) */
+    int materialCount;      /* Total material for NNUE blend formula */
+    int winRateMaterial;    /* Total material for win_rate_scaling (pawns=1,N/B=3,R=5,Q=9) */
     UINT64 hashKey;
 } Position;
 

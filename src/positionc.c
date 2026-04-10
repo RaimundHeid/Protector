@@ -75,6 +75,7 @@ int makeBlackMove(Variation *variation, const Move move)
         position->numberOfPieces[OPPCOLOR]--;
         position->materialBalance -= sfBalanceValue[capturedPiece];
         position->materialCount -= sfMaterialValue[capturedPiece];
+        position->winRateMaterial -= wrMaterialValue[capturedPiece];
 
         if (pieceType(capturedPiece) == PAWN) {
             position->numberOfPawns[OPPCOLOR]--;
@@ -104,6 +105,7 @@ int makeBlackMove(Variation *variation, const Move move)
             position->numberOfPawns[OPPCOLOR]--;
             position->materialBalance -= sfBalanceValue[capturedPawn];
             position->materialCount -= sfMaterialValue[capturedPawn];
+            position->winRateMaterial -= wrMaterialValue[capturedPawn];
         } else if (newPiece != NO_PIECE) {
             const Piece effectiveNewPiece = (Piece)(newPiece | COLOR);
 
@@ -113,6 +115,7 @@ int makeBlackMove(Variation *variation, const Move move)
             position->numberOfPawns[COLOR]--;
             position->materialBalance += sfBalanceValue[effectiveNewPiece] - sfBalanceValue[movingPiece];
             position->materialCount += sfMaterialValue[effectiveNewPiece] - sfMaterialValue[movingPiece];
+            position->winRateMaterial += wrMaterialValue[effectiveNewPiece] - wrMaterialValue[movingPiece];
             position->hashKey ^= GENERATED_KEYTABLE[movingPiece][to] ^ GENERATED_KEYTABLE[effectiveNewPiece][to];
             setSquare(position->piecesOfType[position->piece[to]], to);
         }
