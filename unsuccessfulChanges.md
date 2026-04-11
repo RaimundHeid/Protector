@@ -97,3 +97,21 @@ if (pvNode && (check || (capturedPiece != NO_PIECE && pieceType(capturedPiece) !
 // To:
 if (pvNode && check) {
 ```
+
+---
+
+## Raise singular extension minimum depth for non-PV nodes (8→9 plies)
+**Date:** 2026-04-11 (session 3)
+**LOS:** 29.0% at 100 games (threshold: 40% at 100 games)
+
+Changed `getSingleMoveExtensionDepth` to return `9 * DEPTH_RESOLUTION` for non-PV nodes
+(was `8 * DEPTH_RESOLUTION`). Hypothesis: prevent expensive half-depth verification at
+depth 8, saving node budget.
+
+Result: clearly hurt. The singular extension at depth 8 (non-PV) is load-bearing.
+The 3-ply staleness tightening (also tried) was neutral; depth threshold is more sensitive.
+
+```c
+// Changed:
+return (pvNode ? 4 : 9) * DEPTH_RESOLUTION;
+```
