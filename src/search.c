@@ -689,13 +689,12 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int diff = getStaticValue(variation) - beta;
         const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
-        int nullValue;
 
         assert(flipTest(position));
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
-        nullValue =
+        int nullValue =
             -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, pvNode, !cutNode, &bestReply, NO_MOVE, FALSE);
         unmakeLastMove(variation);
 
