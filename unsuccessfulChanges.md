@@ -76,3 +76,24 @@ well-calibrated; tightening it neither saves meaningful time nor improves accura
 if (restDepth >= singleMoveExtensionDepth && importance >= restDepth - 2 * DEPTH_RESOLUTION &&
     flag != HASHVALUE_UPPER_LIMIT) {
 ```
+
+---
+
+## Remove PV-node recapture extension
+**Date:** 2026-04-11 (session 3)
+**LOS:** 9.8% at 206 games (threshold: 50% at 200 games)
+
+Removed the balanced-recapture condition from the PV node extension, leaving only check extensions.
+Hypothesis: with NNUE evaluation already handling material balance, the recapture extension
+(non-pawn capture when piece counts are equal) was redundant and wasteful.
+
+Result: badly hurt playing strength. The recapture extension is load-bearing — it provides
+important additional depth along forcing exchange sequences that NNUE alone does not cover.
+
+```c
+// Changed from:
+if (pvNode && (check || (capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
+                         numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)))) {
+// To:
+if (pvNode && check) {
+```
