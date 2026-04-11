@@ -921,6 +921,8 @@ checkAvailableMoves:
         if (pvNode && (check || (capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
                                  numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)))) {
             extension = DEPTH_RESOLUTION;
+        } else if (!pvNode && check && restDepth <= 3 * DEPTH_RESOLUTION) {
+            extension = DEPTH_RESOLUTION;
         }
 
         if (singularExtensionNode && extension < DEPTH_RESOLUTION && movesAreEqual(currentMove, hashmove)) {
