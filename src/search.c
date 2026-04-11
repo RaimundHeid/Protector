@@ -826,7 +826,8 @@ checkAvailableMoves:
                          hashmove, inCheck);
 
     /* Ensure that a static value for this ply is available and adapt moveCountLimitType */
-    if (getStaticValue(variation) >= beta || isImproving(variation)) {
+    const bool improving = isImproving(variation);
+    if (getStaticValue(variation) >= beta || improving) {
         moveCountLimitType = 1;
     }
 
@@ -841,7 +842,8 @@ checkAvailableMoves:
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
         const int reduction =
             (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 2 * DEPTH_RESOLUTION : 0));
+                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 2 * DEPTH_RESOLUTION : 0)
+                      + (improving ? 0 : DEPTH_RESOLUTION));
         bool check;
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
