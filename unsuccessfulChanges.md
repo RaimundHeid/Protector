@@ -57,3 +57,22 @@ full-depth search on a position that will fail anyway.
 && variation->plyInfo[ply].isHashMove == FALSE
 ```
 
+
+---
+
+## Tighten singular extension hash-entry staleness (3→2 plies)
+**Date:** 2026-04-11 (session 3)
+**LOS:** 53.9% at 431 games (no significant improvement)
+
+Changed `importance >= restDepth - 3 * DEPTH_RESOLUTION` to `importance >= restDepth - 2 * DEPTH_RESOLUTION`
+in the singular extension condition. Hypothesis: hash entries 3 plies shallower than current depth are
+unreliable for singularity judgement; requiring fresher entries would save verification search overhead.
+
+Result: neutral — LOS stayed near 50% throughout the match. The 3-ply tolerance is apparently
+well-calibrated; tightening it neither saves meaningful time nor improves accuracy.
+
+```c
+// Changed in singular extension condition:
+if (restDepth >= singleMoveExtensionDepth && importance >= restDepth - 2 * DEPTH_RESOLUTION &&
+    flag != HASHVALUE_UPPER_LIMIT) {
+```
