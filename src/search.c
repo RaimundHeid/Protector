@@ -685,7 +685,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Nullmove pruning with verification */
     if (restDepth >= 2 * DEPTH_RESOLUTION && inCheck == FALSE && pvNode == FALSE && cutsAreAllowed &&
-        excludeMove == NO_MOVE && numPieces >= 2 && getStaticValue(variation) >= beta && cutNode) { /* 16-32% */
+        excludeMove == NO_MOVE && numPieces >= 2 && getStaticValue(variation) >= beta) { /* 16-32% */
         const int diff = getStaticValue(variation) - beta;
         const int additionalReduction = min(diff / 60, 3) * DEPTH_RESOLUTION;
         const int newDepth = restDepth - 3 * DEPTH_RESOLUTION - restDepth / 3 - additionalReduction;
