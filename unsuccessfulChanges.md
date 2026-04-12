@@ -238,3 +238,22 @@ extra reduction from the two-tier step already provides sufficient aggressivenes
 const double nonPvReduction = 0.33 + baseFactor / 2.40;  // was 2.21
 ```
 
+---
+
+## Raise quick refutation search depth threshold (5*DR → 6*DR)
+**Date:** 2026-04-12
+**LLR:** -1.042 at 662 games (Elo window 2.0–10.0, failing)
+
+Changed the quick refutation search trigger from `restDepth >= 5 * DEPTH_RESOLUTION` to
+`restDepth >= 6 * DEPTH_RESOLUTION`, disabling the shallow (depth-1) quick refutation at
+depth 5. Hypothesis: at depth 5 the quick refutation searches captures at depth 1, which
+is too shallow to be reliable and just adds overhead.
+
+Result: slightly negative. The quick refutation at depth 5 apparently still contributes
+useful pruning despite its shallowness; removing it cost more than it saved.
+
+```c
+// Changed:
+if (pvNode == FALSE && cutsAreAllowed && restDepth >= 6 * DEPTH_RESOLUTION && ...)
+```
+
