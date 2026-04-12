@@ -925,7 +925,7 @@ checkAvailableMoves:
         }
 
         if (singularExtensionNode && extension < DEPTH_RESOLUTION && movesAreEqual(currentMove, hashmove)) {
-            const int limitValue = hashEntryValue - (149 * restDepth) / 256;
+            const int limitValue = hashEntryValue - (50 * restDepth) / 64;
 
             assert(excludeMove == NO_MOVE);
 
