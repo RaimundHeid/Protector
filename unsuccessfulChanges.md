@@ -176,3 +176,46 @@ if (ply >= 2 && variation->plyInfo[ply - 1].isHashMove) {
 if (ply >= 2) {
     updateFollowupMoves(variation, ply, killerMove);
 ```
+
+---
+
+## History-based LMR and no LMR on checks
+**Date:** 2026-04-12
+**LOS:** 27.6% at 200 games (threshold: 50% at 200 games)
+
+Inhibited LMR for moves that give check and added a history-based reduction bonus
+(reduction -= historyValue / 4096). Hypothesis: preventing reduction of tactical
+moves (checks) and strong history moves would improve playing strength.
+
+Result: clearly hurt. The history bonus likely caused over-searching of quiet moves,
+and the check exclusion might have been redundant or counter-productive in the
+context of Protector's existing extensions.
+
+---
+
+## Remove extra LMR step for high-reduction moves (> 2*DR → only +DR/2)
+**Date:** 2026-04-12
+**LOS:** 46.7% at 300 games (threshold: 50% at 300 games)
+
+Replaced the two-tier extra reduction step with a single tier: removed the `+DEPTH_RESOLUTION`
+bonus for base reductions > 2*DR, keeping only `+DEPTH_RESOLUTION/2` for base > DR.
+Hypothesis: moderating the extra reduction for heavily-reduced late moves would improve
+accuracy without significant node-count increase.
+
+Result: neutral/slightly negative. Started promising (LOS ~80% at 100 games) but steadily
+declined to near 50/50 by 300 games. The two-tier step for high reductions appears correctly
+calibrated — the extra ply of reduction for late moves at high depth is beneficial for speed.
+
+```c
+// Changed from:
+if (quietMoveReduction[i][j] > 2 * DEPTH_RESOLUTION) {
+    quietMoveReduction[i][j] += DEPTH_RESOLUTION;
+} else if (quietMoveReduction[i][j] > DEPTH_RESOLUTION) {
+    quietMoveReduction[i][j] += DEPTH_RESOLUTION / 2;
+}
+// To:
+if (quietMoveReduction[i][j] > DEPTH_RESOLUTION) {
+    quietMoveReduction[i][j] += DEPTH_RESOLUTION / 2;
+}
+```
+
