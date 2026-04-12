@@ -219,3 +219,22 @@ if (quietMoveReduction[i][j] > DEPTH_RESOLUTION) {
 }
 ```
 
+---
+
+## Reduce non-PV LMR aggressiveness (divisor 2.21→2.40)
+**Date:** 2026-04-12
+**LOS:** 38.3% at 400 games (threshold: 60% at 400 games)
+
+Increased the divisor in the non-PV quiet move LMR formula from 2.21 to 2.40, making reductions
+less aggressive (searching more moves deeper). Hypothesis: mirroring the successful PV divisor
+increase (2.90→3.20), reducing non-PV aggressiveness would improve accuracy.
+
+Result: started with early promise (~72% LOS at 230 games) but steadily declined to 38.3% at
+400 games. Unlike the PV change, the non-PV formula is apparently well-calibrated at 2.21; the
+extra reduction from the two-tier step already provides sufficient aggressiveness control.
+
+```c
+// Changed in initializeArrays:
+const double nonPvReduction = 0.33 + baseFactor / 2.40;  // was 2.21
+```
+
