@@ -115,3 +115,64 @@ The 3-ply staleness tightening (also tried) was neutral; depth threshold is more
 // Changed:
 return (pvNode ? 4 : 9) * DEPTH_RESOLUTION;
 ```
+
+---
+
+## Increase non-PV LMR aggressiveness (divisor 2.21→2.00)
+**Date:** 2026-04-11 (session 4)
+**LOS:** 27.2% at 100 games (threshold: 40% at 100 games)
+
+Reduced the divisor in the non-PV quiet move LMR formula from 2.21 to 2.00, making reductions
+more aggressive for middle-ranked moves at moderate depths. At baseFactor ∈ [4.34, 4.80]
+(e.g. move 7 at depth 10), reduction increases by a full ply (5→7 with DEPTH_RESOLUTION=2).
+Hypothesis: the re-search safety net would catch any genuinely good moves that get over-reduced.
+
+Result: clearly hurt. Over-reducing quiet moves in non-PV nodes degrades move ordering decisions
+and causes the engine to miss important continuations even with re-search available.
+
+```c
+// Changed in initializeArrays:
+const double nonPvReduction = 0.33 + baseFactor / 2.00;  // was 2.21
+```
+
+---
+
+## Extend SEE-based quiet move pruning (predictedDepth < 4*DR → < 5*DR)
+**Date:** 2026-04-11 (session 4)
+**LOS:** 14.7% at 221 games (threshold: 50% at 200 games)
+
+Extended the SEE-based quiet move pruning condition from `predictedDepth < 4 * DEPTH_RESOLUTION`
+to `< 5 * DEPTH_RESOLUTION`, pruning negative-SEE quiet moves one ply deeper. Hypothesis: with
+NNUE's accurate static eval, quiet moves losing material at depth 5 rarely deserve a full search.
+
+Result: clearly hurt. Promising start at 100 games (LOS=64.5%), then reversed sharply. Pruning
+negative-SEE quiet moves at depth 5 loses important moves that look bad statically but become
+relevant at depth 5+ (e.g. quiet moves enabling tactical sequences the SEE misses).
+
+```c
+// Changed in optimistic futility cuts:
+if (predictedDepth < 5 * DEPTH_RESOLUTION && seeMove(position, currentMove) < 0) {
+```
+
+---
+
+## Update followup moves unconditionally (remove isHashMove restriction)
+**Date:** 2026-04-12 (session 4)
+**LOS:** 63.4% at 600 games (threshold: 66.7%)
+
+Removed the `variation->plyInfo[ply - 1].isHashMove` condition from followup move updates,
+so the followup move table is populated on every best quiet move at ply >= 2, not just when
+the previous move was the hash move. Hypothesis: response patterns are valid regardless of
+whether the previous move was the hash move; more updates → richer, more accurate table.
+
+Result: insufficient — LOS peaked at 96.8% at 200 games but regressed to 63.4% at 600 games.
+The isHashMove restriction appears to serve as a quality filter: followup patterns are most
+reliable when the previous move was strong (hash move), not arbitrary moves.
+
+```c
+// Changed from:
+if (ply >= 2 && variation->plyInfo[ply - 1].isHashMove) {
+// To:
+if (ply >= 2) {
+    updateFollowupMoves(variation, ply, killerMove);
+```

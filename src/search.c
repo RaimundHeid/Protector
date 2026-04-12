@@ -840,10 +840,9 @@ checkAvailableMoves:
         const int moveIndex = min(63, numMovesPlayed);
         const int depthIndex = min(63, rdBasic);
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
-        const int reduction =
-            (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 2 * DEPTH_RESOLUTION : 0)
-                      + (improving ? 0 : DEPTH_RESOLUTION));
+        const int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
+                                      : quietMoveReduction[depthIndex][moveIndex] +
+                                            (cutNode ? 2 * DEPTH_RESOLUTION : 0) + (improving ? 0 : DEPTH_RESOLUTION));
         bool check;
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
@@ -1073,7 +1072,7 @@ checkAvailableMoves:
         registerKillerMove(&variation->plyInfo[ply], killerMove);
         updateCounterMoves(variation, ply, killerMove);
 
-        if (ply >= 2 && variation->plyInfo[ply - 1].isHashMove) {
+        if (ply >= 2) {
             updateFollowupMoves(variation, ply, killerMove);
         }
     }
