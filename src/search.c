@@ -917,7 +917,7 @@ checkAvailableMoves:
         /* ------------------------------------------------------ */
         variation->plyInfo[ply].currentMoveIsCheck = check = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        if (pvNode && (check || (capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
+        if (pvNode && (check || (numMovesPlayed == 0 && capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
                                  numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)))) {
             extension = DEPTH_RESOLUTION;
         } else if (!pvNode && check && restDepth <= 3 * DEPTH_RESOLUTION) {
