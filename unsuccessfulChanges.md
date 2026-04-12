@@ -257,3 +257,22 @@ useful pruning despite its shallowness; removing it cost more than it saved.
 if (pvNode == FALSE && cutsAreAllowed && restDepth >= 6 * DEPTH_RESOLUTION && ...)
 ```
 
+---
+
+## Extend static pruning depth from 4*DR to 5*DR
+**Date:** 2026-04-12
+**LLR:** -0.708 at 548 games, FAIL (bounds: Pass >= 1.0, Fail <= -0.5; Elo window 2.0–10.0)
+
+Extended the static pruning (reverse futility) condition from `restDepth <= 4 * DEPTH_RESOLUTION`
+to `restDepth <= 5 * DEPTH_RESOLUTION`. Hypothesis: at depth 5, with no hash move, positions
+where static value exceeds beta by ~240 cp are very safely pruned without searching.
+
+Result: slightly negative (LLR = -0.708 at 548 games). The static pruning at depth 5 (restDepth=10)
+prunes some positions that would have benefited from a full search, likely missing some critical
+continuations at that depth.
+
+```c
+// Changed:
+if (tryRazoring && restDepth <= 5 * DEPTH_RESOLUTION && numPieces >= 2 && ...)
+```
+
