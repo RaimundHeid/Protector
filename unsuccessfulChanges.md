@@ -276,3 +276,23 @@ continuations at that depth.
 if (tryRazoring && restDepth <= 5 * DEPTH_RESOLUTION && numPieces >= 2 && ...)
 ```
 
+
+---
+
+## Tighten singular extension window (149→195 coefficient)
+**Date:** 2026-04-12
+**LLR:** -0.217 at 880 games (neutral, did not reach FAIL bound before match was stopped)
+
+Increased the singular extension window coefficient from 149 to 195 (≈31% larger margin),
+requiring alternative moves to fail by more before triggering a singular extension.
+Hypothesis: the current threshold is too loose (9.3 cp at 8 plies), leading to too many
+singular extensions. Raising to 12.2 cp per 8 plies would be closer to modern engine practice.
+
+Result: neutral. Score hovered at 0.505 throughout; LLR slowly drifted negative but never
+convincingly. The current 149 coefficient appears well-calibrated for Protector's search.
+
+```c
+// Changed:
+const int limitValue = hashEntryValue - (195 * restDepth) / 256;  // was 149
+```
+
