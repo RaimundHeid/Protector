@@ -949,8 +949,8 @@ checkAvailableMoves:
 
         /* History pruning */
         /* --------------- */
-        if (inCheck == FALSE && extension == 0 && restDepth >= 3 * DEPTH_RESOLUTION && quietMove &&
-            stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
+        if (inCheck == FALSE && extension == 0 && restDepth >= 3 * DEPTH_RESOLUTION &&
+            (quietMove || stage == MGS_BAD_CAPTURES) && stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE) {
             reduce = TRUE;
