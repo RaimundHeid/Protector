@@ -62,19 +62,9 @@ static const int sfBalanceValue[16] = {
 
 /* Classic piece values for win_rate_scaling: pawns=1, N/B=3, R=5, Q=9, kings=0 */
 static const int wrMaterialValue[16] = {
-    [NO_PIECE] = 0,
-    [WHITE_KING] = 0,
-    [BLACK_KING] = 0,
-    [WHITE_QUEEN] = 9,
-    [BLACK_QUEEN] = 9,
-    [WHITE_ROOK] = 5,
-    [BLACK_ROOK] = 5,
-    [WHITE_BISHOP] = 3,
-    [BLACK_BISHOP] = 3,
-    [WHITE_KNIGHT] = 3,
-    [BLACK_KNIGHT] = 3,
-    [WHITE_PAWN] = 1,
-    [BLACK_PAWN] = 1,
+    [NO_PIECE] = 0,     [WHITE_KING] = 0, [BLACK_KING] = 0,   [WHITE_QUEEN] = 9,  [BLACK_QUEEN] = 9,
+    [WHITE_ROOK] = 5,   [BLACK_ROOK] = 5, [WHITE_BISHOP] = 3, [BLACK_BISHOP] = 3, [WHITE_KNIGHT] = 3,
+    [BLACK_KNIGHT] = 3, [WHITE_PAWN] = 1, [BLACK_PAWN] = 1,
 };
 
 /* Piece contribution to materialCount: always positive, pawns use blend weight */
@@ -658,16 +648,15 @@ void initializePosition(Position *position)
                               SFVAL_QUEEN * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
                                              getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
 
-    position->winRateMaterial =
-        (position->numberOfPawns[WHITE] + position->numberOfPawns[BLACK]) +
-        3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
-             getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
-        3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
-             getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
-        5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
-             getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
-        9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
-             getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+    position->winRateMaterial = (position->numberOfPawns[WHITE] + position->numberOfPawns[BLACK]) +
+                                3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+                                     getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+                                3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+                                     getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+                                5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
+                                     getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+                                9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
+                                     getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
 
     position->hashKey = calculateHashKey(position);
 }
@@ -1305,16 +1294,15 @@ int checkConsistency(const Position *position)
                                                 getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
                                   SFVAL_QUEEN * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
                                                  getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
-        const int expectedWrMat =
-            (numPawns[WHITE] + numPawns[BLACK]) +
-            3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
-                 getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
-            3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
-                 getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
-            5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
-                 getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
-            9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
-                 getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
+        const int expectedWrMat = (numPawns[WHITE] + numPawns[BLACK]) +
+                                  3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_KNIGHT]) +
+                                       getNumberOfSetSquares(position->piecesOfType[BLACK_KNIGHT])) +
+                                  3 * (getNumberOfSetSquares(position->piecesOfType[WHITE_BISHOP]) +
+                                       getNumberOfSetSquares(position->piecesOfType[BLACK_BISHOP])) +
+                                  5 * (getNumberOfSetSquares(position->piecesOfType[WHITE_ROOK]) +
+                                       getNumberOfSetSquares(position->piecesOfType[BLACK_ROOK])) +
+                                  9 * (getNumberOfSetSquares(position->piecesOfType[WHITE_QUEEN]) +
+                                       getNumberOfSetSquares(position->piecesOfType[BLACK_QUEEN]));
         assert(position->materialBalance == expectedBalance);
         assert(position->materialCount == expectedCount);
         assert(position->winRateMaterial == expectedWrMat);

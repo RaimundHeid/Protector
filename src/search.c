@@ -840,10 +840,10 @@ checkAvailableMoves:
         const int moveIndex = min(63, numMovesPlayed);
         const int depthIndex = min(63, rdBasic);
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
-        const int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                                      : quietMoveReduction[depthIndex][moveIndex] +
-                                            (cutNode ? 3 * DEPTH_RESOLUTION : 0) + (improving ? 0 : 3 * DEPTH_RESOLUTION / 2));
-        bool check;
+        const int reduction =
+            (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
+                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 3 * DEPTH_RESOLUTION : 0) +
+                          (improving ? 0 : 3 * DEPTH_RESOLUTION / 2));
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
         const Piece capturedPiece = position->piece[toSquare];
@@ -915,7 +915,8 @@ checkAvailableMoves:
         /* Check the conditions for search extensions and finally */
         /* calculate the rest depth for the next ply.             */
         /* ------------------------------------------------------ */
-        variation->plyInfo[ply].currentMoveIsCheck = check = activeKingIsSafe(&variation->singlePosition) == FALSE;
+        const bool check = variation->plyInfo[ply].currentMoveIsCheck =
+            activeKingIsSafe(&variation->singlePosition) == FALSE;
 
         if (pvNode && (check || (numMovesPlayed == 0 && capturedPiece != NO_PIECE && pieceType(capturedPiece) != PAWN &&
                                  numberOfNonPawnPieces(position, WHITE) == numberOfNonPawnPieces(position, BLACK)))) {
