@@ -889,11 +889,11 @@
 [White "WAC.074"]
 [Black "?"]
 [Result "*"]
+[FEN "5r1k/pp1p2pp/2p5/2b1P3/4Pq2/1PB1p3/P3Q1PP/3N2K1 b - - 0 1"]
 [SetUp "1"]
-[FEN "5r1k/pp4pp/2p5/2b1P3/4Pq2/1PB1p3/P3Q1PP/3N2K1 b - - 0 1"]
 [PlyCount "1"]
 
-1... Qf1+ *
+1...Qf1+ *
 
 [Event "wac"]
 [Site "?"]

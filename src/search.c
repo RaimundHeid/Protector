@@ -840,11 +840,16 @@ checkAvailableMoves:
         const int moveIndex = min(63, numMovesPlayed);
         const int depthIndex = min(63, rdBasic);
         const int gain = variation->positionalGain[historyIndex(currentMove, position)];
-        const int reduction =
-            (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                    : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 3 * DEPTH_RESOLUTION : 0) +
-                          (improving ? 0 : 3 * DEPTH_RESOLUTION / 2));
+        int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
+                                : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 2 * DEPTH_RESOLUTION : 0) +
+                                      (improving ? 0 : 3 * DEPTH_RESOLUTION / 2));
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
+
+        if (quietMove) {
+            reduction +=
+                (HISTORY_MAX - variation->historyValue[variation->plyInfo[ply].indexCurrentMove]) / HISTORY_MAX;
+        }
+
         const Square toSquare = getToSquare(currentMove);
         const Piece capturedPiece = position->piece[toSquare];
         bool reduce = FALSE, nodeWasBlocked = FALSE;
