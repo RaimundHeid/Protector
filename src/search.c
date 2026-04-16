@@ -1063,7 +1063,7 @@ checkAvailableMoves:
             assert(variation->historyValue[historyIdx] <= HISTORY_MAX);
         }
 
-        variation->historyValue[index] += ((HISTORY_MAX - variation->historyValue[index]) * restDepth) / 256;
+        variation->historyValue[index] += ((HISTORY_MAX - variation->historyValue[index]) * restDepth * 72) / 16384;
         assert(variation->historyValue[index] <= HISTORY_MAX);
 
         setMoveValue(&killerMove, movingPiece);

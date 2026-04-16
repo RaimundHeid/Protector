@@ -227,11 +227,6 @@ void prepareSearch(Variation *variation);
 void resetHistoryValues(Variation *variation);
 
 /**
- * Reset history hit values.
- */
-void resetHistoryHitValues(Variation *variation);
-
-/**
  * Reset gain values.
  */
 void resetGainValues(Variation *variation);
@@ -240,11 +235,6 @@ void resetGainValues(Variation *variation);
  * Shrink all history values.
  */
 void shrinkHistoryValues(Variation *variation);
-
-/**
- * Shrink all history hit values.
- */
-void shrinkHistoryHitValues(Variation *variation);
 
 /**
  * Initialize a variation with the position specified by 'fen'.
