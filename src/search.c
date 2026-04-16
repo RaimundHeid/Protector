@@ -1054,11 +1054,8 @@ checkAvailableMoves:
         Move killerMove = *bestMove;
         const Piece movingPiece = position->piece[getFromSquare(killerMove)];
         const int index = historyIndex(*bestMove, position);
-        const UINT16 bestMoveValue = (UINT16)(variation->historyValue[index] +
-                                              ((HISTORY_MAX - variation->historyValue[index]) * restDepth) / 256);
-        int i;
 
-        for (i = 0; i < quietMoveCount; i++) {
+        for (int i = 0; i < quietMoveCount; i++) {
             const int historyIdx = quietMoveIndex[i];
 
             variation->historyValue[historyIdx] =
@@ -1066,7 +1063,7 @@ checkAvailableMoves:
             assert(variation->historyValue[historyIdx] <= HISTORY_MAX);
         }
 
-        variation->historyValue[index] = bestMoveValue;
+        variation->historyValue[index] += ((HISTORY_MAX - variation->historyValue[index]) * restDepth) / 256;
         assert(variation->historyValue[index] <= HISTORY_MAX);
 
         setMoveValue(&killerMove, movingPiece);

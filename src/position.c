@@ -705,7 +705,7 @@ void resetHistoryValues(Variation *variation)
     int i;
 
     for (i = 0; i < HISTORY_SIZE; i++) {
-        variation->historyValue[i] = 0;
+        variation->historyValue[i] = HISTORY_MAX / 2;
         variation->counterMove1[i] = variation->counterMove2[i] = NO_MOVE;
         variation->followupMove1[i] = variation->followupMove2[i] = NO_MOVE;
     }
