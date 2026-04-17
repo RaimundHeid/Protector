@@ -1059,7 +1059,8 @@ checkAvailableMoves:
             const int historyIdx = quietMoveIndex[i];
 
             variation->historyValue[historyIdx] =
-                (UINT16)(variation->historyValue[historyIdx] - (variation->historyValue[historyIdx] * restDepth) / 128);
+                (UINT16)(variation->historyValue[historyIdx] -
+                         (variation->historyValue[historyIdx] * restDepth * 59) / 8192);
             assert(variation->historyValue[historyIdx] <= HISTORY_MAX);
         }
 
