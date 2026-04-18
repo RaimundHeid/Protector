@@ -494,6 +494,11 @@ static bool isSpecialMove(Position *position, Move move)
     return simpleMoveIsCheck(position, move) || isPassedPawnMove(getFromSquare(move), getToSquare(move), position);
 }
 
+static bool scoreIsDecisive(int score)
+{
+    return abs(score) > -VALUE_ALMOST_MATED;
+}
+
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, const bool pvNode,
                       const bool cutNode, Move *bestMove, Move excludeMove, const bool tryEarlyPrunings)
 {
@@ -513,7 +518,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     bool singularExtensionNode = FALSE;
     int hashEntryValue = 0;
     const UINT64 hashKey = position->hashKey;
-    const bool cutsAreAllowed = (bool)(abs(beta) < -(VALUE_ALMOST_MATED));
+    const bool cutsAreAllowed = scoreIsDecisive(beta) == FALSE;
     bool tryRazoring;
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
@@ -797,7 +802,7 @@ checkAvailableMoves:
         const int flag = getHashentryFlag(bestTableHit);
 
         if (restDepth >= singleMoveExtensionDepth && importance >= restDepth - 3 * DEPTH_RESOLUTION &&
-            flag != HASHVALUE_UPPER_LIMIT) {
+            flag == HASHVALUE_LOWER_LIMIT) {
             singularExtensionNode = TRUE;
             hashEntryValue = calcEffectiveValue(getHashentryValue(bestTableHit), ply);
         }
@@ -938,12 +943,16 @@ checkAvailableMoves:
                 unmakeLastMove(variation);
                 excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, restDepth / 2, FALSE, cutNode,
                                           &bestReply, hashmove, FALSE);
-                makeMoveFast(variation, currentMove);
                 variation->plyInfo[ply] = pi;
 
                 if (excludeValue < limitValue) {
                     extension = DEPTH_RESOLUTION;
+                } else if (excludeValue >= beta && scoreIsDecisive(excludeValue) == FALSE) {
+                    best = excludeValue;
+                    goto storeResult;
                 }
+
+                makeMoveFast(variation, currentMove);
             }
         }
 
