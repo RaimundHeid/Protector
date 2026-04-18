@@ -847,9 +847,10 @@ checkAvailableMoves:
         const int depthIndex = min(63, rdBasic);
         const int historyIndexMove = historyIndex(currentMove, position);
         const int gain = variation->positionalGain[historyIndexMove];
-        int reduction = (pvNode ? quietPvMoveReduction[depthIndex][moveIndex]
-                                : quietMoveReduction[depthIndex][moveIndex] + (cutNode ? 3 * DEPTH_RESOLUTION : 0) +
-                                      (improving ? 0 : 3 * DEPTH_RESOLUTION / 2));
+        int reduction =
+            (pvNode ? quietPvMoveReduction[depthIndex][moveIndex] : quietMoveReduction[depthIndex][moveIndex]) +
+            (cutNode ? 3 * DEPTH_RESOLUTION : 0) + (improving ? 0 : 3 * DEPTH_RESOLUTION / 2);
+        ;
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         const Square toSquare = getToSquare(currentMove);
         const Piece capturedPiece = position->piece[toSquare];
