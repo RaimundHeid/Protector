@@ -60,3 +60,4 @@ dkms.conf
 protector.log
 .DS_Store
 .aider*
+.vscode/
