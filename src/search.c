@@ -609,6 +609,25 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
+    /* Null move pruning */
+    /* ----------------- */
+    if (inCheck == FALSE && restDepth >= 2 * DEPTH_RESOLUTION &&
+        numberOfNonPawnPieces(position, position->activeColor) >= 2 && getStaticValue(variation) >= beta) {
+        const int newDepth = restDepth - 5 * DEPTH_RESOLUTION;
+
+        makeMoveFast(variation, NULLMOVE);
+        variation->plyInfo[ply].currentMoveIsCheck = FALSE;
+        const int nullValue = -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply);
+        unmakeLastMove(variation);
+
+        if (nullValue >= beta) {
+            if (restDepth < 6 * DEPTH_RESOLUTION ||
+                searchBest(variation, alpha, beta, ply, newDepth, &bestReply) >= beta) {
+                return nullValue;
+            }
+        }
+    }
+
     /* Internal iterative deepening */
     /* ----------------------------- */
     if (hashmove == NO_MOVE && restDepth >= 3 * DEPTH_RESOLUTION) {
