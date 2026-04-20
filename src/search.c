@@ -613,8 +613,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Null move pruning */
     /* ----------------- */
-    if (inCheck == FALSE && restDepth >= 2 &&
-        numberOfNonPawnPieces(position, position->activeColor) >= 2 && getStaticValue(variation) >= beta) {
+    if (inCheck == FALSE && restDepth >= 2 && numberOfNonPawnPieces(position, position->activeColor) >= 2 &&
+        beta > VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
         const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
@@ -623,8 +623,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         unmakeLastMove(variation);
 
         if (nullValue >= beta) {
-            if (restDepth < 6 ||
-                searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE) >= beta) {
+            if (restDepth < 6 || searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE) >= beta) {
                 return nullValue;
             }
         }
@@ -671,6 +670,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
+        int variableDepth = 0;
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
@@ -705,7 +705,11 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        const int newDepth = restDepth - 1;
+        if (variation->plyInfo[ply].currentMoveIsCheck) {
+            variableDepth += 1024;
+        }
+
+        const int newDepth = restDepth - 1 + variableDepth / 1024;
 
         /* Alternative NegaScout: search with null window, re-search if needed */
         value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply, pvNode && numMovesPlayed == 0);
