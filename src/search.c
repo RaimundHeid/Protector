@@ -611,6 +611,13 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
+    /* Razoring */
+    /* -------- */
+    if (pvNode == FALSE && hashmove == NO_MOVE &&
+        getStaticValue(variation) < alpha - 132 - 32 * restDepth * restDepth) {
+        return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
+    }
+
     /* Null move pruning */
     /* ----------------- */
     if (inCheck == FALSE && restDepth >= 2 && numberOfNonPawnPieces(position, position->activeColor) >= 2 &&
