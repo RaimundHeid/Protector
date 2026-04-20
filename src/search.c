@@ -40,7 +40,8 @@ const int HASH_DEPTH_OFFSET = 3;
 const UINT64 GUI_NODE_COUNT_MIN = 250000;
 
 /* Prototypes */
-static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove);
+static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
+                      const bool pvNode);
 
 static bool moveIsQuietInPosition(const Move move, const Position *position)
 {
@@ -77,7 +78,7 @@ static void checkTerminationConditions(Variation *variation)
 
 bool checkNodeExclusion(int restDepth)
 {
-    return restDepth >= 6 * DEPTH_RESOLUTION && getNumberOfThreads() > 1;
+    return restDepth >= 6 && getNumberOfThreads() > 1;
 }
 
 int getEvalValue(Variation *variation)
@@ -244,7 +245,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     assert(beta >= VALUE_MATED && beta <= -VALUE_MATED);
     assert(alpha < beta);
     assert(ply > 0 && ply < MAX_DEPTH);
-    assert(restDepth < DEPTH_RESOLUTION);
+    assert(restDepth < 1);
     assert(passiveKingIsSafe(position));
     assert(inCheck == (activeKingIsSafe(position) == FALSE));
 
@@ -352,7 +353,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
                            hashmove, restDepth, inCheck);
     initializePlyInfo(variation);
 
-    const int newDepth = (inCheck ? restDepth : restDepth - DEPTH_RESOLUTION);
+    const int newDepth = (inCheck ? restDepth : restDepth - 1);
     const int futilityBase = currentValue + 199;
     const bool skipFutility = (bool)(pvNode || inCheck || numberOfNonPawnPieces(position, position->activeColor) <= 1);
 
@@ -450,7 +451,8 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     return best;
 }
 
-static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove)
+static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
+                      const bool pvNode)
 {
     Position *position = &variation->singlePosition;
     int best = VALUE_MATED;
@@ -506,8 +508,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    if (restDepth < DEPTH_RESOLUTION) {
-        int qsValue = searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, FALSE);
+    if (restDepth < 1) {
+        int qsValue = searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
 
         if (inCheck == FALSE && variation->plyInfo[ply].staticValueAvailable) {
             updateGains(variation, ply);
@@ -529,7 +531,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int numPieces = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
         int wdlValue = TABLEBASE_ERROR;
 
-        if (restDepth >= 1 * DEPTH_RESOLUTION && numPieces <= 6) {
+        if (restDepth >= 1 && numPieces <= 6) {
             wdlValue = probeTablebaseWDL(position);
         }
 
@@ -611,18 +613,18 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Null move pruning */
     /* ----------------- */
-    if (inCheck == FALSE && restDepth >= 2 * DEPTH_RESOLUTION &&
+    if (inCheck == FALSE && restDepth >= 2 &&
         numberOfNonPawnPieces(position, position->activeColor) >= 2 && getStaticValue(variation) >= beta) {
-        const int newDepth = restDepth - 5 * DEPTH_RESOLUTION;
+        const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
-        const int nullValue = -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply);
+        const int nullValue = -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply, FALSE);
         unmakeLastMove(variation);
 
         if (nullValue >= beta) {
-            if (restDepth < 6 * DEPTH_RESOLUTION ||
-                searchBest(variation, alpha, beta, ply, newDepth, &bestReply) >= beta) {
+            if (restDepth < 6 ||
+                searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE) >= beta) {
                 return nullValue;
             }
         }
@@ -630,8 +632,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Internal iterative deepening */
     /* ----------------------------- */
-    if (hashmove == NO_MOVE && restDepth >= 3 * DEPTH_RESOLUTION) {
-        searchBest(variation, alpha, beta, ply, restDepth - 2 * DEPTH_RESOLUTION, &bestReply);
+    if (hashmove == NO_MOVE && restDepth >= 3) {
+        searchBest(variation, alpha, beta, ply, restDepth - 2, &bestReply, pvNode);
 
         if (moveIsPseudoLegal(position, bestReply)) {
             hashmove = bestReply;
@@ -703,14 +705,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        const int newDepth = restDepth - DEPTH_RESOLUTION;
+        const int newDepth = restDepth - 1;
 
         /* Alternative NegaScout: search with null window, re-search if needed */
-        value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply);
+        value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply, pvNode && numMovesPlayed == 0);
 
         if (value > alpha && value < beta && numMovesPlayed > 0) {
             /* Score fell inside the window: re-search with full window */
-            value = -searchBest(variation, -beta, -alpha, ply + 1, newDepth, &bestReply);
+            value = -searchBest(variation, -beta, -alpha, ply + 1, newDepth, &bestReply, pvNode);
         }
 
         assert(value >= VALUE_MATED && value <= -VALUE_MATED);
@@ -878,7 +880,7 @@ static void registerBestMove(Variation *variation, Move *move, const int value)
 
 static int getBaseMoveValue(Variation *variation, const Move move, const int alpha, const int beta)
 {
-    int depth = DEPTH_RESOLUTION * variation->iteration;
+    int depth = variation->iteration;
     int value;
     Move bestReply;
 
@@ -898,12 +900,12 @@ static int getBaseMoveValue(Variation *variation, const Move move, const int alp
 
     if (activeKingIsSafe(&variation->singlePosition) == FALSE) {
         variation->plyInfo[0].currentMoveIsCheck = TRUE;
-        depth += DEPTH_RESOLUTION;
+        depth++;
     } else {
         variation->plyInfo[0].currentMoveIsCheck = FALSE;
     }
 
-    value = -searchBest(variation, -beta, -alpha, 1, depth - DEPTH_RESOLUTION, &bestReply);
+    value = -searchBest(variation, -beta, -alpha, 1, depth - 1, &bestReply, TRUE);
 
     unmakeLastMove(variation);
 
@@ -1053,7 +1055,7 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
         /* ------------------------------------------- */
         if (variation->searchStatus == SEARCH_STATUS_RUNNING) {
             UINT8 hashentryFlag;
-            const int depth = DEPTH_RESOLUTION * variation->iteration;
+            const int depth = variation->iteration;
             const Move bestMove = variation->bestBaseMove;
 
             if (best > alpha) {
