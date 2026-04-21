@@ -451,6 +451,11 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     return best;
 }
 
+static bool isImproving(Variation *variation)
+{
+    return variation->ply >= 2 && getStaticValue(variation) > variation->plyInfo[variation->ply - 2].staticValue;
+}
+
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
                       const bool pvNode)
 {
@@ -458,6 +463,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     int best = VALUE_MATED;
     const int VALUE_MATE_HERE = -VALUE_MATED - ply + 1;
     const int VALUE_MATED_HERE = VALUE_MATED + ply;
+    const int numPieces = numberOfNonPawnPieces(position, position->activeColor);
     Movelist movelist;
     UINT8 hashentryFlag;
     int i, historyLimit, numMovesPlayed = 0;
@@ -611,17 +617,28 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
-    /* Razoring */
-    /* -------- */
-    if (pvNode == FALSE && hashmove == NO_MOVE &&
-        getStaticValue(variation) < alpha - 132 - 32 * restDepth * restDepth) {
-        return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
+    if (pvNode == FALSE && hashmove == NO_MOVE) {
+        /* Razoring */
+        /* -------- */
+        if (getStaticValue(variation) < alpha - 132 - 32 * restDepth * restDepth) {
+            return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
+        }
+
+        /* Static pruning */
+        /* -------------- */
+        if (restDepth <= 4) {
+            const int margin = 22 + 44 * restDepth - (isImproving(variation) ? 24 : 0);
+
+            if (getStaticValue(variation) - margin >= beta) {
+                return beta;
+            }
+        }
     }
 
     /* Null move pruning */
     /* ----------------- */
-    if (inCheck == FALSE && restDepth >= 2 && numberOfNonPawnPieces(position, position->activeColor) >= 2 &&
-        beta > VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
+    if (inCheck == FALSE && restDepth >= 2 && numPieces >= 2 && beta > VALUE_ALMOST_MATED &&
+        getStaticValue(variation) >= beta) {
         const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
