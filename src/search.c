@@ -41,7 +41,7 @@ const UINT64 GUI_NODE_COUNT_MIN = 250000;
 
 /* Prototypes */
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
-                      const bool pvNode);
+                      const bool pvNode, bool cutNode);
 
 static bool moveIsQuietInPosition(const Move move, const Position *position)
 {
@@ -457,7 +457,7 @@ static bool isImproving(Variation *variation)
 }
 
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
-                      const bool pvNode)
+                      const bool pvNode, bool cutNode)
 {
     Position *position = &variation->singlePosition;
     int best = VALUE_MATED;
@@ -643,11 +643,11 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
-        const int nullValue = -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply, FALSE);
+        const int nullValue = -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply, FALSE, !cutNode);
         unmakeLastMove(variation);
 
         if (nullValue >= beta) {
-            if (restDepth < 6 || searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE) >= beta) {
+            if (restDepth < 6 || searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE, FALSE) >= beta) {
                 return nullValue;
             }
         }
@@ -656,7 +656,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Internal iterative deepening */
     /* ----------------------------- */
     if (hashmove == NO_MOVE && restDepth >= 3) {
-        searchBest(variation, alpha, beta, ply, restDepth - 2, &bestReply, pvNode);
+        searchBest(variation, alpha, beta, ply, restDepth - 2, &bestReply, pvNode, TRUE);
 
         if (moveIsPseudoLegal(position, bestReply)) {
             hashmove = bestReply;
@@ -733,14 +733,19 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             variableDepth += 1024;
         }
 
+        if (cutNode && quietMove) {
+            variableDepth -= 2048;
+        }
+
         const int newDepth = restDepth - 1 + variableDepth / 1024;
 
         /* Alternative NegaScout: search with null window, re-search if needed */
-        value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply, pvNode && numMovesPlayed == 0);
+        const bool pvSearch = pvNode && numMovesPlayed == 0;
+        value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply, pvSearch, pvSearch == FALSE);
 
         if (value > alpha && value < beta && numMovesPlayed > 0) {
             /* Score fell inside the window: re-search with full window */
-            value = -searchBest(variation, -beta, -alpha, ply + 1, newDepth, &bestReply, pvNode);
+            value = -searchBest(variation, -beta, -alpha, ply + 1, newDepth, &bestReply, pvNode, FALSE);
         }
 
         assert(value >= VALUE_MATED && value <= -VALUE_MATED);
@@ -933,7 +938,7 @@ static int getBaseMoveValue(Variation *variation, const Move move, const int alp
         variation->plyInfo[0].currentMoveIsCheck = FALSE;
     }
 
-    value = -searchBest(variation, -beta, -alpha, 1, depth - 1, &bestReply, TRUE);
+    value = -searchBest(variation, -beta, -alpha, 1, depth - 1, &bestReply, TRUE, FALSE);
 
     unmakeLastMove(variation);
 
