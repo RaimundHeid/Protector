@@ -28,7 +28,6 @@
  */
 
 #define MAX_THREADS 32
-#define DEPTH_RESOLUTION 2
 
 #define _64_ 64
 #define FALSE 0
