@@ -767,11 +767,11 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const bool check = variation->plyInfo[ply].currentMoveIsCheck =
             activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        if (movesAreEqual(currentMove, hashmove) == FALSE) {
-            if (check) {
-                variableDepth += 1024;
-            }
+        if (pvNode && check) {
+            variableDepth += 1024;
+        }
 
+        if (movesAreEqual(currentMove, hashmove) == FALSE) {
             if (cutNode && quietMove) {
                 variableDepth -= 2048;
             }
