@@ -772,8 +772,12 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
 
         if (movesAreEqual(currentMove, hashmove) == FALSE) {
-            if (cutNode && quietMove) {
+            if (cutNode) {
                 variableDepth -= 2048;
+            }
+
+            if (check == FALSE && stage == MGS_REST) {
+                variableDepth -= 1024;
             }
         }
 
