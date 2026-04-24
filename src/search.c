@@ -789,8 +789,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                             NO_MOVE);
 
         if (value > alpha && value < beta && numMovesPlayed > 0) {
-            /* Score fell inside the window: re-search with full window */
-            value = -searchBest(variation, -beta, -alpha, ply + 1, newDepth, &bestReply, pvNode, FALSE, NO_MOVE);
+            const int researchDepth = max(newDepth, restDepth - 1);
+            value = -searchBest(variation, -beta, -alpha, ply + 1, researchDepth, &bestReply, pvNode, FALSE, NO_MOVE);
         }
 
         assert(value >= VALUE_MATED && value <= -VALUE_MATED);
