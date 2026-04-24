@@ -781,16 +781,21 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             }
         }
 
+        const int pvDepth = restDepth - 1 + max(0, variableDepth / 1024);
         const int newDepth = restDepth - 1 + variableDepth / 1024;
-
-        /* Alternative NegaScout: search with null window, re-search if needed */
         const bool pvSearch = pvNode && numMovesPlayed == 0;
-        value = -searchBest(variation, -bestBeta, -alpha, ply + 1, newDepth, &bestReply, pvSearch, pvSearch == FALSE,
-                            NO_MOVE);
 
-        if (value > alpha && value < beta && numMovesPlayed > 0) {
-            const int researchDepth = max(newDepth, restDepth - 1);
-            value = -searchBest(variation, -beta, -alpha, ply + 1, researchDepth, &bestReply, pvNode, FALSE, NO_MOVE);
+        value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1, pvSearch ? pvDepth : newDepth,
+                            &bestReply, pvSearch, pvSearch == FALSE, NO_MOVE);
+
+        if (pvSearch == FALSE && value > alpha) {
+            const int researchDepth = max(newDepth, pvDepth);
+            value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, researchDepth, &bestReply, FALSE, !cutNode,
+                                NO_MOVE);
+
+            if (pvNode && value > alpha && value < beta) {
+                value = -searchBest(variation, -beta, -alpha, ply + 1, researchDepth, &bestReply, TRUE, FALSE, NO_MOVE);
+            }
         }
 
         assert(value >= VALUE_MATED && value <= -VALUE_MATED);
