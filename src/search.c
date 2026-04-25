@@ -474,7 +474,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const UINT64 hashKey = position->hashKey;
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
-    int bestBeta = beta;
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].quietMove = FALSE;
@@ -705,7 +704,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
-        int variableDepth = 0;
+        int reductions = 0, extensions = 0;
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
@@ -739,7 +738,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 variation->plyInfo[ply] = pi;
 
                 if (excludeValue < limitValue) {
-                    variableDepth += 1024;
+                    extensions += 1024;
                 }
             }
         }
@@ -767,34 +766,34 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const bool check = variation->plyInfo[ply].currentMoveIsCheck =
             activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        if (pvNode && check) {
-            variableDepth += 1024;
+        if (pvNode && check && extensions == 0) {
+            extensions += 1024;
         }
 
         if (movesAreEqual(currentMove, hashmove) == FALSE) {
             if (cutNode) {
-                variableDepth -= 2048;
+                reductions += 2048;
             }
 
             if (check == FALSE && stage == MGS_REST) {
-                variableDepth -= 1024;
+                reductions += 1024;
             }
         }
 
-        const int pvDepth = restDepth - 1 + max(0, variableDepth / 1024);
-        const int newDepth = restDepth - 1 + variableDepth / 1024;
+        const int pvDepth = restDepth - 1 + extensions / 1024;
+        const int reducedDepth = restDepth - 1 - reductions / 1024;
         const bool pvSearch = pvNode && numMovesPlayed == 0;
 
-        value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1, pvSearch ? pvDepth : newDepth,
+        value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1, pvSearch ? pvDepth : reducedDepth,
                             &bestReply, pvSearch, pvSearch == FALSE, NO_MOVE);
 
         if (pvSearch == FALSE && value > alpha) {
-            const int researchDepth = max(newDepth, pvDepth);
-            value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, researchDepth, &bestReply, FALSE, !cutNode,
-                                NO_MOVE);
+            if (reducedDepth < pvDepth) {
+                value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, !cutNode, NO_MOVE);
+            }
 
             if (pvNode && value > alpha && value < beta) {
-                value = -searchBest(variation, -beta, -alpha, ply + 1, researchDepth, &bestReply, TRUE, FALSE, NO_MOVE);
+                value = -searchBest(variation, -beta, -alpha, ply + 1, pvDepth, &bestReply, TRUE, FALSE, NO_MOVE);
             }
         }
 
@@ -824,8 +823,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 }
             }
         }
-
-        bestBeta = alpha + 1; /* set new null window */
     }
 
     /* No legal move was found. Check if it's mate or stalemate. */
