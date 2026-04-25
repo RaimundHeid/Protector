@@ -780,16 +780,22 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             }
         }
 
+        const bool reduce = inCheck == FALSE && extensions == 0 && restDepth >= 3 && quietMove &&
+                            stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
+                            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
+                            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE;
+
         const int pvDepth = restDepth - 1 + extensions / 1024;
         const int reducedDepth = restDepth - 1 - reductions / 1024;
         const bool pvSearch = pvNode && numMovesPlayed == 0;
 
-        value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1, pvSearch ? pvDepth : reducedDepth,
-                            &bestReply, pvSearch, pvSearch == FALSE, NO_MOVE);
+        value =
+            -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1,
+                        pvSearch || reduce == FALSE ? pvDepth : reducedDepth, &bestReply, pvSearch, !cutNode, NO_MOVE);
 
         if (pvSearch == FALSE && value > alpha) {
-            if (reducedDepth < pvDepth) {
-                value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, !cutNode, NO_MOVE);
+            if (reduce && reducedDepth < pvDepth) {
+                value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, FALSE, NO_MOVE);
             }
 
             if (pvNode && value > alpha && value < beta) {
