@@ -30,6 +30,7 @@
 #include "tablebase.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,8 @@
 extern bool resetSharedHashtable;
 const int HASH_DEPTH_OFFSET = 3;
 const UINT64 GUI_NODE_COUNT_MIN = 250000;
+
+static int log1024[1024];
 
 /* Prototypes */
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
@@ -704,7 +707,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
-        int reductions = 0, extensions = 0;
+        int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
@@ -770,28 +773,19 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             extensions += 1024;
         }
 
-        if (movesAreEqual(currentMove, hashmove) == FALSE) {
-            if (cutNode) {
-                reductions += 2048;
-            }
-
-            if (check == FALSE && stage == MGS_REST) {
-                reductions += 1024;
-            }
-        }
-
-        const bool reduce = inCheck == FALSE && extensions == 0 && restDepth >= 3 && quietMove &&
+        const bool reduce = reductions >= 1024 && extensions == 0 && inCheck == FALSE && restDepth >= 3 && quietMove &&
                             stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
                             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
                             movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE;
 
         const int pvDepth = restDepth - 1 + extensions / 1024;
-        const int reducedDepth = restDepth - 1 - reductions / 1024;
+        const int reducedDepth = max((pvNode ? 1 : 0), restDepth - 1 - reductions / 1024);
         const bool pvSearch = pvNode && numMovesPlayed == 0;
+        const bool cutNodeValue = pvSearch == FALSE && reduce == FALSE && !cutNode;
 
-        value =
-            -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1,
-                        pvSearch || reduce == FALSE ? pvDepth : reducedDepth, &bestReply, pvSearch, !cutNode, NO_MOVE);
+        value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1,
+                            pvSearch || reduce == FALSE ? pvDepth : reducedDepth, &bestReply, pvSearch, cutNodeValue,
+                            NO_MOVE);
 
         if (pvSearch == FALSE && value > alpha) {
             if (reduce && reducedDepth < pvDepth) {
@@ -1332,6 +1326,10 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
 
 int initializeModuleSearch(void)
 {
+    for (int i = 0; i < 1024; i++) {
+        log1024[i] = (int)(1024.0 * log((double)i));
+    }
+
     return 0;
 }
 
