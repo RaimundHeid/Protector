@@ -573,11 +573,11 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Probe the transposition table */
     /* ----------------------------- */
-    {
+    if (excludeMove == NO_MOVE) {
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
-                                restDepth + HASH_DEPTH_OFFSET, FALSE, inCheck == FALSE, &hashmove, excludeMove,
+                                restDepth + HASH_DEPTH_OFFSET, FALSE, inCheck == FALSE, &hashmove, NO_MOVE,
                                 &hashValue)) {
             *bestMove = hashmove;
 
@@ -640,16 +640,20 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Null move pruning */
     /* ----------------- */
     if (pvNode == FALSE && inCheck == FALSE && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 &&
-        beta > VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
+        abs(beta) <= -VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
         const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
-        const int nullValue =
+        int nullValue =
             -searchBest(variation, -beta, -beta + 1, ply + 1, newDepth, &bestReply, FALSE, !cutNode, NO_MOVE);
         unmakeLastMove(variation);
 
         if (nullValue >= beta) {
+            if (nullValue >= VALUE_MATE_HERE) {
+                nullValue = beta;
+            }
+
             if (restDepth < 6 ||
                 searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE, FALSE, NULLMOVE) >= beta) {
                 return nullValue;
