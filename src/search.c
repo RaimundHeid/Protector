@@ -619,7 +619,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
-    if (pvNode == FALSE && hashmove == NO_MOVE) {
+    if (pvNode == FALSE && inCheck == FALSE && hashmove == NO_MOVE) {
         /* Razoring */
         /* -------- */
         if (getStaticValue(variation) < alpha - 132 - 32 * restDepth * restDepth) {
@@ -639,8 +639,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Null move pruning */
     /* ----------------- */
-    if (inCheck == FALSE && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && beta > VALUE_ALMOST_MATED &&
-        getStaticValue(variation) >= beta) {
+    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 &&
+        beta > VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
         const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
@@ -773,15 +773,17 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             extensions += 1024;
         }
 
-        const bool reduce = reductions >= 1024 && extensions == 0 && inCheck == FALSE && restDepth >= 3 && quietMove &&
-                            stage != MGS_GOOD_CAPTURES_AND_PROMOTIONS &&
-                            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove1) == FALSE &&
-                            movesAreEqual(currentMove, variation->plyInfo[ply].killerMove2) == FALSE;
+        if (pvNode) {
+            reductions = 3 * reductions / 4;
+        }
+
+        const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
+                            restDepth >= 3 && stage == MGS_REST;
 
         const int pvDepth = restDepth - 1 + extensions / 1024;
         const int reducedDepth = max((pvNode ? 1 : 0), restDepth - 1 - reductions / 1024);
         const bool pvSearch = pvNode && numMovesPlayed == 0;
-        const bool cutNodeValue = pvSearch == FALSE && reduce == FALSE && !cutNode;
+        const bool cutNodeValue = (pvSearch == FALSE && !cutNode) || reduce;
 
         value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1,
                             pvSearch || reduce == FALSE ? pvDepth : reducedDepth, &bestReply, pvSearch, cutNodeValue,
@@ -789,7 +791,15 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         if (pvSearch == FALSE && value > alpha) {
             if (reduce && reducedDepth < pvDepth) {
-                value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, FALSE, NO_MOVE);
+                if (reductions >= 4096) {
+                    value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, max(1, pvDepth - 2), &bestReply, FALSE,
+                                        FALSE, NO_MOVE);
+                }
+
+                if (value > alpha) {
+                    value =
+                        -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, FALSE, NO_MOVE);
+                }
             }
 
             if (pvNode && value > alpha && value < beta) {
@@ -816,7 +826,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             if (best > alpha) {
                 alpha = best;
                 *bestMove = currentMove;
-                appendMoveToPv(&(variation->plyInfo[ply].pv), &(variation->plyInfo[ply - 1].pv), currentMove);
+
+                if (pvNode) {
+                    appendMoveToPv(&(variation->plyInfo[ply].pv), &(variation->plyInfo[ply - 1].pv), currentMove);
+                }
 
                 if (best >= beta) {
                     break; /* cut-off */
@@ -874,7 +887,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         if (best >= beta) {
             hashentryFlag = HASHVALUE_LOWER_LIMIT;
         } else {
-            hashentryFlag = (*bestMove != NO_MOVE ? HASHVALUE_EXACT : HASHVALUE_UPPER_LIMIT);
+            hashentryFlag = (pvNode && *bestMove != NO_MOVE ? HASHVALUE_EXACT : HASHVALUE_UPPER_LIMIT);
         }
 
         setHashentry(getSharedHashtable(), hashKey, calcHashtableValue(best, ply),
@@ -1326,7 +1339,8 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
 
 int initializeModuleSearch(void)
 {
-    for (int i = 0; i < 1024; i++) {
+    log1024[0] = 0;
+    for (int i = 1; i < 1024; i++) {
         log1024[i] = (int)(1024.0 * log((double)i));
     }
 
