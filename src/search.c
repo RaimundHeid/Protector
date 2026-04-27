@@ -577,7 +577,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
-                                restDepth + HASH_DEPTH_OFFSET, FALSE, inCheck == FALSE, &hashmove, NO_MOVE,
+                                restDepth + HASH_DEPTH_OFFSET, pvNode, inCheck == FALSE, &hashmove, NO_MOVE,
                                 &hashValue)) {
             *bestMove = hashmove;
 
@@ -656,13 +656,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
             if (restDepth < 6 ||
                 searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE, FALSE, NULLMOVE) >= beta) {
-                return nullValue;
+                best = nullValue;
+                goto storeResult;
             }
         }
     }
 
     /* Internal iterative deepening */
-    /* ----------------------------- */
+    /* ---------------------------- */
     if (hashmove == NO_MOVE && restDepth >= 3) {
         const Move excludeHere = (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
         searchBest(variation, alpha, beta, ply, restDepth - 2, &bestReply, pvNode, TRUE, excludeHere);
@@ -680,6 +681,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
+    /* Copy counter moves from ply-1 */
+    /* ----------------------------- */
     if (ply >= 1) {
         const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
 
@@ -690,6 +693,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         variation->plyInfo[ply].killerMove4 = NO_MOVE;
     }
 
+    /* Copy follow-up moves from ply-2 */
+    /* ------------------------------- */
     if (ply >= 2) {
         const int moveIndex = variation->plyInfo[ply - 2].indexCurrentMove;
 
@@ -703,8 +708,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
                          hashmove, inCheck);
 
-    /* Loop through all moves in this node -- Alternative NegaScout */
-    /* ------------------------------------------------------------- */
+    /* Loop through all moves in this node */
+    /* ----------------------------------- */
     while ((currentMove = getNextMove(&movelist)) != NO_MOVE) {
         const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value;
@@ -746,6 +751,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
                 if (excludeValue < limitValue) {
                     extensions += 1024;
+                } else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
+                    best = excludeValue;
+                    goto storeResult;
                 }
             }
         }
@@ -884,6 +892,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             updateFollowupMoves(variation, ply, killerMove);
         }
     }
+
+storeResult:
 
     /* Store the value in the transposition table. */
     /* ------------------------------------------- */
@@ -1343,9 +1353,8 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
 
 int initializeModuleSearch(void)
 {
-    log1024[0] = 0;
-    for (int i = 1; i < 1024; i++) {
-        log1024[i] = (int)(1024.0 * log((double)i));
+    for (int i = 0; i < 1024; i++) {
+        log1024[i] = (int)(1024.0 * log((double)(i + 1.0)));
     }
 
     return 0;
