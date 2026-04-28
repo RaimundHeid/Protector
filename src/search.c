@@ -459,6 +459,22 @@ static bool isImproving(Variation *variation)
     return variation->ply >= 2 && getStaticValue(variation) > variation->plyInfo[variation->ply - 2].staticValue;
 }
 
+static bool isPassedPawnMove(const Square pawnSquare, const Square targetSquare, const Position *position)
+{
+    const Piece piece = position->piece[pawnSquare];
+
+    if (pieceType(piece) == PAWN) {
+        return pawnIsPassed(position, targetSquare, pieceColor(piece));
+    } else {
+        return FALSE;
+    }
+}
+
+static bool isSpecialMove(Position *position, Move move)
+{
+    return simpleMoveIsCheck(position, move) || isPassedPawnMove(getFromSquare(move), getToSquare(move), position);
+}
+
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
                       const bool pvNode, bool cutNode, Move excludeMove)
 {
@@ -477,6 +493,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const UINT64 hashKey = position->hashKey;
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
+    const bool cutsAreAllowed = abs(beta) <= -VALUE_ALMOST_MATED;
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].quietMove = FALSE;
@@ -714,14 +731,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
-        const int historyValueMove = variation->historyValue[historyIndexMove];
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
-
-        if (historyValueMove <= HISTORY_MAX / 2) {
-            reductions += 1024;
-        }
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
@@ -739,6 +751,19 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         assert(moveIsPseudoLegal(position, currentMove));
         assert(hashmove == NO_MOVE || numMovesPlayed > 0 || movesAreEqual(currentMove, hashmove));
+
+        /* Optimistic futility cuts */
+        /* ------------------------ */
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && cutsAreAllowed &&
+            restDepth < 32 && isSpecialMove(position, currentMove) == FALSE) {
+            if (numMovesPlayed >= 3 + restDepth * restDepth) {
+                continue;
+            }
+
+            if (restDepth < 4 && seeMove(position, currentMove) < 0) {
+                continue;
+            }
+        }
 
         /* Single move extension check */
         /* --------------------------- */
