@@ -714,9 +714,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
+        const int historyValueMove = variation->historyValue[historyIndexMove];
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
+
+        if (historyValueMove <= HISTORY_MAX / 2) {
+            reductions += 1024;
+        }
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
@@ -793,9 +798,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                             restDepth >= 3 && stage == MGS_REST;
 
         const int pvDepth = restDepth - 1 + extensions / 1024;
-        const int reducedDepth = max((pvNode ? 1 : 0), restDepth - 1 - reductions / 1024);
+        const int reducedDepth = restDepth - 1 - reductions / 1024;
         const bool pvSearch = pvNode && numMovesPlayed == 0;
-        const bool cutNodeValue = (pvSearch == FALSE && !cutNode) || reduce;
+        const bool cutNodeValue = (pvSearch == FALSE && cutNode == FALSE) || reduce;
 
         value = -searchBest(variation, pvSearch ? -beta : -alpha - 1, -alpha, ply + 1,
                             pvSearch || reduce == FALSE ? pvDepth : reducedDepth, &bestReply, pvSearch, cutNodeValue,
