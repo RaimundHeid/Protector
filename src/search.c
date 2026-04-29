@@ -493,7 +493,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const UINT64 hashKey = position->hashKey;
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
     int deferCount = 0;
-    const bool cutsAreAllowed = abs(beta) <= -VALUE_ALMOST_MATED;
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].quietMove = FALSE;
@@ -754,8 +753,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Optimistic futility cuts */
         /* ------------------------ */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && cutsAreAllowed &&
-            restDepth < 32 && isSpecialMove(position, currentMove) == FALSE) {
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED &&
+            isSpecialMove(position, currentMove) == FALSE) {
             if (numMovesPlayed >= 3 + restDepth * restDepth) {
                 continue;
             }
