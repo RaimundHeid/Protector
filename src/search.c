@@ -721,7 +721,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         variation->plyInfo[ply].killerMove6 = NO_MOVE;
     }
 
-    const bool improving = isImproving(variation) || getStaticValue(variation) >= beta;
+    const int staticValue = getStaticValue(variation);
+    const bool improving = isImproving(variation) || staticValue >= beta;
 
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
                          hashmove, inCheck);
