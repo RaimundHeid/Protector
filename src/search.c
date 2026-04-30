@@ -721,6 +721,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         variation->plyInfo[ply].killerMove6 = NO_MOVE;
     }
 
+    const bool improving = isImproving(variation) || getStaticValue(variation) >= beta;
+
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
                          hashmove, inCheck);
 
@@ -755,7 +757,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         /* ------------------------ */
         if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED &&
             isSpecialMove(position, currentMove) == FALSE) {
-            if (numMovesPlayed >= 3 + restDepth * restDepth) {
+            if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
                 continue;
             }
 
