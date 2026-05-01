@@ -21,3 +21,49 @@ No SPRT decision (limits: PASS>+0.875, FAIL<-0.629). LOS < 66.7% → REVERTED.
 
 **Note:** The positive LLR/LOS trend suggests the change may have a small beneficial effect,
 but it was not statistically significant over 500 games.
+
+---
+
+### Extend static pruning: remove hashmove==NO_MOVE restriction, deepen depth 4→6 (2026-05-01)
+
+**Change:** Decoupled static pruning from the `hashmove == NO_MOVE` condition and extended the
+depth limit from 4 to 6. This mirrors Stockfish's approach of applying static pruning unconditionally.
+
+```c
+// Before (inside `if (pvNode == FALSE && inCheck == FALSE && hashmove == NO_MOVE)`):
+if (restDepth <= 4) {
+    const int margin = 22 + 44 * restDepth - (isImproving(variation) ? 24 : 0);
+    if (getStaticValue(variation) - margin >= beta) { return beta; }
+}
+
+// After (separate block, no hashmove restriction):
+if (pvNode == FALSE && inCheck == FALSE && restDepth <= 6 && abs(beta) <= -VALUE_ALMOST_MATED) {
+    const int margin = 22 + 44 * restDepth - (isImproving(variation) ? 24 : 0);
+    if (getStaticValue(variation) - margin >= beta) { return beta; }
+}
+```
+
+**Result:** 1000 games at 10+0.1 TC, W=274 D=464 L=262, score=50.60%, LOS=64.8%, LLR=−0.129.
+No SPRT decision (LLR stayed between bounds). LOS < 66.7% → REVERTED.
+
+**Note:** Score was not meaningfully above 50%. The change had highly volatile LLR (peaked at +0.534
+at 146 games, dropped to −0.437 at 911 before recovering to −0.129 at finish). Likely neutral or
+very small effect; extending depth 4→6 may over-prune.
+
+
+---
+
+### Increase LMR by 800 (approx 0.8 plies) when not improving (2026-05-01)
+
+**Change:** In `search.c`, increased the Late Move Reductions (LMR) by 800 units if the current position is not improving (`improving == FALSE`).
+
+```c
+// After:
+int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0);
+if (improving == FALSE) {
+    reductions += 800;
+}
+```
+
+**Result:** 558 games at 10+0.1 TC, W=149 L=152 D=257, score=49.7%, LLR=-0.187.
+Match stopped early. Trend suggests neutral or slightly negative impact. Reverted.

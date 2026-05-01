@@ -735,7 +735,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                             probHashmove, FALSE);
 
         while ((probMove = getNextMove(&probMovelist)) != NO_MOVE) {
-            if (seeMove(position, probMove) < probCutBeta - staticValue) continue;
+            if (seeMove(position, probMove) < probCutBeta - staticValue)
+                continue;
 
             variation->plyInfo[ply].indexCurrentMove = historyIndex(probMove, position);
             variation->plyInfo[ply].quietMove = FALSE;
@@ -748,7 +749,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
             variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-            int probValue = -searchBestQuiescence(variation, -probCutBeta, -probCutBeta + 1, ply + 1, 0, &probReply, FALSE);
+            int probValue =
+                -searchBestQuiescence(variation, -probCutBeta, -probCutBeta + 1, ply + 1, 0, &probReply, FALSE);
 
             if (probValue >= probCutBeta) {
                 const int probCutDepth = restDepth - 4;
