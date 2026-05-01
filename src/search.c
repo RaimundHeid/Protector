@@ -58,11 +58,8 @@ static bool moveIsQuiet(const Move move, const Position *position, const Movegen
     switch (stage) {
     case MGS_REST:
     case MGS_KILLER_MOVES:
-    case MGS_DANGEROUS_PAWN_ADVANCES:
         return TRUE;
     case MGS_GOOD_CAPTURES_AND_PROMOTIONS:
-    case MGS_GOOD_CAPTURES_AND_PROMOTIONS_PURE:
-    case MGS_GOOD_CAPTURES:
     case MGS_BAD_CAPTURES:
         return FALSE;
     default:
@@ -786,6 +783,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 } else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
                     best = excludeValue;
                     goto storeResult;
+                } else if (hashEntryValue >= beta) {
+                    extensions -= 2 * 1024;
+                } else if (cutNode) {
+                    extensions -= 1 * 1024;
                 }
             }
         }

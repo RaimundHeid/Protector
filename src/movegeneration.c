@@ -375,10 +375,6 @@ Move getNextMove(Movelist *movelist)
                 generateChecks(movelist, TRUE);
                 break;
 
-            case MGS_DANGEROUS_PAWN_ADVANCES:
-                generateDangerousPawnAdvances(movelist);
-                break;
-
             default:
                 break;
             }
