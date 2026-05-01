@@ -721,6 +721,57 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const int staticValue = getStaticValue(variation);
     const bool improving = isImproving(variation) || staticValue >= beta;
 
+    /* ProbCut: if a capture passes both qsearch and a shallow search above a high threshold, prune */
+    /* -------------------------------------------------------------------------------------------- */
+    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
+        abs(beta) <= -VALUE_ALMOST_MATED) {
+        const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+        Movelist probMovelist;
+        Move probMove, probReply;
+        const Move probHashmove =
+            (hashmove != NO_MOVE && !moveIsQuietInPosition(hashmove, position)) ? hashmove : NO_MOVE;
+
+        initCaptureMovelist(&probMovelist, position, &variation->plyInfo[ply], &variation->historyValue[0],
+                            probHashmove, FALSE);
+
+        while ((probMove = getNextMove(&probMovelist)) != NO_MOVE) {
+            if (seeMove(position, probMove) < probCutBeta - staticValue) continue;
+
+            variation->plyInfo[ply].indexCurrentMove = historyIndex(probMove, position);
+            variation->plyInfo[ply].quietMove = FALSE;
+            variation->plyInfo[ply].isHashMove = movesAreEqual(probMove, hashmove);
+
+            if (makeMoveFast(variation, probMove) != 0 || passiveKingIsSafe(&variation->singlePosition) == FALSE) {
+                unmakeLastMove(variation);
+                continue;
+            }
+
+            variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
+
+            int probValue = -searchBestQuiescence(variation, -probCutBeta, -probCutBeta + 1, ply + 1, 0, &probReply, FALSE);
+
+            if (probValue >= probCutBeta) {
+                const int probCutDepth = restDepth - 4;
+                if (probCutDepth > 0) {
+                    probValue = -searchBest(variation, -probCutBeta, -probCutBeta + 1, ply + 1, probCutDepth,
+                                            &probReply, FALSE, !cutNode, NO_MOVE);
+                }
+            }
+
+            unmakeLastMove(variation);
+
+            if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
+                return 0;
+            }
+
+            if (probValue >= probCutBeta) {
+                *bestMove = probMove;
+                best = probValue;
+                goto storeResult;
+            }
+        }
+    }
+
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
                          hashmove, inCheck);
 
