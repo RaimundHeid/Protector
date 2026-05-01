@@ -836,6 +836,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 } else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
                     best = excludeValue;
                     goto storeResult;
+                } else if (cutNode && hashEntryValue >= beta) {
+                    reductions += 1024;
                 }
             }
         }
