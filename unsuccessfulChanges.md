@@ -67,3 +67,60 @@ if (improving == FALSE) {
 
 **Result:** 558 games at 10+0.1 TC, W=149 L=152 D=257, score=49.7%, LLR=-0.187.
 Match stopped early. Trend suggests neutral or slightly negative impact. Reverted.
+
+---
+
+### Small ProbCut: TT lower-bound early return (2026-05-02)
+
+**Change:** After the real TT lookup (before IIR/NMP), added an early return when the TT has a
+lower-bound entry with value ≥ beta + 160 at depth ≥ restDepth − 4. Margin 160 is Stockfish's
+416 scaled to Protector's evaluation units (~38%). This mirrors Stockfish's "Step 12" heuristic.
+
+```c
+// After TT lookup, before updateGains:
+if (pvNode == FALSE && excludeMove == NO_MOVE && bestTableHit != NULL &&
+    abs(beta) <= -VALUE_ALMOST_MATED &&
+    getHashentryFlag(bestTableHit) == HASHVALUE_LOWER_LIMIT &&
+    getHashentryImportance(bestTableHit) >= restDepth - 1) {
+    const int smallProbCutHashValue = calcEffectiveValue(getHashentryValue(bestTableHit), ply);
+    const int smallProbCutBeta = beta + 160;
+    if (smallProbCutHashValue >= smallProbCutBeta && abs(smallProbCutHashValue) <= -VALUE_ALMOST_MATED) {
+        best = smallProbCutBeta;
+        goto storeResult;
+    }
+}
+```
+
+**Result:** 899 games at 10+0.1 TC, W=231 D=434 L=234, score=49.8%, LLR=−0.459, LOS=49.7%.
+LLR oscillated near zero throughout (peak +0.131 at 448g, then drifted negative). LOS < 66.7% → REVERTED.
+
+**Note:** Neutral result. The threshold of 160 may be slightly too low (triggering too often on
+marginally reliable entries) or too high (rarely triggering). The Stockfish equivalent fires in a
+richer context with correction history and ttPv flags that Protector lacks.
+
+---
+
+### doShallowerSearch in LMR re-search (2026-05-02)
+
+**Change:** In the LMR full-depth re-search, use `pvDepth - 1` instead of `pvDepth` when the value
+only marginally exceeds the best score seen so far (mirrors Stockfish Step 17 `doShallowerSearch`).
+
+```c
+// Before:
+if (value > alpha) {
+    value =
+        -searchBest(variation, -alpha - 1, -alpha, ply + 1, pvDepth, &bestReply, FALSE, FALSE, NO_MOVE);
+}
+// After:
+if (value > alpha) {
+    const int fullDepth = (value < best + 10) ? max(reducedDepth + 1, pvDepth - 1) : pvDepth;
+    value = -searchBest(variation, -alpha - 1, -alpha, ply + 1, fullDepth, &bestReply, FALSE, FALSE,
+                        NO_MOVE);
+}
+```
+
+**Result:** 328 games at 10+0.1 TC, W=83 D=147 L=98, score=47.7%, LOS=13.2%, LLR=−0.568.
+LOS below 60% throughout (≈14% at 200 games) → REVERTED.
+
+**Note:** Clearly negative result. Reducing the re-search depth even by one ply when the LMR
+value only marginally beats best appears to lose accuracy rather than save time.

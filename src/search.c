@@ -783,12 +783,13 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
+        const int historyValueMove = variation->historyValue[historyIndexMove];
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
+
         if (quietMove) {
-            reductions -= ((int)variation->historyValue[historyIndexMove] - HISTORY_MAX / 2) / 8;
-            reductions = max(reductions, 0);
+            reductions = max(0, reductions + (HISTORY_MAX / 2 - historyValueMove) / 8);
         }
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
