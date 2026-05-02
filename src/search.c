@@ -817,8 +817,11 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 continue;
             }
 
-            if (restDepth < 4 && seeMove(position, currentMove) < 0) {
-                continue;
+            {
+                const int seeLmrDepth = max(0, restDepth - 1 - (int)(reductions / 1024));
+                if (seeMove(position, currentMove) < -7 * seeLmrDepth * seeLmrDepth) {
+                    continue;
+                }
             }
         }
 
