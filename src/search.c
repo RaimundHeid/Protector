@@ -786,6 +786,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
+        if (quietMove) {
+            reductions -= ((int)variation->historyValue[historyIndexMove] - HISTORY_MAX / 2) / 8;
+            reductions = max(reductions, 0);
+        }
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
