@@ -630,7 +630,6 @@ void getLegalMoves(Variation *variation, Movelist *movelist)
     Move hashmove = NO_MOVE;
     Move currentMove;
 
-    allMoves.positionalGain = &(variation->positionalGain[0]);
     initMovelist(movelist, position);
 
     plyInfo->killerMove1 = NO_MOVE;

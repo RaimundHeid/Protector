@@ -114,8 +114,8 @@ typedef struct {
     int halfMoveClock;
     Bitboard allPieces, whitePieces, blackPieces, hashKey;
     int staticValue;
-    bool staticValueAvailable, gainsUpdated;
-    bool quietMove, isHashMove;
+    bool staticValueAvailable;
+    bool isHashMove;
     DirtyPiece dirtyPiece;
     Accumulator accumulator;
     PrincipalVariation pv;
@@ -132,7 +132,6 @@ typedef struct {
     int numberOfMoves, numberOfBadCaptures;
     int nextMove, currentStage, numberOfPieces;
     UINT16 *historyValue;
-    INT16 *positionalGain;
 } Movelist;
 
 typedef struct {
@@ -177,7 +176,6 @@ typedef struct Variation {
     UINT64 positionHistory[POSITION_HISTORY_OFFSET + MAX_DEPTH_ARRAY_SIZE];
     UINT64 nodes, nodesAtTimeCheck, nodesBetweenTimecheck;
     UINT16 historyValue[HISTORY_SIZE];
-    INT16 positionalGain[HISTORY_SIZE];
     Move counterMove1[HISTORY_SIZE], counterMove2[HISTORY_SIZE];
     Move followupMove1[HISTORY_SIZE], followupMove2[HISTORY_SIZE];
     long startTime, timeTarget, timeLimit, finishTime, timestamp;
@@ -225,11 +223,6 @@ void prepareSearch(Variation *variation);
  * Reset history values.
  */
 void resetHistoryValues(Variation *variation);
-
-/**
- * Reset gain values.
- */
-void resetGainValues(Variation *variation);
 
 /**
  * Shrink all history values.

@@ -32,7 +32,6 @@ int makeBlackMove(Variation *variation, const Move move)
     variation->positionHistory[POSITION_HISTORY_OFFSET - 1 + variation->ply] = plyInfo->hashKey = position->hashKey;
     plyInfo->currentMove = move;
     variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
-    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
     position->hashKey = ~position->hashKey;
 
     if (position->enPassantSquare != NO_SQUARE) {
@@ -45,7 +44,6 @@ int makeBlackMove(Variation *variation, const Move move)
     if (to == from) {
         variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
         variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
-        variation->plyInfo[variation->ply].gainsUpdated = FALSE;
 
         assert(checkVariation(variation) == 0);
 

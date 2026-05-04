@@ -356,7 +356,7 @@ void resetPlyInfo(Variation *variation)
     int i;
 
     for (i = 0; i < MAX_DEPTH_ARRAY_SIZE; i++) {
-        variation->plyInfo[i].staticValueAvailable = variation->plyInfo[i].gainsUpdated = FALSE;
+        variation->plyInfo[i].staticValueAvailable = FALSE;
         variation->plyInfo[i].pv.length = 0;
         variation->plyInfo[i].pv.move[0] = NO_MOVE;
     }
@@ -711,15 +711,6 @@ void resetHistoryValues(Variation *variation)
     }
 }
 
-void resetGainValues(Variation *variation)
-{
-    int i;
-
-    for (i = 0; i < HISTORY_SIZE; i++) {
-        variation->positionalGain[i] = 0;
-    }
-}
-
 void prepareSearch(Variation *variation)
 {
     int i;
@@ -833,7 +824,6 @@ int makeMove(Variation *variation, const Move move)
     if (to == from) {
         variation->plyInfo[variation->ply].accumulator = plyInfo->accumulator;
         variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
-        variation->plyInfo[variation->ply].gainsUpdated = FALSE;
 
         assert(checkVariation(variation) == 0);
 
@@ -848,7 +838,6 @@ int makeMove(Variation *variation, const Move move)
     plyInfo->whitePieces = position->piecesOfColor[WHITE];
     plyInfo->blackPieces = position->piecesOfColor[BLACK];
     variation->plyInfo[variation->ply].staticValueAvailable = FALSE;
-    variation->plyInfo[variation->ply].gainsUpdated = FALSE;
     position->piecesOfColor[activeColor] &= maxFrom;
     position->piecesOfColor[activeColor] |= minTo;
     position->piecesOfType[movingPiece] &= maxFrom;

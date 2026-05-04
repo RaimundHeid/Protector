@@ -1,5 +1,57 @@
 ## Unsuccessful Changes
 
+### Dynamic depth reduction after alpha improvement (Stockfish Step 20) (2026-05-03)
+
+**Change:** Added `effectiveRestDepth` variable before the move loop; after an alpha improvement without beta cutoff, reduced it by 2 for remaining moves (mirrors Stockfish Step 20: `if depth > 2 && depth < 15: depth -= 2`).
+
+```c
+// Before loop:
+int effectiveRestDepth = restDepth;
+
+// pvDepth/reducedDepth used effectiveRestDepth - 1 instead of restDepth - 1
+
+// After "if (best >= beta) { break; }":
+if (effectiveRestDepth > 2 && effectiveRestDepth < 15 &&
+    abs(best) <= -VALUE_ALMOST_MATED) {
+    effectiveRestDepth -= 2;
+}
+```
+
+**Result:** 154 games at 10+0.1 TC, W=30 D=70 L=54, score=42.2%, LOS=0.4%, LLR=−0.755.
+LLR crossed FAIL bound (< −0.629) at 154 games → **REVERTED**.
+
+**Note:** Clearly negative result. Reducing search depth for remaining moves after alpha improvement
+hurts Protector significantly — possibly because Protector's shallower searches are already less
+accurate than Stockfish's, so further depth reduction degrades move selection more than it saves time.
+
+---
+
+### Tighten quiet move futility count to Stockfish formula (2026-05-03)
+
+**Change:** Replaced Protector's quiet move futility count threshold with Stockfish's exact formula.
+
+```c
+// Before:
+if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
+    continue;
+}
+// After:
+if (numMovesPlayed >= (improving ? 3 + restDepth * restDepth : (3 + restDepth * restDepth) / 2)) {
+    continue;
+}
+```
+
+Stockfish's formula is 22–44% more aggressive (prunes earlier), especially when not improving.
+
+**Result:** 245 games at 10+0.1 TC, W=63 D=113 L=69, score=48.8%, LOS=30.1%, LLR=−0.275.
+LOS at N=200 was ≈42% < 60% → early abort. **REVERTED.**
+
+**Note:** Stockfish's formula cuts quiet moves far too aggressively for Protector's playing style.
+Protector's higher thresholds appear to be deliberately tuned. Do not apply Stockfish's raw
+futility_move_count formula without scaling up.
+
+---
+
 ### Limit cut-node quiet move reduction to MGS_REST stage only (2026-04-23)
 
 **Change:** In `search.c`, added `stage == MGS_REST` to the cut-node quiet move reduction condition,

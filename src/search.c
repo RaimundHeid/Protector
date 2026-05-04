@@ -105,19 +105,6 @@ static int getStaticValue(Variation *variation)
     return pi->staticValue;
 }
 
-static void updateGains(Variation *variation, const int ply)
-{
-    if (variation->plyInfo[ply].gainsUpdated == FALSE && variation->plyInfo[ply - 1].quietMove) {
-        const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
-        INT16 *storedGain = &variation->positionalGain[moveIndex];
-        const INT16 currentDiff = (INT16)(getStaticValue(variation) + variation->plyInfo[ply - 1].staticValue);
-
-        *storedGain = (currentDiff >= (*storedGain) ? currentDiff : (*storedGain) - 1);
-    }
-
-    variation->plyInfo[ply].gainsUpdated = TRUE;
-}
-
 static void updateCounterMoves(Variation *variation, const int ply, Move counterMove)
 {
     if (variation->plyInfo[ply - 1].currentMove != NULLMOVE) {
@@ -144,7 +131,7 @@ static void updateFollowupMoves(Variation *variation, const int ply, Move follow
 
 static bool positionIsWellKnown(Variation *variation, Position *position, const UINT64 hashKey,
                                 Hashentry **bestTableHit, const int ply, const int alpha, const int beta,
-                                const int restDepth, const bool pvNode, const bool updateGainValues, Move *hashmove,
+                                const int restDepth, const bool pvNode, Move *hashmove,
                                 const Move excludeMove, int *value)
 {
     Hashentry *tableHit = getHashentry(getSharedHashtable(), hashKey);
@@ -163,10 +150,6 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
         if (pi->staticValueAvailable == FALSE && pvNode == FALSE) {
             pi->staticValue = getHashentryStaticValue(tableHit);
             pi->staticValueAvailable = TRUE;
-
-            if (updateGainValues) {
-                updateGains(variation, ply);
-            }
         }
 
         if (pvNode == FALSE && excludeMove != NULLMOVE && restDepth <= importance && flag != HASHVALUE_EVAL) { /* 99% */
@@ -250,10 +233,8 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     assert(inCheck == (activeKingIsSafe(position) == FALSE));
 
     *bestMove = NO_MOVE;
-    variation->plyInfo[ply].quietMove = FALSE; /* avoid subsequent gain updates */
     variation->plyInfo[ply - 1].pv.length = 0;
     variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
-    movelist.positionalGain = &(variation->positionalGain[0]);
 
     variation->nodes++;
     checkTerminationConditions(variation);
@@ -286,7 +267,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     /* ----------------------------- */
 
     if (positionIsWellKnown(variation, position, position->hashKey, &bestTableHit, ply, alpha, beta, hashDepth, pvNode,
-                            FALSE, &hashmove, NO_MOVE, &hashValue)) {
+                            &hashmove, NO_MOVE, &hashValue)) {
         *bestMove = hashmove;
 
         return hashValue;
@@ -492,11 +473,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     int deferCount = 0;
 
     *bestMove = NO_MOVE;
-    variation->plyInfo[ply].quietMove = FALSE;
     variation->plyInfo[ply].isHashMove = FALSE;
     variation->plyInfo[ply - 1].pv.length = 0;
     variation->plyInfo[ply - 1].pv.move[0] = NO_MOVE;
-    movelist.positionalGain = &(variation->positionalGain[0]);
 
     if (ply + 1 > variation->selDepth) {
         variation->selDepth = ply + 1;
@@ -530,13 +509,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     }
 
     if (restDepth < 1) {
-        int qsValue = searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
-
-        if (inCheck == FALSE && variation->plyInfo[ply].staticValueAvailable) {
-            updateGains(variation, ply);
-        }
-
-        return qsValue;
+        return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
     }
 
     variation->nodes++;
@@ -590,7 +563,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
-                                restDepth + HASH_DEPTH_OFFSET, pvNode, inCheck == FALSE, &hashmove, NO_MOVE,
+                                restDepth + HASH_DEPTH_OFFSET, pvNode, &hashmove, NO_MOVE,
                                 &hashValue)) {
             *bestMove = hashmove;
 
@@ -604,10 +577,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
             return hashValue;
         }
-    }
-
-    if (inCheck == FALSE) {
-        updateGains(variation, ply);
     }
 
     if (ply >= MAX_DEPTH) {
@@ -739,7 +708,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 continue;
 
             variation->plyInfo[ply].indexCurrentMove = historyIndex(probMove, position);
-            variation->plyInfo[ply].quietMove = FALSE;
             variation->plyInfo[ply].isHashMove = movesAreEqual(probMove, hashmove);
 
             if (makeMoveFast(variation, probMove) != 0 || passiveKingIsSafe(&variation->singlePosition) == FALSE) {
@@ -803,7 +771,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
 
         variation->plyInfo[ply].indexCurrentMove = historyIndexMove;
-        variation->plyInfo[ply].quietMove = quietMove;
         variation->plyInfo[ply].isHashMove = movesAreEqual(currentMove, hashmove);
 
         assert(moveIsPseudoLegal(position, currentMove));
@@ -1319,7 +1286,6 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
     }
 
     resetHistoryValues(variation);
-    resetGainValues(variation);
 
     variation->ply = 0;
     resetFinnyTable(&variation->finnyTable);
@@ -1336,7 +1302,6 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
     variation->previousBest = getStaticValue(variation);
     variation->bestBaseMove = NO_MOVE;
     variation->failingLow = FALSE;
-    movelist.positionalGain = &(variation->positionalGain[0]);
     initializePlyInfo(variation);
     getLegalMoves(variation, &movelist);
 
