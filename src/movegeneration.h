@@ -173,15 +173,20 @@ bool activeKingIsSafe(Position *position);
 int seeMove(Position *position, const Move move);
 int compareMoves(const void *move1, const void *move2);
 void sortMoves(Movelist *movelist);
-void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
-                            const Move hashMove, const int restDepth, const bool check);
-void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
-                          const Move hashMove, const bool check);
+void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
+                            MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                            const int restDepth, const bool check);
+void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
+                          MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                          const bool check);
 void initPreQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
-                               MoveHistoryEntry *plyMoveHistory, const Move hashMove, const bool check);
-void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
-                         const Move hashMove, const bool check);
-void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry *plyMoveHistory);
+                               MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                               const bool check);
+void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
+                         MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                         const bool check);
+void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE],
+                       int currentPly);
 void initMovelist(Movelist *movelist, Position *position);
 Move getNextMove(Movelist *movelist);
 void deferMove(Movelist *movelist, Move move);

@@ -121,6 +121,8 @@ typedef struct {
     PrincipalVariation pv;
 } PlyInfo;
 
+#define HISTORY_SIZE (16 * 64)
+
 typedef struct {
     INT64 freq;
     INT64 succ;
@@ -136,7 +138,8 @@ typedef struct {
     MovesOfPiece movesOfPiece[16];
     int numberOfMoves, numberOfBadCaptures;
     int nextMove, currentStage, numberOfPieces;
-    MoveHistoryEntry *plyMoveHistory;
+    MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE];
+    int currentPly;
 } Movelist;
 
 typedef struct {
@@ -161,8 +164,6 @@ typedef enum {
     SEARCH_STATUS_ABORT,
     SEARCH_STATUS_FINISHED
 } SearchStatus;
-
-#define HISTORY_SIZE (16 * 64)
 
 #define BONUS_HIDDEN_PASSER
 

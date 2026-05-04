@@ -111,10 +111,10 @@ static int searchMate(Variation *variation, int alpha, int beta, const int ply, 
     }
 
     if (restDepth == 1) {
-        initCheckMovelist(&movelist, position, &variation->moveHistory[ply][0]);
+        initCheckMovelist(&movelist, position, variation->moveHistory, ply);
     } else {
-        initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->moveHistory[ply][0], hashmove, check);
+        initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], variation->moveHistory,
+                             ply, hashmove, check);
     }
 
     initializePlyInfo(variation);
@@ -226,10 +226,10 @@ static int searchBaseMoves(Variation *variation, const int alpha, const int beta
     PrincipalVariation pv;
 
     if (restDepth == 1) {
-        initCheckMovelist(&movelist, position, &variation->moveHistory[ply][0]);
+        initCheckMovelist(&movelist, position, variation->moveHistory, ply);
     } else {
-        initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->moveHistory[ply][0], hashmove, check);
+        initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], variation->moveHistory,
+                             ply, hashmove, check);
     }
 
     initializePlyInfo(variation);

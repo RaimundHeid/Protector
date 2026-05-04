@@ -330,8 +330,8 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
         }
     }
 
-    initQuiescenceMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                           &variation->moveHistory[ply][0], hashmove, restDepth, inCheck);
+    initQuiescenceMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], variation->moveHistory, ply,
+                           hashmove, restDepth, inCheck);
     initializePlyInfo(variation);
 
     const int newDepth = (inCheck ? restDepth : restDepth - 1);
@@ -699,7 +699,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const Move probHashmove =
             (hashmove != NO_MOVE && !moveIsQuietInPosition(hashmove, position)) ? hashmove : NO_MOVE;
 
-        initCaptureMovelist(&probMovelist, position, &variation->plyInfo[ply], &variation->moveHistory[ply][0],
+        initCaptureMovelist(&probMovelist, position, &variation->plyInfo[ply], variation->moveHistory, ply,
                             probHashmove, FALSE);
 
         while ((probMove = getNextMove(&probMovelist)) != NO_MOVE) {
@@ -741,8 +741,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                         &variation->moveHistory[ply][0], hashmove, inCheck);
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], variation->moveHistory, ply,
+                         hashmove, inCheck);
 
     /* Loop through all moves in this node */
     /* ----------------------------------- */
