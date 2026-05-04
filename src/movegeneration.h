@@ -176,7 +176,7 @@ void sortMoves(Movelist *movelist);
 void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
                             const Move hashMove, const int restDepth, const bool check);
 void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
-                          const Move hashMove, const bool check);
+                          MoveHistoryEntry *plyMoveHistory, const Move hashMove, const bool check);
 void initPreQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
                                const Move hashMove, const bool check);
 void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,

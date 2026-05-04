@@ -122,6 +122,11 @@ typedef struct {
 } PlyInfo;
 
 typedef struct {
+    INT64 freq;
+    INT64 succ;
+} MoveHistoryEntry;
+
+typedef struct {
     Position *position;
     PlyInfo *plyInfo;
     Move hashMove;
@@ -132,6 +137,7 @@ typedef struct {
     int numberOfMoves, numberOfBadCaptures;
     int nextMove, currentStage, numberOfPieces;
     UINT16 *historyValue;
+    MoveHistoryEntry *plyMoveHistory;
 } Movelist;
 
 typedef struct {
@@ -178,6 +184,7 @@ typedef struct Variation {
     UINT16 historyValue[HISTORY_SIZE];
     Move counterMove1[HISTORY_SIZE], counterMove2[HISTORY_SIZE];
     Move followupMove1[HISTORY_SIZE], followupMove2[HISTORY_SIZE];
+    MoveHistoryEntry moveHistory[MAX_DEPTH_ARRAY_SIZE][HISTORY_SIZE];
     long startTime, timeTarget, timeLimit, finishTime, timestamp;
     long startTimeProcess, finishTimeProcess, hashSendTimestamp;
     unsigned long tbHits;

@@ -167,11 +167,12 @@ void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInf
  * Initialize the specified movelist for standard move generation.
  */
 void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
-                          const Move hashMove, const bool check)
+                          MoveHistoryEntry *plyMoveHistory, const Move hashMove, const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
     movelist->historyValue = historyValue;
+    movelist->plyMoveHistory = plyMoveHistory;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = hashMove;
@@ -639,7 +640,7 @@ void getLegalMoves(Variation *variation, Movelist *movelist)
     plyInfo->killerMove5 = NO_MOVE;
     plyInfo->killerMove6 = NO_MOVE;
 
-    initStandardMovelist(&allMoves, position, plyInfo, &variation->historyValue[0], hashmove, FALSE);
+    initStandardMovelist(&allMoves, position, plyInfo, &variation->historyValue[0], NULL, hashmove, FALSE);
 
     while ((currentMove = getNextMove(&allMoves)) != NO_MOVE) {
         if (moveIsLegal(position, currentMove)) {
@@ -847,6 +848,12 @@ static INT16 promotionMoveSortValue(const Position *position, const Square to, c
 static INT16 historyMoveSortValue(const Position *position, const Movelist *movelist, const Move move)
 {
     return (INT16)(movelist->historyValue[historyIndex(move, position)] - VALUEOFFSET_HISTORY_MOVE);
+}
+
+static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *movelist, const Move move)
+{
+    const MoveHistoryEntry *entry = &movelist->plyMoveHistory[historyIndex(move, position)];
+    return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
 }
 
 static void addCaptures(Movelist *movelist, const Position *position, const Square from, Bitboard captures)
@@ -1318,8 +1325,11 @@ void generateRestMoves(Movelist *movelist)
 
         for (moveIndex = 0; moveIndex < numMoves; moveIndex++) {
             Move move = getOrdinaryMove(from, (Square)moveSquares[moveIndex]);
+            const INT16 sortValue = movelist->plyMoveHistory != NULL
+                ? plyHistoryMoveSortValue(position, movelist, move)
+                : historyMoveSortValue(position, movelist, move);
 
-            setMoveValue(&move, historyMoveSortValue(position, movelist, move));
+            setMoveValue(&move, sortValue);
             addMoveByValue(movelist, move);
 
             assert(movesAreEqual(move, movelist->hashMove) == FALSE);

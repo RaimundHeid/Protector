@@ -743,7 +743,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     }
 
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
-                         hashmove, inCheck);
+                         &variation->moveHistory[ply][0], hashmove, inCheck);
 
     /* Loop through all moves in this node */
     /* ----------------------------------- */
@@ -946,6 +946,17 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         if (ply >= 2) {
             updateFollowupMoves(variation, ply, killerMove);
+        }
+    }
+
+    /* Update per-ply move history */
+    if (inCheck == FALSE && quietMoveCount > 0 && (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
+        for (int i = 0; i < quietMoveCount; i++) {
+            variation->moveHistory[ply][quietMoveIndex[i]].freq++;
+        }
+
+        if (*bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
+            variation->moveHistory[ply][historyIndex(*bestMove, position)].succ++;
         }
     }
 
@@ -1286,6 +1297,7 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
     }
 
     resetHistoryValues(variation);
+    memset(variation->moveHistory, 0, sizeof(variation->moveHistory));
 
     variation->ply = 0;
     resetFinnyTable(&variation->finnyTable);

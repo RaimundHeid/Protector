@@ -114,7 +114,7 @@ static int searchMate(Variation *variation, int alpha, int beta, const int ply, 
         initCheckMovelist(&movelist, position, &variation->historyValue[0]);
     } else {
         initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->historyValue[0], hashmove, check);
+                             &variation->historyValue[0], NULL, hashmove, check);
     }
 
     initializePlyInfo(variation);
@@ -232,7 +232,7 @@ static int searchBaseMoves(Variation *variation, const int alpha, const int beta
         initCheckMovelist(&movelist, position, &variation->historyValue[0]);
     } else {
         initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->historyValue[0], hashmove, check);
+                             &variation->historyValue[0], NULL, hashmove, check);
     }
 
     initializePlyInfo(variation);
