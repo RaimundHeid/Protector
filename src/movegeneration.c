@@ -850,11 +850,7 @@ static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *m
     }
 
     const MoveHistoryEntry *entry = &movelist->plyMoveHistory[historyIndex(move, position)];
-    if (entry->freq == 0) {
-        return 0;
-    } else {
-        return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
-    }
+    return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
 }
 
 static void addCaptures(Movelist *movelist, const Position *position, const Square from, Bitboard captures)
