@@ -111,10 +111,10 @@ static int searchMate(Variation *variation, int alpha, int beta, const int ply, 
     }
 
     if (restDepth == 1) {
-        initCheckMovelist(&movelist, position, &variation->historyValue[0]);
+        initCheckMovelist(&movelist, position, &variation->moveHistory[ply][0]);
     } else {
         initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->historyValue[0], NULL, hashmove, check);
+                             &variation->moveHistory[ply][0], hashmove, check);
     }
 
     initializePlyInfo(variation);
@@ -195,11 +195,8 @@ finish:
             setMoveValue(&killerMove, movingPiece);
             registerKillerMove(&variation->plyInfo[ply], killerMove);
 
-            variation->historyValue[index] = (UINT16)(variation->historyValue[index] + (restDepth * restDepth));
-
-            if (variation->historyValue[index] > HISTORY_MAX) {
-                shrinkHistoryValues(variation);
-            }
+            variation->moveHistory[ply][index].freq++;
+            variation->moveHistory[ply][index].succ++;
         }
     }
 
@@ -229,10 +226,10 @@ static int searchBaseMoves(Variation *variation, const int alpha, const int beta
     PrincipalVariation pv;
 
     if (restDepth == 1) {
-        initCheckMovelist(&movelist, position, &variation->historyValue[0]);
+        initCheckMovelist(&movelist, position, &variation->moveHistory[ply][0]);
     } else {
         initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
-                             &variation->historyValue[0], NULL, hashmove, check);
+                             &variation->moveHistory[ply][0], hashmove, check);
     }
 
     initializePlyInfo(variation);

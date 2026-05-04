@@ -131,8 +131,8 @@ static void updateFollowupMoves(Variation *variation, const int ply, Move follow
 
 static bool positionIsWellKnown(Variation *variation, Position *position, const UINT64 hashKey,
                                 Hashentry **bestTableHit, const int ply, const int alpha, const int beta,
-                                const int restDepth, const bool pvNode, Move *hashmove,
-                                const Move excludeMove, int *value)
+                                const int restDepth, const bool pvNode, Move *hashmove, const Move excludeMove,
+                                int *value)
 {
     Hashentry *tableHit = getHashentry(getSharedHashtable(), hashKey);
 
@@ -330,8 +330,8 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
         }
     }
 
-    initQuiescenceMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
-                           hashmove, restDepth, inCheck);
+    initQuiescenceMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
+                           &variation->moveHistory[ply][0], hashmove, restDepth, inCheck);
     initializePlyInfo(variation);
 
     const int newDepth = (inCheck ? restDepth : restDepth - 1);
@@ -563,8 +563,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
-                                restDepth + HASH_DEPTH_OFFSET, pvNode, &hashmove, NO_MOVE,
-                                &hashValue)) {
+                                restDepth + HASH_DEPTH_OFFSET, pvNode, &hashmove, NO_MOVE, &hashValue)) {
             *bestMove = hashmove;
 
             if (hashValue >= beta && *bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
@@ -700,7 +699,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const Move probHashmove =
             (hashmove != NO_MOVE && !moveIsQuietInPosition(hashmove, position)) ? hashmove : NO_MOVE;
 
-        initCaptureMovelist(&probMovelist, position, &variation->plyInfo[ply], &variation->historyValue[0],
+        initCaptureMovelist(&probMovelist, position, &variation->plyInfo[ply], &variation->moveHistory[ply][0],
                             probHashmove, FALSE);
 
         while ((probMove = getNextMove(&probMovelist)) != NO_MOVE) {
@@ -742,7 +741,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], &variation->historyValue[0],
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply],
                          &variation->moveHistory[ply][0], hashmove, inCheck);
 
     /* Loop through all moves in this node */
@@ -751,13 +750,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const MovegenerationStage stage = moveGenerationStage[movelist.currentStage];
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
-        const int historyValueMove = variation->historyValue[historyIndexMove];
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
 
         if (quietMove) {
-            reductions = max(0, reductions + (HISTORY_MAX / 2 - historyValueMove) / 8);
+            const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
+            const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000);
+            reductions = max(0, reductions - plyScore / 8);
         }
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
@@ -926,19 +926,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
         Move killerMove = *bestMove;
         const Piece movingPiece = position->piece[getFromSquare(killerMove)];
-        const int index = historyIndex(*bestMove, position);
-
-        for (int i = 0; i < quietMoveCount; i++) {
-            const int historyIdx = quietMoveIndex[i];
-
-            variation->historyValue[historyIdx] =
-                (UINT16)(variation->historyValue[historyIdx] -
-                         (variation->historyValue[historyIdx] * restDepth * 59) / 8192);
-            assert(variation->historyValue[historyIdx] <= HISTORY_MAX);
-        }
-
-        variation->historyValue[index] += ((HISTORY_MAX - variation->historyValue[index]) * restDepth * 72) / 16384;
-        assert(variation->historyValue[index] <= HISTORY_MAX);
 
         setMoveValue(&killerMove, movingPiece);
         registerKillerMove(&variation->plyInfo[ply], killerMove);

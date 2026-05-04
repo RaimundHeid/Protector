@@ -705,7 +705,6 @@ void resetHistoryValues(Variation *variation)
     int i;
 
     for (i = 0; i < HISTORY_SIZE; i++) {
-        variation->historyValue[i] = HISTORY_MAX / 2;
         variation->counterMove1[i] = variation->counterMove2[i] = NO_MOVE;
         variation->followupMove1[i] = variation->followupMove2[i] = NO_MOVE;
     }
@@ -726,15 +725,6 @@ void prepareSearch(Variation *variation)
 
         pi->killerMove1 = pi->killerMove2 = pi->killerMove3 = pi->killerMove4 = pi->killerMove5 = pi->killerMove6 =
             NO_MOVE;
-    }
-}
-
-void shrinkHistoryValues(Variation *variation)
-{
-    int i;
-
-    for (i = 0; i < HISTORY_SIZE; i++) {
-        variation->historyValue[i] = (variation->historyValue[i] + 1) / 2;
     }
 }
 

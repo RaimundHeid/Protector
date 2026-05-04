@@ -41,7 +41,6 @@ int MG_SCHEME_STANDARD, MG_SCHEME_ESCAPE, MG_SCHEME_CHECKS, MG_SCHEME_QUIESCENCE
 const Move NO_MOVE = (B4 << 6) | A1; /* (a1-b4 is always an illegal move) */
 const Move NULLMOVE = 0;
 const int VALUEOFFSET_PROMOTION_TO_QUEEN = 4000;
-const int VALUEOFFSET_HISTORY_MOVE = 24000;
 const int VALUEOFFSET_BAD_MOVE = 28000;
 
 /**
@@ -112,12 +111,12 @@ void sortMoves(Movelist *movelist)
 /**
  * Initialize the specified movelist for quiescence move generation.
  */
-void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
+void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
                             const Move hashMove, const int restDepth, const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->historyValue = historyValue;
+    movelist->plyMoveHistory = plyMoveHistory;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = hashMove;
@@ -139,12 +138,12 @@ void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *ply
 /**
  * Initialize the specified movelist for capture move generation.
  */
-void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
+void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
                          const Move hashMove, const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->historyValue = historyValue;
+    movelist->plyMoveHistory = plyMoveHistory;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = hashMove;
@@ -166,12 +165,11 @@ void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInf
 /**
  * Initialize the specified movelist for standard move generation.
  */
-void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, UINT16 *historyValue,
-                          MoveHistoryEntry *plyMoveHistory, const Move hashMove, const bool check)
+void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo, MoveHistoryEntry *plyMoveHistory,
+                          const Move hashMove, const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->historyValue = historyValue;
     movelist->plyMoveHistory = plyMoveHistory;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -191,11 +189,11 @@ void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyIn
 /**
  * Initialize the specified movelist for check move generation.
  */
-void initCheckMovelist(Movelist *movelist, Position *position, UINT16 *historyValue)
+void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry *plyMoveHistory)
 {
     movelist->position = position;
     movelist->plyInfo = 0;
-    movelist->historyValue = historyValue;
+    movelist->plyMoveHistory = plyMoveHistory;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = NO_MOVE;
@@ -212,7 +210,7 @@ void initMovelist(Movelist *movelist, Position *position)
 {
     movelist->position = position;
     movelist->plyInfo = 0;
-    movelist->historyValue = 0;
+    movelist->plyMoveHistory = NULL;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = NO_MOVE;
@@ -640,7 +638,7 @@ void getLegalMoves(Variation *variation, Movelist *movelist)
     plyInfo->killerMove5 = NO_MOVE;
     plyInfo->killerMove6 = NO_MOVE;
 
-    initStandardMovelist(&allMoves, position, plyInfo, &variation->historyValue[0], NULL, hashmove, FALSE);
+    initStandardMovelist(&allMoves, position, plyInfo, NULL, hashmove, FALSE);
 
     while ((currentMove = getNextMove(&allMoves)) != NO_MOVE) {
         if (moveIsLegal(position, currentMove)) {
@@ -845,15 +843,18 @@ static INT16 promotionMoveSortValue(const Position *position, const Square to, c
     return (INT16)(promotionPieceValue[newPiece] + 6 * pieceOrder[position->piece[to]]);
 }
 
-static INT16 historyMoveSortValue(const Position *position, const Movelist *movelist, const Move move)
-{
-    return (INT16)(movelist->historyValue[historyIndex(move, position)] - VALUEOFFSET_HISTORY_MOVE);
-}
-
 static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *movelist, const Move move)
 {
+    if (movelist->plyMoveHistory == NULL) {
+        return 0;
+    }
+
     const MoveHistoryEntry *entry = &movelist->plyMoveHistory[historyIndex(move, position)];
-    return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
+    if (entry->freq == 0) {
+        return 0;
+    } else {
+        return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
+    }
 }
 
 static void addCaptures(Movelist *movelist, const Position *position, const Square from, Bitboard captures)
@@ -1325,38 +1326,10 @@ void generateRestMoves(Movelist *movelist)
 
         for (moveIndex = 0; moveIndex < numMoves; moveIndex++) {
             Move move = getOrdinaryMove(from, (Square)moveSquares[moveIndex]);
-            const INT16 sortValue = movelist->plyMoveHistory != NULL
-                ? plyHistoryMoveSortValue(position, movelist, move)
-                : historyMoveSortValue(position, movelist, move);
-
-            setMoveValue(&move, sortValue);
+            setMoveValue(&move, plyHistoryMoveSortValue(position, movelist, move));
             addMoveByValue(movelist, move);
 
             assert(movesAreEqual(move, movelist->hashMove) == FALSE);
-        }
-    }
-}
-
-void generateDangerousPawnAdvances(Movelist *movelist)
-{
-    const Position *position = movelist->position;
-    const Color activeColor = position->activeColor;
-    const Rank sixthRank = (activeColor == WHITE ? RANK_6 : RANK_3);
-    Bitboard moves, pieces = position->piecesOfType[PAWN | activeColor] & squaresOfRank[sixthRank];
-    Square from;
-
-    ITERATE_BITBOARD(&pieces, from)
-    {
-        if ((moves = getPawnAdvances(activeColor, from, position->allPieces)) != EMPTY_BITBOARD) {
-            const Square to = getLastSquare(&moves);
-            Move move = getPackedMove(from, to, NO_PIECE);
-
-            if (move == movelist->hashMove) {
-                continue;
-            }
-
-            setMoveValue(&move, historyMoveSortValue(position, movelist, move));
-            addMoveByValue(movelist, move);
         }
     }
 }
@@ -1504,7 +1477,7 @@ void generateChecks(Movelist *movelist, bool allChecks)
             {
                 Move move = getPackedMove(from, to, NO_PIECE);
 
-                setMoveValue(&move, historyMoveSortValue(position, movelist, move));
+                setMoveValue(&move, plyHistoryMoveSortValue(position, movelist, move));
                 addMoveByValue(movelist, move);
             }
         }
@@ -1538,7 +1511,7 @@ void generateEscapes(Movelist *movelist)
             move = getPackedMove(from, to, newPiece);
 
             if (position->piece[to] == NO_PIECE) {
-                value = historyMoveSortValue(position, movelist, move);
+                value = plyHistoryMoveSortValue(position, movelist, move);
             } else {
                 value = captureMoveSortValue(position, from, to);
             }
@@ -1638,7 +1611,7 @@ void generateEscapes(Movelist *movelist)
                 move = getPackedMove(from, to, NO_PIECE);
 
                 if (seeMove(position, move) >= 0) {
-                    value = historyMoveSortValue(position, movelist, move);
+                    value = plyHistoryMoveSortValue(position, movelist, move);
                 } else {
                     value = (INT16)(captureMoveSortValue(position, from, to) - VALUEOFFSET_BAD_MOVE);
                 }

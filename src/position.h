@@ -136,7 +136,6 @@ typedef struct {
     MovesOfPiece movesOfPiece[16];
     int numberOfMoves, numberOfBadCaptures;
     int nextMove, currentStage, numberOfPieces;
-    UINT16 *historyValue;
     MoveHistoryEntry *plyMoveHistory;
 } Movelist;
 
@@ -164,8 +163,6 @@ typedef enum {
 } SearchStatus;
 
 #define HISTORY_SIZE (16 * 64)
-#define HISTORY_MAX 16384
-#define HISTORY_LIMIT 60 /* (60%) */
 
 #define BONUS_HIDDEN_PASSER
 
@@ -181,7 +178,6 @@ typedef struct Variation {
     int pvId;
     UINT64 positionHistory[POSITION_HISTORY_OFFSET + MAX_DEPTH_ARRAY_SIZE];
     UINT64 nodes, nodesAtTimeCheck, nodesBetweenTimecheck;
-    UINT16 historyValue[HISTORY_SIZE];
     Move counterMove1[HISTORY_SIZE], counterMove2[HISTORY_SIZE];
     Move followupMove1[HISTORY_SIZE], followupMove2[HISTORY_SIZE];
     MoveHistoryEntry moveHistory[MAX_DEPTH_ARRAY_SIZE][HISTORY_SIZE];
@@ -230,11 +226,6 @@ void prepareSearch(Variation *variation);
  * Reset history values.
  */
 void resetHistoryValues(Variation *variation);
-
-/**
- * Shrink all history values.
- */
-void shrinkHistoryValues(Variation *variation);
 
 /**
  * Initialize a variation with the position specified by 'fen'.
