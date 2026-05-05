@@ -808,8 +808,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 } else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
                     best = excludeValue;
                     goto storeResult;
-                } else if (cutNode && hashEntryValue >= beta) {
-                    reductions += 1024;
+                } else if (hashEntryValue >= beta) {
+                    extensions -= 2048;
+                } else if (cutNode) {
+                    extensions -= 1024;
                 }
             }
         }
@@ -920,22 +922,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    /* Update move ordering heuristics. */
-    /* --------------------------------- */
-    if (*bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position) && inCheck == FALSE &&
-        (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
-        Move killerMove = *bestMove;
-        const Piece movingPiece = position->piece[getFromSquare(killerMove)];
-
-        setMoveValue(&killerMove, movingPiece);
-        registerKillerMove(&variation->plyInfo[ply], killerMove);
-        updateCounterMoves(variation, ply, killerMove);
-
-        if (ply >= 2) {
-            updateFollowupMoves(variation, ply, killerMove);
-        }
-    }
-
     /* Update per-ply move history */
     if (inCheck == FALSE && quietMoveCount > 0 && (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
         const int bonus = (pvNode ? 2 : 1);
@@ -944,8 +930,21 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus;
         }
 
+        /* Update move ordering heuristics. */
+        /* --------------------------------- */
         if (*bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
             variation->moveHistory[ply][historyIndex(*bestMove, position)].succ += bonus;
+
+            Move killerMove = *bestMove;
+            const Piece movingPiece = position->piece[getFromSquare(killerMove)];
+
+            setMoveValue(&killerMove, movingPiece);
+            registerKillerMove(&variation->plyInfo[ply], killerMove);
+            updateCounterMoves(variation, ply, killerMove);
+
+            if (ply >= 2) {
+                updateFollowupMoves(variation, ply, killerMove);
+            }
         }
     }
 
