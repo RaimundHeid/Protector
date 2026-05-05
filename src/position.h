@@ -138,7 +138,7 @@ typedef struct {
     MovesOfPiece movesOfPiece[16];
     int numberOfMoves, numberOfBadCaptures;
     int nextMove, currentStage, numberOfPieces;
-    MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE];
+    MoveHistoryEntry (*moveHistory)[HISTORY_SIZE];
     int currentPly;
 } Movelist;
 

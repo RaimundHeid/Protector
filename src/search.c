@@ -938,12 +938,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Update per-ply move history */
     if (inCheck == FALSE && quietMoveCount > 0 && (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
+        const int bonus = (pvNode ? 2 : 1);
+
         for (int i = 0; i < quietMoveCount; i++) {
-            variation->moveHistory[ply][quietMoveIndex[i]].freq++;
+            variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus;
         }
 
         if (*bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
-            variation->moveHistory[ply][historyIndex(*bestMove, position)].succ++;
+            variation->moveHistory[ply][historyIndex(*bestMove, position)].succ += bonus;
         }
     }
 

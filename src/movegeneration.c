@@ -112,12 +112,12 @@ void sortMoves(Movelist *movelist)
  * Initialize the specified movelist for quiescence move generation.
  */
 void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
-                            MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                            MoveHistoryEntry (*moveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
                             const int restDepth, const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->allPlyMoveHistory = allPlyMoveHistory;
+    movelist->moveHistory = moveHistory;
     movelist->currentPly = currentPly;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -141,12 +141,12 @@ void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *ply
  * Initialize the specified movelist for capture move generation.
  */
 void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
-                         MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                         MoveHistoryEntry (*moveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
                          const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->allPlyMoveHistory = allPlyMoveHistory;
+    movelist->moveHistory = moveHistory;
     movelist->currentPly = currentPly;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -170,12 +170,12 @@ void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInf
  * Initialize the specified movelist for standard move generation.
  */
 void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyInfo,
-                          MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
+                          MoveHistoryEntry (*moveHistory)[HISTORY_SIZE], int currentPly, const Move hashMove,
                           const bool check)
 {
     movelist->position = position;
     movelist->plyInfo = plyInfo;
-    movelist->allPlyMoveHistory = allPlyMoveHistory;
+    movelist->moveHistory = moveHistory;
     movelist->currentPly = currentPly;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -195,12 +195,12 @@ void initStandardMovelist(Movelist *movelist, Position *position, PlyInfo *plyIn
 /**
  * Initialize the specified movelist for check move generation.
  */
-void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry (*allPlyMoveHistory)[HISTORY_SIZE],
+void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry (*moveHistory)[HISTORY_SIZE],
                        int currentPly)
 {
     movelist->position = position;
     movelist->plyInfo = 0;
-    movelist->allPlyMoveHistory = allPlyMoveHistory;
+    movelist->moveHistory = moveHistory;
     movelist->currentPly = currentPly;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -218,7 +218,7 @@ void initMovelist(Movelist *movelist, Position *position)
 {
     movelist->position = position;
     movelist->plyInfo = 0;
-    movelist->allPlyMoveHistory = NULL;
+    movelist->moveHistory = NULL;
     movelist->currentPly = 0;
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
@@ -854,17 +854,17 @@ static INT16 promotionMoveSortValue(const Position *position, const Square to, c
 
 static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *movelist, const Move move)
 {
-    if (movelist->allPlyMoveHistory == NULL) {
+    if (movelist->moveHistory == NULL) {
         return 0;
     }
 
     const int idx = historyIndex(move, position);
     int ply = movelist->currentPly;
-    const MoveHistoryEntry *entry = &movelist->allPlyMoveHistory[ply][idx];
+    const MoveHistoryEntry *entry = &movelist->moveHistory[ply][idx];
 
     while (entry->freq == 0 && ply >= 2) {
         ply -= 2;
-        entry = &movelist->allPlyMoveHistory[ply][idx];
+        entry = &movelist->moveHistory[ply][idx];
     }
 
     return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
