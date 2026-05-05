@@ -622,7 +622,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* ----------------- */
     if (pvNode == FALSE && inCheck == FALSE && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 &&
         abs(beta) <= -VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
-        const int newDepth = restDepth - 4 - restDepth / 4;
+        const int newDepth = restDepth - 5;
 
         makeMoveFast(variation, NULLMOVE);
         variation->plyInfo[ply].currentMoveIsCheck = FALSE;
