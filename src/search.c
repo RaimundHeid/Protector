@@ -784,6 +784,13 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 continue;
             }
 
+            const int futilityValue =
+                staticValue + 16 + (*bestMove == NO_MOVE ? 60 : 0) + 45 * restDepth + (staticValue > alpha ? 33 : 0);
+
+            if (restDepth < 8 && futilityValue < alpha) {
+                continue;
+            }
+
             if (restDepth < 4 && seeMove(position, currentMove) < 0) {
                 continue;
             }
