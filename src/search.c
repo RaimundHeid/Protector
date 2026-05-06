@@ -837,12 +837,12 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const bool check = variation->plyInfo[ply].currentMoveIsCheck =
             activeKingIsSafe(&variation->singlePosition) == FALSE;
 
-        if (pvNode && check && extensions == 0) {
-            extensions += 1024;
-        }
-
         if (pvNode) {
             reductions = 3 * reductions / 4;
+
+            if (check && extensions == 0) {
+                extensions += 1024;
+            }
         }
 
         const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
