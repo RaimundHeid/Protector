@@ -1,5 +1,28 @@
 ## Unsuccessful Changes
 
+### SEE-scaled quiet move pruning at all depths (re-applied to historyPerPly branch) (2026-05-05)
+
+**Change:** Replaced `if (restDepth < 4 && seeMove(position, currentMove) < 0)` with a depth-independent quadratic SEE threshold, mirroring Stockfish's `!see_ge(move, -25 * lmrDepth²)`. The `seeLmrDepth` naturally incorporates the per-ply history bonus already in `reductions`.
+
+```c
+// Before:
+if (restDepth < 4 && seeMove(position, currentMove) < 0) {
+    continue;
+}
+// After:
+const int seeLmrDepth = max(1, restDepth - 1 - reductions / 1024);
+if (seeMove(position, currentMove) < -7 * seeLmrDepth * seeLmrDepth) {
+    continue;
+}
+```
+
+**Result:** 254 games at 10+0.1 TC, W=68 D=112 L=74, score=47.5% at n=200, LOS=17.2%, LLR=−0.665 at n=200.
+LOS early abort triggered at n=200 (LOS=17.2% < 60%). LLR also crossed FAIL bound (−0.665 < −0.629). **REVERTED.**
+
+**Note:** This change was previously a PASS on the `reducedNegaScout` branch (af1125f, LOS=86.9%), but fails on the `historyPerPly` branch. The per-ply history already adjusts LMR reductions — using `reductions/1024` to further scale the SEE threshold over-prunes moves with bad history that should still be searched due to the richer history context. The two mechanisms interact negatively.
+
+---
+
 ### Dynamic depth reduction after alpha improvement (Stockfish Step 20) (2026-05-03)
 
 **Change:** Added `effectiveRestDepth` variable before the move loop; after an alpha improvement without beta cutoff, reduced it by 2 for remaining moves (mirrors Stockfish Step 20: `if depth > 2 && depth < 15: depth -= 2`).
