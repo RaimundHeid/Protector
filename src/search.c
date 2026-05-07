@@ -780,14 +780,13 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         /* ------------------------ */
         if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED &&
             isSpecialMove(position, currentMove) == FALSE) {
-            if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
+            if (numMovesPlayed >= (improving ? 79 : 35) * (3 + restDepth * restDepth) / 64) {
                 continue;
             }
 
-            const int futilityValue =
-                staticValue + 16 + (*bestMove == NO_MOVE ? 60 : 0) + 45 * restDepth + (staticValue > alpha ? 33 : 0);
-
-            if (restDepth < 8 && futilityValue < alpha) {
+            if (restDepth < 8 &&
+                staticValue + (*bestMove == NO_MOVE ? 86 : 17) + 45 * restDepth + (staticValue > alpha ? 33 : 0) <
+                    alpha) {
                 continue;
             }
 
