@@ -756,7 +756,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         if (quietMove) {
             const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
-            const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000);
+            const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
             reductions = max(0, reductions - plyScore / 8);
         }
 
