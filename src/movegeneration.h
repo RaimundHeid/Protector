@@ -50,7 +50,6 @@ extern int MG_SCHEME_STANDARD, MG_SCHEME_ESCAPE, MG_SCHEME_CHECKS, MG_SCHEME_QUI
     MG_SCHEME_QUIESCENCE, MG_SCHEME_CAPTURES;
 
 extern MovegenerationStage moveGenerationStage[100];
-extern int log1024[1024];
 
 /**
  * Check if the specified move is pseudo-legal.

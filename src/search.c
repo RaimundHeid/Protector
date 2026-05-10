@@ -30,6 +30,7 @@
 #include "tablebase.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,8 @@
 extern bool resetSharedHashtable;
 const int HASH_DEPTH_OFFSET = 3;
 const UINT64 GUI_NODE_COUNT_MIN = 250000;
+
+static int log1024[1024];
 
 /* Prototypes */
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
@@ -1408,6 +1411,10 @@ Move search(Variation *variation, Movelist *acceptableSolutions)
 
 int initializeModuleSearch(void)
 {
+    for (int i = 0; i < 1024; i++) {
+        log1024[i] = (int)(1024.0 * log((double)(i + 1.0)));
+    }
+
     return 0;
 }
 

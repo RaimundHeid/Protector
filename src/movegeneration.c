@@ -34,7 +34,6 @@
 #define PAWN_FOR_KNIGHT basicValue[BLACK_PAWN] - basicValue[WHITE_KNIGHT]
 #define PAWN_FOR_BISHOP basicValue[BLACK_PAWN] - basicValue[WHITE_BISHOP]
 
-int log1024[1024];
 int pieceOrder[16], promotionPieceValue[16];
 MovegenerationStage moveGenerationStage[100];
 int MG_SCHEME_STANDARD, MG_SCHEME_ESCAPE, MG_SCHEME_CHECKS, MG_SCHEME_QUIESCENCE_WITH_CHECKS, MG_SCHEME_QUIESCENCE,
@@ -868,11 +867,7 @@ static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *m
         entry = &movelist->moveHistory[ply][idx];
     }
 
-    const int maxFreq = 33;
-    const int weight = log1024[min(entry->freq + 1, maxFreq)];
-    const int value = (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000LL);
-
-    return weight * value / log1024[maxFreq];
+    return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000);
 }
 
 static void addCaptures(Movelist *movelist, const Position *position, const Square from, Bitboard captures)
@@ -1817,10 +1812,6 @@ int initializeModuleMovegeneration(void)
     promotionPieceValue[WHITE_BISHOP] = promotionPieceValue[BLACK_BISHOP] = 3 - VALUEOFFSET_BAD_MOVE;
     promotionPieceValue[WHITE_ROOK] = promotionPieceValue[BLACK_ROOK] = 4 - VALUEOFFSET_BAD_MOVE;
     promotionPieceValue[WHITE_QUEEN] = promotionPieceValue[BLACK_QUEEN] = VALUEOFFSET_PROMOTION_TO_QUEEN;
-
-    for (int j = 0; j < 1024; j++) {
-        log1024[j] = (int)(1024.0 * log((double)(j + 1.0)));
-    }
 
     return 0;
 }
