@@ -2202,6 +2202,39 @@ static int testPinCheck(void)
     return 0;
 }
 
+static int testMoveOrderInCheck(void)
+{
+    Variation *variation = aligned_alloc(64, sizeof(Variation));
+    if (variation == NULL) {
+        logSevere("aligned_alloc failed in testMoveOrderInCheck");
+        exit(-1);
+    }
+    Movelist movelist;
+    Move move;
+
+    initializeVariation(variation, "8/8/4k3/7R/7b/3N4/3r4/4K3 w - - 0 1");
+    initStandardMovelist(&movelist, &variation->singlePosition,
+                         &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE, TRUE);
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == E1 && getToSquare(move) == D2); /* Kxd2 */
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == H5 && getToSquare(move) == H4); /* Rxh4 */
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == E1 && getToSquare(move) == F1); /* Kf1 */
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == D3 && getToSquare(move) == F2); /* Nf2 */
+
+    move = getNextMove(&movelist);
+    assert(move == NO_MOVE);
+
+    free(variation);
+    return 0;
+}
+
 #endif
 
 int testModuleMovegeneration(void)
@@ -2240,6 +2273,10 @@ int testModuleMovegeneration(void)
     }
 
     if ((result = testPinCheck()) != 0) {
+        return result;
+    }
+
+    if ((result = testMoveOrderInCheck()) != 0) {
         return result;
     }
 
