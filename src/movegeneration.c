@@ -2213,8 +2213,8 @@ static int testMoveOrderInCheck(void)
     Move move;
 
     initializeVariation(variation, "8/8/4k3/7R/7b/3N4/3r4/4K3 w - - 0 1");
-    initStandardMovelist(&movelist, &variation->singlePosition,
-                         &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE, TRUE);
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
+                         TRUE);
 
     move = getNextMove(&movelist);
     assert(getFromSquare(move) == E1 && getToSquare(move) == D2); /* Kxd2 */
