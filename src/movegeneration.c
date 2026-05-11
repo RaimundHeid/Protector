@@ -329,7 +329,7 @@ Move getNextMove(Movelist *movelist)
                     (pieceType(position->piece[getFromSquare(killer4)]) != PAWN ||
                      getToSquare(killer4) != position->enPassantSquare) &&
                     movesAreEqual(killer4, movelist->hashMove) == FALSE && movesAreEqual(killer4, killer1) == FALSE &&
-                    movesAreEqual(killer4, killer2) == FALSE) {
+                    movesAreEqual(killer4, killer2) == FALSE && movesAreEqual(killer4, killer3) == FALSE) {
                     setMoveValue(&killer4, 3);
                     movelist->moves[movelist->numberOfMoves++] = killer4;
                     movelist->killer4Executed = TRUE;
@@ -353,7 +353,7 @@ Move getNextMove(Movelist *movelist)
                      getToSquare(killer6) != position->enPassantSquare) &&
                     movesAreEqual(killer6, movelist->hashMove) == FALSE && movesAreEqual(killer6, killer1) == FALSE &&
                     movesAreEqual(killer6, killer2) == FALSE && movesAreEqual(killer6, killer3) == FALSE &&
-                    movesAreEqual(killer6, killer4) == FALSE) {
+                    movesAreEqual(killer6, killer4) == FALSE && movesAreEqual(killer6, killer5) == FALSE) {
                     setMoveValue(&killer6, 1);
                     movelist->moves[movelist->numberOfMoves++] = killer6;
                     movelist->killer6Executed = TRUE;
@@ -844,7 +844,9 @@ void deleteMoveAtPosition(Movelist *movelist, const int position)
 
 static INT16 captureMoveSortValue(const Position *position, const Square from, const Square to)
 {
-    return (INT16)(6 * pieceOrder[position->piece[to]] - pieceOrder[position->piece[from]]);
+    const int victimOrder =
+        (position->piece[to] != NO_PIECE) ? pieceOrder[position->piece[to]] : pieceOrder[WHITE_PAWN];
+    return (INT16)(6 * victimOrder - pieceOrder[position->piece[from]]);
 }
 
 static INT16 promotionMoveSortValue(const Position *position, const Square to, const Piece newPiece)
@@ -879,7 +881,7 @@ static void addCaptures(Movelist *movelist, const Position *position, const Squa
         const INT16 value = captureMoveSortValue(position, from, to);
         int i = 0;
 
-        movelist->moves[movelist->numberOfMoves] = (value - 1) << 16;
+        movelist->moves[movelist->numberOfMoves] = (UINT32)(value - 1) << 16;
 
         while (getMoveValue(movelist->moves[i]) >= value) {
             i++;
@@ -1126,10 +1128,6 @@ void generateSpecialMovesPure(Movelist *movelist)
 
         case KNIGHT:
             moves = getKnightMoves(from);
-            break;
-
-        case KING:
-            moves = getKingMoves(position->king[activeColor]);
             break;
 
         default:
