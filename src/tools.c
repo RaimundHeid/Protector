@@ -278,6 +278,7 @@ int initializeModuleTools(void)
     return 0;
 }
 
+#ifndef NDEBUG
 static int testStringOperations(void)
 {
     const char *testString = "Pascal";
@@ -380,9 +381,11 @@ static int testMiscFunctions(void)
 
     return 0;
 }
+#endif
 
 int testModuleTools(void)
 {
+#ifndef NDEBUG
     int result;
 
     if ((result = testStringOperations()) != 0) {
@@ -408,6 +411,7 @@ int testModuleTools(void)
     if ((result = testMiscFunctions()) != 0) {
         return result;
     }
+#endif
 
     return 0;
 }

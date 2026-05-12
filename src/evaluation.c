@@ -205,6 +205,7 @@ bool flipTest(Position *position)
     return (bool)(v1 == v2);
 }
 
+#ifndef NDEBUG
 int testGetValue(void)
 {
     Variation *variation = calloc(1, sizeof(Variation));
@@ -272,11 +273,13 @@ int testGetValue(void)
 
     return 0;
 }
+#endif
 
 #define RETRACT_MOVE ((Move)0xFFFFFFFF)
 
 int testModuleEvaluation(void)
 {
+#ifndef NDEBUG
     typedef struct {
         const char *fen;
         Move moves[32];
@@ -427,4 +430,7 @@ int testModuleEvaluation(void)
 
     free(variation);
     return testGetValue();
+#endif
+
+    return 0;
 }

@@ -1820,6 +1820,7 @@ void evaluateBigNnueWithAccumulatorFull(Position *pos, Accumulator *acc, int *ps
         *psqt_out = psqt / 16;
 }
 
+#ifndef NDEBUG
 static int testNnuePlausibility(void)
 {
     typedef struct {
@@ -4495,9 +4496,11 @@ static int testUpdateAccumulatorMakeMoveFast(void)
 {
     return testUpdateAccumulatorGeneric(makeMoveFast, "makeMoveFast");
 }
+#endif
 
 int testModuleNnue(void)
 {
+#ifndef NDEBUG
     int res = testRefreshAccumulator();
     if (res != 0) {
         return res;
@@ -4686,5 +4689,8 @@ int testModuleNnue(void)
     }
 
     free(variation);
+    return 0;
+#endif
+
     return 0;
 }

@@ -408,6 +408,7 @@ int initializeModuleHash(void)
     return 0;
 }
 
+#ifndef NDEBUG
 static int testAgeCalculation(void)
 {
     Hashtable hashtable;
@@ -429,14 +430,17 @@ static int testAgeCalculation(void)
 
     return (hashtable.date == (UINT8)(NUM_DATES - 1) ? 0 : 1);
 }
+#endif
 
 int testModuleHash(void)
 {
+#ifndef NDEBUG
     int result = 0;
 
     if ((result = testAgeCalculation()) != 0) {
         return result;
     }
+#endif
 
     return 0;
 }

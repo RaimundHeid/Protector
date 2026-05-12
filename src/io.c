@@ -438,6 +438,7 @@ int initializeModuleIo(void)
 
 int testModuleIo(void)
 {
+#ifndef NDEBUG
     char buffer[32];
 
     formatLongInteger(123, buffer, sizeof(buffer));
@@ -446,6 +447,7 @@ int testModuleIo(void)
     assert(strcmp(buffer, "1,234") == 0);
     formatLongInteger(1234567, buffer, sizeof(buffer));
     assert(strcmp(buffer, "1,234,567") == 0);
+#endif
 
     return 0;
 }

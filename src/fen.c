@@ -338,6 +338,7 @@ int initializeModuleFen(void)
 
 int testModuleFen(void)
 {
+#ifndef NDEBUG
     char *fen1 = FEN_GAMESTART;
     char *fen2 = "rn3rk1/pbppq1pp/1p2pb2/4N2Q/3PN3/3B4/PPP2PPP/R3K2R w KQ - 4 11";
     char *fen3 = "8/8/1R5p/q5pk/PR3pP1/7P/8/7K b - g3 0 1";
@@ -388,6 +389,7 @@ int testModuleFen(void)
     readFen(fen3, &position);
     getFen(&position, buffer, sizeof(buffer));
     assert(strcmp(buffer, fen3) == 0);
+#endif
 
     return 0;
 }

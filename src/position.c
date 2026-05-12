@@ -1599,6 +1599,7 @@ int initializeModulePosition(void)
     return 0;
 }
 
+#ifndef NDEBUG
 static int checkMove(Square from, Square to, Piece newPiece, Variation *variation)
 {
     Move move = getPackedMove(from, to, newPiece);
@@ -1958,9 +1959,11 @@ static int testMaterialCounters(void)
     }
     return 0;
 }
+#endif
 
 int testModulePosition(void)
 {
+#ifndef NDEBUG
     int result;
 
     if ((result = testPawnMoves()) != 0) {
@@ -1986,6 +1989,7 @@ int testModulePosition(void)
     if ((result = testMaterialCounters()) != 0) {
         return result;
     }
+#endif
 
     return 0;
 }

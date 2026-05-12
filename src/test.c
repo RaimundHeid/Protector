@@ -191,6 +191,7 @@ int initializeModuleTest(void)
 
 int testModuleTest(void)
 {
+#ifndef NDEBUG
     int result;
 
     if ((result = processTestsuite("moduletest.pgn")) != 0) {
@@ -202,4 +203,7 @@ int testModuleTest(void)
     }
 
     return result;
+#endif
+
+    return 0;
 }

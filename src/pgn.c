@@ -1083,6 +1083,7 @@ int initializeModulePgn(void)
     return 0;
 }
 
+#ifndef NDEBUG
 static int testGeneration(void)
 {
     char *p1 = "r2qkb1r/ppp2ppp/3p4/5b2/3PN3/n4N2/PPP1QPPP/R3K2R w KQkq - 0 1";
@@ -1234,9 +1235,11 @@ static int testLoading(void)
 
     return 0;
 }
+#endif
 
 int testModulePgn(void)
 {
+#ifndef NDEBUG
     int result;
 
     if ((result = testLoading()) != 0) {
@@ -1250,6 +1253,7 @@ int testModulePgn(void)
     if ((result = testParsing()) != 0) {
         return result;
     }
+#endif
 
     return 0;
 }

@@ -94,7 +94,7 @@ debug:
 
 test:
 	$(MAKE) debug
-	./Protector -t ../pgn/pgo.pgn
+	./Protector -m
 
 protectorpgo:
 	$(MAKE) clean
