@@ -31,6 +31,7 @@
 
 extern const Move NO_MOVE;
 extern const Move NULLMOVE;
+extern int log1024[1024];
 
 typedef enum {
     MGS_INITIALIZE,

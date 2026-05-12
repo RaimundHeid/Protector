@@ -34,6 +34,7 @@
 #define PAWN_FOR_KNIGHT basicValue[BLACK_PAWN] - basicValue[WHITE_KNIGHT]
 #define PAWN_FOR_BISHOP basicValue[BLACK_PAWN] - basicValue[WHITE_BISHOP]
 
+int log1024[1024];
 int pieceOrder[16], promotionPieceValue[16];
 MovegenerationStage moveGenerationStage[100];
 int MG_SCHEME_STANDARD, MG_SCHEME_ESCAPE, MG_SCHEME_CHECKS, MG_SCHEME_QUIESCENCE_WITH_CHECKS, MG_SCHEME_QUIESCENCE,
@@ -869,7 +870,11 @@ static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *m
         entry = &movelist->moveHistory[ply][idx];
     }
 
-    return (INT16)(16000LL * (entry->succ + 1) / (entry->freq + 1) - 8000LL);
+    const int maxFreq = 33;
+    const int weight = log1024[min(entry->freq+1, maxFreq)];
+    const int basicValue = 16000LL * (entry->succ + 1) / (entry->freq + 1) - 8000LL;
+
+    return (INT16)(basicValue * weight / log1024[maxFreq]);
 }
 
 static void addCaptures(Movelist *movelist, const Position *position, const Square from, Bitboard captures)
@@ -1767,6 +1772,12 @@ bool kingCanEscape(Position *position)
 int initializeModuleMovegeneration(void)
 {
     int i = 0;
+
+    for (i = 0; i < 1024; i++) {
+        log1024[i] = (int)(1024.0 * log((double)(i + 1.0)));
+    }
+
+    i = 0;
 
     MG_SCHEME_STANDARD = i;
     moveGenerationStage[i++] = MGS_INITIALIZE;
