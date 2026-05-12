@@ -123,9 +123,6 @@ void initQuiescenceMovelist(Movelist *movelist, Position *position, PlyInfo *ply
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = hashMove;
-    movelist->killer1Executed = movelist->killer2Executed = FALSE;
-    movelist->killer3Executed = movelist->killer4Executed = FALSE;
-    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 
     if (check) {
         movelist->currentStage = MG_SCHEME_ESCAPE;
@@ -152,9 +149,6 @@ void initCaptureMovelist(Movelist *movelist, Position *position, PlyInfo *plyInf
     movelist->nextMove = movelist->numberOfPieces = 0;
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = hashMove;
-    movelist->killer1Executed = movelist->killer2Executed = FALSE;
-    movelist->killer3Executed = movelist->killer4Executed = FALSE;
-    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 
     if (check) {
         movelist->currentStage = MG_SCHEME_ESCAPE;
@@ -207,9 +201,6 @@ void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry 
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = NO_MOVE;
     movelist->currentStage = MG_SCHEME_CHECKS;
-    movelist->killer1Executed = movelist->killer2Executed = FALSE;
-    movelist->killer3Executed = movelist->killer4Executed = FALSE;
-    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 }
 
 /**
@@ -225,9 +216,6 @@ void initMovelist(Movelist *movelist, Position *position)
     movelist->numberOfMoves = movelist->numberOfBadCaptures = 0;
     movelist->hashMove = NO_MOVE;
     movelist->currentStage = MG_SCHEME_CHECKS;
-    movelist->killer1Executed = movelist->killer2Executed = FALSE;
-    movelist->killer3Executed = movelist->killer4Executed = FALSE;
-    movelist->killer5Executed = movelist->killer6Executed = FALSE;
 }
 
 Move getNextMove(Movelist *movelist)
@@ -285,6 +273,7 @@ Move getNextMove(Movelist *movelist)
             case MGS_KILLER_MOVES:
                 movelist->killer1Executed = movelist->killer2Executed = FALSE;
                 movelist->killer3Executed = movelist->killer4Executed = FALSE;
+                movelist->killer5Executed = movelist->killer6Executed = FALSE;
                 movelist->numberOfMoves = movelist->nextMove = 0;
                 position = movelist->position;
                 killer1 = movelist->plyInfo->killerMove1;
@@ -528,7 +517,7 @@ int getNumberOfPieceMoves(const Position *position, const Color color, const int
     return numberOfMoves;
 }
 
-int seeMoveRec(Position *position, const Move move, Bitboard attackers[2], const int minValue)
+int seeMoveRec(Position *position, const Move move, Bitboard attackers[2], const int minGain)
 {
     const Square from = getFromSquare(move), to = getToSquare(move);
     const Color activeColor = pieceColor(position->piece[from]);
@@ -618,16 +607,9 @@ int seeMoveRec(Position *position, const Move move, Bitboard attackers[2], const
     }
 
     bestCapture = getMove(getLastSquare(&leastValuableAttackers), to, bestNewPiece, 0);
-
     recResult = seeMoveRec(position, bestCapture, attackers, 0);
 
-    /*
-       logDebug("valueCaptured = %d\n", valueCaptured);
-       logDebug("recResult = %d\n", recResult);
-       logDebug("returnValue = %d\n", max(minValue, valueCaptured - recResult));
-     */
-
-    return max(minValue, valueCaptured - recResult);
+    return max(minGain, valueCaptured - recResult);
 }
 
 void getLegalMoves(Variation *variation, Movelist *movelist)
@@ -871,7 +853,7 @@ static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *m
     }
 
     const int maxFreq = 33;
-    const int weight = log1024[min(entry->freq+1, maxFreq)];
+    const int weight = log1024[min(entry->freq + 1, maxFreq)];
     const int basicValue = 16000LL * (entry->succ + 1) / (entry->freq + 1) - 8000LL;
 
     return (INT16)(basicValue * weight / log1024[maxFreq]);
@@ -1461,30 +1443,6 @@ void generateChecks(Movelist *movelist, bool allChecks)
         if (checks != EMPTY_BITBOARD) {
             if (from == getFromSquare(movelist->hashMove)) {
                 clearSquare(checks, getToSquare(movelist->hashMove));
-            }
-
-            if (movelist->killer1Executed && from == getFromSquare(movelist->plyInfo->killerMove1)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove1));
-            }
-
-            if (movelist->killer2Executed && from == getFromSquare(movelist->plyInfo->killerMove2)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove2));
-            }
-
-            if (movelist->killer3Executed && from == getFromSquare(movelist->plyInfo->killerMove3)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove3));
-            }
-
-            if (movelist->killer4Executed && from == getFromSquare(movelist->plyInfo->killerMove4)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove4));
-            }
-
-            if (movelist->killer5Executed && from == getFromSquare(movelist->plyInfo->killerMove5)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove5));
-            }
-
-            if (movelist->killer6Executed && from == getFromSquare(movelist->plyInfo->killerMove6)) {
-                clearSquare(checks, getToSquare(movelist->plyInfo->killerMove6));
             }
 
             movelist->movesOfPiece[i].moves &= ~checks;

@@ -70,7 +70,7 @@ int getNumberOfPieceMoves(const Position *position, const Color color, const int
 /**
  * Get the static exchange eval of the specified move.
  */
-int seeMoveRec(Position *position, const Move, Bitboard attackers[2], const int minValue);
+int seeMoveRec(Position *position, const Move, Bitboard attackers[2], const int minGain);
 
 /**
  * Check if the king can escape a check situation.
