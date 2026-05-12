@@ -1497,7 +1497,6 @@ void generateChecks(Movelist *movelist, bool allChecks)
 
 void generateEscapes(Movelist *movelist)
 {
-    Move move;
     Square from, to;
     Piece newPiece;
     INT16 value;
@@ -1516,15 +1515,17 @@ void generateEscapes(Movelist *movelist)
     from = kingsquare;
     newPiece = NO_PIECE;
 
+    /* King moves */
+    /* ---------- */
     ITERATE_BITBOARD(&kingmoves, to)
     {
         if (getDirectAttackers(position, to, passiveColor, obstacles) == EMPTY_BITBOARD) {
-            move = getPackedMove(from, to, newPiece);
+            Move move = getPackedMove(from, to, newPiece);
 
             if (position->piece[to] == NO_PIECE) {
                 value = plyHistoryMoveSortValue(position, movelist, move);
             } else {
-                value = captureMoveSortValue(position, from, to);
+                value = captureMoveSortValue(position, from, to) + 10000;
             }
 
             setMoveValue(&move, value);
@@ -1536,6 +1537,8 @@ void generateEscapes(Movelist *movelist)
         goto sortMoves;
     }
 
+    /* Captures */
+    /* -------- */
     attackerSquare = getLastSquare(&attackers);
     attackerType = pieceType(position->piece[attackerSquare]);
     defenders = getDirectAttackers(position, attackerSquare, activeColor, position->allPieces);
@@ -1545,9 +1548,7 @@ void generateEscapes(Movelist *movelist)
     ITERATE_BITBOARD(&defenders, from)
     {
         if (pieceType(position->piece[from]) == PAWN && testSquare(promotionCandidates[activeColor], from)) {
-            INT16 value;
-
-            value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN);
+            value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN) + 10000;
             movelist->moves[movelist->numberOfMoves++] = getMove(from, to, WHITE_QUEEN, value);
 
             value = promotionMoveSortValue(movelist->position, to, WHITE_ROOK);
@@ -1560,10 +1561,12 @@ void generateEscapes(Movelist *movelist)
             movelist->moves[movelist->numberOfMoves++] = getMove(from, to, WHITE_KNIGHT, value);
         } else {
             value = captureMoveSortValue(position, from, to);
-            move = getMove(from, to, NO_PIECE, value);
+            Move move = getMove(from, to, NO_PIECE, value);
 
             if (basicValue[position->piece[from]] > basicValue[position->piece[to]] && seeMove(position, move) < 0) {
                 setMoveValue(&move, value - VALUEOFFSET_BAD_MOVE);
+            } else {
+                setMoveValue(&move, value + 10000);
             }
 
             movelist->moves[movelist->numberOfMoves++] = move;
@@ -1576,7 +1579,7 @@ void generateEscapes(Movelist *movelist)
 
         to = position->enPassantSquare;
         newPiece = NO_PIECE;
-        value = (INT16)basicValue[PAWN | opponent(activeColor)];
+        value = (INT16)basicValue[PAWN | opponent(activeColor)] + 10000;
 
         ITERATE_BITBOARD(&defenders, from)
         {
@@ -1590,6 +1593,8 @@ void generateEscapes(Movelist *movelist)
         goto sortMoves;
     }
 
+    /* Interposing moves */
+    /* ----------------- */
     corridor = squaresBetween[attackerSquare][kingsquare];
 
     ITERATE_BITBOARD(&corridor, to)
@@ -1600,12 +1605,12 @@ void generateEscapes(Movelist *movelist)
         ITERATE_BITBOARD(&defenders, from)
         {
             if (pieceType(position->piece[from]) == PAWN && testSquare(promotionCandidates[activeColor], from)) {
-                INT16 value;
-
-                value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN);
+                INT16 value = promotionMoveSortValue(movelist->position, to, WHITE_QUEEN);
 
                 if (seeMove(position, getPackedMove(from, to, WHITE_QUEEN)) < 0) {
                     value = (INT16)(value - (VALUEOFFSET_BAD_MOVE + VALUEOFFSET_PROMOTION_TO_QUEEN));
+                } else {
+                    value += 10000;
                 }
 
                 movelist->moves[movelist->numberOfMoves++] = getMove(from, to, WHITE_QUEEN, value);
@@ -1619,7 +1624,7 @@ void generateEscapes(Movelist *movelist)
                 value = promotionMoveSortValue(movelist->position, to, WHITE_KNIGHT);
                 movelist->moves[movelist->numberOfMoves++] = getMove(from, to, WHITE_KNIGHT, value);
             } else {
-                move = getPackedMove(from, to, NO_PIECE);
+                Move move = getPackedMove(from, to, NO_PIECE);
 
                 if (seeMove(position, move) >= 0) {
                     value = plyHistoryMoveSortValue(position, movelist, move);
@@ -1636,7 +1641,7 @@ void generateEscapes(Movelist *movelist)
 sortMoves:
 
     if (movelist->hashMove != NO_MOVE && movelist->numberOfMoves > 1) {
-        move = movelist->hashMove;
+        Move move = movelist->hashMove;
         setMoveValue(&move, 32000);
         setMoveValueInList(movelist, move);
     }
