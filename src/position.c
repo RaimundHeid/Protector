@@ -820,6 +820,8 @@ int makeMove(Variation *variation, const Move move)
         return result; /* Nullmove */
     }
 
+    assert(movingPiece != NO_PIECE);
+    assert(pieceColor(movingPiece) == activeColor);
     plyInfo->captured = capturedPiece;
     plyInfo->kingSquare = position->king[activeColor];
     plyInfo->castlingRights = position->castlingRights;

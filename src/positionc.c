@@ -50,6 +50,8 @@ int makeBlackMove(Variation *variation, const Move move)
         return result; /* Nullmove */
     }
 
+    assert(movingPiece != NO_PIECE);
+    assert(pieceColor(movingPiece) == COLOR);
     plyInfo->captured = capturedPiece;
     position->piecesOfColor[COLOR] &= maxFrom;
     position->piecesOfColor[COLOR] |= minTo;
