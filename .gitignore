@@ -61,3 +61,4 @@ protector.log
 .DS_Store
 .aider*
 .vscode/
+compile_commands.json
