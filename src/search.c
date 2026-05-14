@@ -1222,15 +1222,15 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
         worstValue = (numPvs == 1 ? best : max(VALUE_MATED + 3, variation->pv[numPvs - 1].score));
 
         if (best >= beta) {
+            window = window + window / 4;
             beta = min(-VALUE_MATED, best + window);
         } else if (worstValue <= alpha && worstValue > VALUE_MATED + 2) {
+            window = window * 2;
             alpha = max(VALUE_MATED, alpha - window);
             variation->failingLow = TRUE;
         } else {
             exactValueFound = TRUE; /* exact value found */
         }
-
-        window = window + window / 2;
 
         sortMoves(basemoves);
 
