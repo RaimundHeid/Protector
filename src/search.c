@@ -641,25 +641,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    /* Internal iterative deepening */
-    /* ---------------------------- */
-    if (hashmove == NO_MOVE && restDepth >= 3) {
-        const Move excludeHere = (excludeMove != NO_MOVE ? excludeMove : NULLMOVE);
-        searchBest(variation, alpha, beta, ply, restDepth - 2, &bestReply, pvNode, TRUE, excludeHere);
-
-        if (moveIsPseudoLegal(position, bestReply)) {
-            hashmove = bestReply;
-        }
-
-        if (hashmove != NO_MOVE && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8)) {
-            Hashentry *tableHit = getHashentry(getSharedHashtable(), variation->singlePosition.hashKey);
-
-            if (tableHit != 0) {
-                bestTableHit = tableHit;
-            }
-        }
-    }
-
     /* Copy counter moves from ply-1 */
     /* ----------------------------- */
     if (ply >= 1) {
@@ -750,7 +731,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
         bool nodeWasBlocked = FALSE;
-        int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0), extensions = 0;
+        int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0);
+        int extensions = 0;
 
         if (quietMove) {
             const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
@@ -851,9 +833,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
                             restDepth >= 3 && stage == MGS_REST;
-
-        const int pvDepth = restDepth - 1 + extensions / 1024;
-        const int reducedDepth = restDepth - 1 - reductions / 1024;
+        const int decrement = pvNode == FALSE && hashmove == NO_MOVE && restDepth >= 4 ? 2 : 1;
+        const int pvDepth = restDepth - decrement + extensions / 1024;
+        const int reducedDepth = restDepth - decrement - reductions / 1024;
         const bool pvSearch = pvNode && numMovesPlayed == 0;
         const bool cutNodeValue = (pvSearch == FALSE && cutNode == FALSE) || reduce;
 
