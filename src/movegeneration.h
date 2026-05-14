@@ -190,6 +190,5 @@ void initCheckMovelist(Movelist *movelist, Position *position, MoveHistoryEntry 
                        int currentPly);
 void initMovelist(Movelist *movelist, Position *position);
 Move getNextMove(Movelist *movelist);
-void deferMove(Movelist *movelist, Move move);
 
 #endif

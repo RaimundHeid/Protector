@@ -29,13 +29,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NODE_TABLE_SIZE (MAX_THREADS * MAX_DEPTH * 32)
-
 const unsigned int NUM_DATES = 16;
-const unsigned int CLUSTER_SIZE = 4;
+#define CLUSTER_SIZE 4
 const UINT8 DEPTH_NONE = 0;
-Nodeentry nodeUsageTable[NODE_TABLE_SIZE];
-UINT64 numNodeTableEntries;
 
 INT16 getHashentryValue(const Hashentry *entry)
 {
@@ -135,15 +131,6 @@ void resetHashtable(Hashtable *hashtable)
 
     hashtable->date = 0;
     hashtable->entriesUsed = 0;
-}
-
-void resetNodetable(void)
-{
-    size_t i;
-
-    for (i = 0; i < NODE_TABLE_SIZE; i++) {
-        nodeUsageTable[i].key = ULONG_ZERO;
-    }
 }
 
 void finalizeHashtable(Hashtable *hashtable)
@@ -341,70 +328,8 @@ Hashentry *getHashentry(Hashtable *hashtable, UINT64 key)
     return NULL;
 }
 
-UINT64 getNodeIndex(UINT64 key)
-{
-    if (numNodeTableEntries == 0) {
-        return 0;
-    }
-
-    return key % numNodeTableEntries;
-}
-
-bool nodeIsInUse(UINT64 key, UINT8 depth)
-{
-    UINT64 nodeIndex;
-
-    if (numNodeTableEntries == 0) {
-        return FALSE;
-    }
-
-    nodeIndex = getNodeIndex(key);
-
-    return nodeUsageTable[nodeIndex].key == key && nodeUsageTable[nodeIndex].depth >= depth && key != ULONG_ZERO;
-}
-
-bool setNodeUsage(UINT64 key, UINT8 depth)
-{
-    UINT64 nodeIndex;
-
-    if (numNodeTableEntries == 0) {
-        return FALSE;
-    }
-
-    nodeIndex = getNodeIndex(key);
-
-    if (nodeUsageTable[nodeIndex].key == ULONG_ZERO) {
-        nodeUsageTable[nodeIndex].key = key;
-        nodeUsageTable[nodeIndex].depth = depth;
-
-        return TRUE;
-    } else {
-        return FALSE;
-    }
-}
-
-void resetNodeUsage(UINT64 key)
-{
-    UINT64 nodeIndex;
-
-    if (numNodeTableEntries == 0) {
-        return;
-    }
-
-    nodeIndex = getNodeIndex(key);
-
-    nodeUsageTable[nodeIndex].key = ULONG_ZERO;
-}
-
 int initializeModuleHash(void)
 {
-    resetNodetable();
-    numNodeTableEntries = getPreviousPrime(NODE_TABLE_SIZE);
-
-    if (numNodeTableEntries == 0) {
-        return -1;
-    }
-
     return 0;
 }
 

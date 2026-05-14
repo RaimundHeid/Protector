@@ -74,11 +74,6 @@ static void checkTerminationConditions(Variation *variation)
     }
 }
 
-bool checkNodeExclusion(int restDepth)
-{
-    return restDepth >= 6 && getNumberOfThreads() > 1;
-}
-
 int getEvalValue(Variation *variation)
 {
     const int opt = (variation->singlePosition.activeColor == variation->startPosition.activeColor)
@@ -468,7 +463,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const bool inCheck = variation->plyInfo[ply - 1].currentMoveIsCheck;
     const UINT64 hashKey = position->hashKey;
     int quietMoveIndex[MAX_MOVES_PER_POSITION], quietMoveCount = 0;
-    int deferCount = 0;
 
     *bestMove = NO_MOVE;
     variation->plyInfo[ply].isHashMove = FALSE;
@@ -730,7 +724,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
-        bool nodeWasBlocked = FALSE;
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0);
         int extensions = 0;
 
@@ -808,18 +801,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             continue;
         }
 
-        if (numMovesPlayed > 0 && inCheck == FALSE && stage == MGS_REST && deferCount < 10 &&
-            checkNodeExclusion(restDepth)) {
-            if (nodeIsInUse(position->hashKey, restDepth)) {
-                deferMove(&movelist, currentMove);
-                deferCount++;
-                unmakeLastMove(variation);
-                continue;
-            } else {
-                nodeWasBlocked = setNodeUsage(position->hashKey, restDepth);
-            }
-        }
-
         const bool check = variation->plyInfo[ply].currentMoveIsCheck =
             activeKingIsSafe(&variation->singlePosition) == FALSE;
 
@@ -862,10 +843,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
 
         assert(value >= VALUE_MATED && value <= -VALUE_MATED);
-
-        if (nodeWasBlocked) {
-            resetNodeUsage(position->hashKey);
-        }
 
         unmakeLastMove(variation);
         numMovesPlayed++;

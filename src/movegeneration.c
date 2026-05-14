@@ -905,22 +905,6 @@ static void addPromotions(Movelist *movelist, const Square from, Bitboard moves)
     }
 }
 
-void deferMove(Movelist *movelist, Move move)
-{
-    const int targetSpot = min(movelist->numberOfMoves - 1, movelist->nextMove + 1);
-
-    if (targetSpot > movelist->nextMove && movelist->numberOfMoves < MAX_MOVES_PER_POSITION - 1) {
-        int i;
-
-        for (i = movelist->numberOfMoves; i > targetSpot; i--) {
-            movelist->moves[i] = movelist->moves[i - 1];
-        }
-
-        movelist->moves[targetSpot] = move;
-        movelist->numberOfMoves++;
-    }
-}
-
 void generateSpecialMoves(Movelist *movelist)
 {
     const Position *position = movelist->position;
