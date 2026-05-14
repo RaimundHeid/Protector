@@ -751,20 +751,16 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Optimistic futility cuts */
         /* ------------------------ */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED &&
-            isSpecialMove(position, currentMove) == FALSE) {
-            if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
-                continue;
-            }
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED) {
+            const bool cheapPrune = (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) ||
+                                    (restDepth < 8 && staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth +
+                                                              (staticValue > alpha ? 33 : 0) <
+                                                          alpha);
 
-            if (restDepth < 8 &&
-                staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth + (staticValue > alpha ? 33 : 0) <
-                    alpha) {
-                continue;
-            }
-
-            if (restDepth < 4 && seeMove(position, currentMove) < 0) {
-                continue;
+            if ((cheapPrune || restDepth < 4) && isSpecialMove(position, currentMove) == FALSE) {
+                if (cheapPrune || seeMove(position, currentMove) < 0) {
+                    continue;
+                }
             }
         }
 
