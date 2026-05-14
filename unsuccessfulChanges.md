@@ -1,5 +1,46 @@
 ## Unsuccessful Changes
 
+### Improving-conditional NMP depth reduction (2026-05-14)
+
+**Change:** Used `isImproving(variation)` to modulate the null move depth reduction: aggressive `R = 5 + depth/4` when improving, conservative `R = 4 + depth/4` when not improving. The rationale was that a declining static eval trend suggests a temporarily inflated eval, warranting deeper verification.
+
+```c
+// Before:
+const int newDepth = restDepth - 5 - restDepth / 4;
+// After:
+const int newDepth = restDepth - (isImproving(variation) ? 5 : 4) - restDepth / 4;
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** NMP already requires `staticValue >= beta`, so the position is well above beta regardless of trend. The one-ply difference in verification depth did not meaningfully improve NMP reliability. Do not retry.
+
+---
+
+### Depth-proportional history malus for failed quiet moves (2026-05-14)
+
+**Change:** Applied a depth-proportional `freq` malus to all quiet moves that failed to produce a cutoff. All quiet moves received `freq += bonus + malus` (where `malus = bonus * restDepth / 2`) in the loop; the cutoff move's `freq` was corrected back down by `malus` after the loop in a single statement.
+
+```c
+// Before:
+for (int i = 0; i < quietMoveCount; i++) {
+    variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus;
+}
+// After:
+const int malus = bonus * restDepth / 2;
+for (int i = 0; i < quietMoveCount; i++) {
+    variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus + malus;
+}
+// ... then inside the bestMove block:
+variation->moveHistory[ply][historyIndex(*bestMove, position)].freq -= malus;
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The per-ply history already penalizes failed quiet moves implicitly via the `succ/freq` ratio. Adding an explicit depth-scaled malus appears to over-penalize moves and degrade move ordering, possibly because the existing ratio-based formula is already well-calibrated for the historyPerPly system.
+
+---
+
 ### SEE-scaled quiet move pruning at all depths (re-applied to historyPerPly branch) (2026-05-05)
 
 **Change:** Replaced `if (restDepth < 4 && seeMove(position, currentMove) < 0)` with a depth-independent quadratic SEE threshold, mirroring Stockfish's `!see_ge(move, -25 * lmrDepth²)`. The `seeLmrDepth` naturally incorporates the per-ply history bonus already in `reductions`.
