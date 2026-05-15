@@ -264,3 +264,57 @@ variation->moveHistory[ply][historyIndex(*bestMove, position)].succ += bonus;
 **Result:** Negative. **REVERTED.**
 
 **Note:** The depth-squared multiplier causes the accumulated `freq` and `succ` values to be dominated by the rare high-depth updates, effectively discarding the signal from the many shallow nodes. The flat bonus, despite being dominated numerically by shallow data, appears to be the right calibration for the historyPerPly system — the existing `succ/freq` ratio already works well because both numerator and denominator are shaped similarly by search volume.
+
+---
+
+### Extend SEE-based quiet move pruning from restDepth < 4 to restDepth < 6 (2026-05-15)
+
+**Change:** Raised the depth threshold in the `isSpecialMove`/SEE pruning branch of the optimistic futility cuts, so that quiet moves with negative SEE are also pruned at depths 4 and 5. The existing `isSpecialMove` guard (checks and passed-pawn advances) was left intact.
+
+```c
+// Before:
+if ((cheapPrune || restDepth < 4) && isSpecialMove(position, currentMove) == FALSE) {
+// After:
+if ((cheapPrune || restDepth < 6) && isSpecialMove(position, currentMove) == FALSE) {
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** Although losing-SEE quiet moves are almost never best, the SEE pruning at depths 4–5 appears to interact badly with Protector's existing move ordering and LMR framework. The per-ply history already steers the search away from bad moves via reductions; adding SEE pruning on top over-prunes and loses accuracy.
+
+---
+
+### Improving-conditional singular extension verification depth (2026-05-15)
+
+**Change:** Used the `improving` flag (already in scope) to shorten the singular extension verification search by one ply when the position is not improving. The rationale: a declining static eval trend means fewer viable alternatives, so the hash move is more likely to be genuinely singular, and a shallower verification suffices.
+
+```c
+// Before:
+const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, restDepth / 2,
+                                    &bestReply, FALSE, cutNode, hashmove);
+// After:
+const int verifDepth = improving ? restDepth / 2 : max(1, restDepth / 2 - 1);
+const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, verifDepth,
+                                    &bestReply, FALSE, cutNode, hashmove);
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The `improving` flag reflects the static eval trend, not the actual branching factor of the verification search. In practice, non-improving positions still have many candidate alternatives that require deep verification to rule out — the shallower search produces more false-positive extensions, which costs more than it saves.
+
+---
+
+### Null window for null move verification search (2026-05-15)
+
+**Change:** Replaced the full-window `(alpha, beta)` verification search with a null window `(beta-1, beta)`. The verification's only purpose is to determine whether the position scores ≥ beta; a null window makes the same binary decision without exploring moves scoring between alpha and beta−1.
+
+```c
+// Before:
+searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE, FALSE, NULLMOVE) >= beta
+// After:
+searchBest(variation, beta - 1, beta, ply, newDepth, &bestReply, FALSE, FALSE, NULLMOVE) >= beta
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The verification search runs with `excludeMove = NULLMOVE`, which disables the transposition table probe at the root of that call. Without TT cutoffs at the top level, the narrower window removes the alpha-floor that helped prune branches in the full-window version, resulting in more nodes rather than fewer.

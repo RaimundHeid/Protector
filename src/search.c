@@ -727,12 +727,6 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176 + (cutNode ? 2048 : 0);
         int extensions = 0;
 
-        if (quietMove) {
-            const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
-            const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
-            reductions = max(0, reductions - plyScore / 8);
-        }
-
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
             return 0;
         }
@@ -764,6 +758,12 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             }
         }
 
+        if (quietMove) {
+            const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
+            const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
+            reductions = max(0, reductions - plyScore / 8);
+        }
+
         /* Single move extension check */
         /* --------------------------- */
         if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8) &&
@@ -775,10 +775,20 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             if (limitValue > VALUE_ALMOST_MATED && limitValue < -VALUE_ALMOST_MATED) {
                 const Move savedKiller1 = variation->plyInfo[ply].killerMove1;
                 const Move savedKiller2 = variation->plyInfo[ply].killerMove2;
+                PrincipalVariation pv;
+
+                if (pvNode) {
+                    pv = variation->plyInfo[ply].pv;
+                }
+
                 const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, restDepth / 2,
                                                     &bestReply, FALSE, cutNode, hashmove);
                 variation->plyInfo[ply].killerMove1 = savedKiller1;
                 variation->plyInfo[ply].killerMove2 = savedKiller2;
+
+                if (pvNode) {
+                    variation->plyInfo[ply].pv = pv;
+                }
 
                 if (excludeValue < limitValue) {
                     extensions += 1024;
