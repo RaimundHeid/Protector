@@ -240,3 +240,27 @@ LOS below 60% throughout (≈14% at 200 games) → REVERTED.
 
 **Note:** Clearly negative result. Reducing the re-search depth even by one ply when the LMR
 value only marginally beats best appears to lose accuracy rather than save time.
+
+---
+
+### Depth-proportional history bonus (restDepth²) for freq/succ updates (2026-05-15)
+
+**Change:** Scaled the history bonus by `min(restDepth * restDepth, 400)` so that deeper cutoffs contribute proportionally more to the `succ/freq` ratio. The rationale was that shallow restDepth searches dominate history updates due to exponential node counts, making the `plyScore = 16000 * succ / freq − 8000` noisy. A depth-10 cutoff would contribute 100× more than a depth-1 cutoff, ideally improving LMR calibration at zero per-node cost (the multiply is only in the update path).
+
+```c
+// Before:
+const int bonus = (pvNode ? 2 : 1);
+variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus;
+// ...
+variation->moveHistory[ply][historyIndex(*bestMove, position)].succ += bonus;
+
+// After:
+const int bonus = min(restDepth * restDepth, 400) * (pvNode ? 2 : 1);
+variation->moveHistory[ply][quietMoveIndex[i]].freq += bonus;
+// ...
+variation->moveHistory[ply][historyIndex(*bestMove, position)].succ += bonus;
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The depth-squared multiplier causes the accumulated `freq` and `succ` values to be dominated by the rare high-depth updates, effectively discarding the signal from the many shallow nodes. The flat bonus, despite being dominated numerically by shallow data, appears to be the right calibration for the historyPerPly system — the existing `succ/freq` ratio already works well because both numerator and denominator are shaped similarly by search volume.

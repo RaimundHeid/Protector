@@ -140,7 +140,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
 
         assert(getHashentryStaticValue(tableHit) == getStaticValue(variation));
 
-        if (pi->staticValueAvailable == FALSE && pvNode == FALSE) {
+        if (pi->staticValueAvailable == FALSE) {
             pi->staticValue = getHashentryStaticValue(tableHit);
             pi->staticValueAvailable = TRUE;
         }
@@ -773,10 +773,12 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             const int limitValue = hashEntryValue - (50 * restDepth) / 64;
 
             if (limitValue > VALUE_ALMOST_MATED && limitValue < -VALUE_ALMOST_MATED) {
-                const PlyInfo pi = variation->plyInfo[ply];
+                const Move savedKiller1 = variation->plyInfo[ply].killerMove1;
+                const Move savedKiller2 = variation->plyInfo[ply].killerMove2;
                 const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, restDepth / 2,
                                                     &bestReply, FALSE, cutNode, hashmove);
-                variation->plyInfo[ply] = pi;
+                variation->plyInfo[ply].killerMove1 = savedKiller1;
+                variation->plyInfo[ply].killerMove2 = savedKiller2;
 
                 if (excludeValue < limitValue) {
                     extensions += 1024;
