@@ -318,3 +318,55 @@ searchBest(variation, beta - 1, beta, ply, newDepth, &bestReply, FALSE, FALSE, N
 **Result:** Negative. **REVERTED.**
 
 **Note:** The verification search runs with `excludeMove = NULLMOVE`, which disables the transposition table probe at the root of that call. Without TT cutoffs at the top level, the narrower window removes the alpha-floor that helped prune branches in the full-window version, resulting in more nodes rather than fewer.
+
+---
+
+### Defer staticValue/improving computation to pvNode==FALSE && inCheck==FALSE (2026-05-15)
+
+**Change:** Wrapped the unconditional `getStaticValue()`/`isImproving()` calls (previously computed for every node) in a `pvNode == FALSE && inCheck == FALSE` guard, since both values are only consumed inside ProbCut and the optimistic futility cuts — both of which are already guarded by that condition. For PV nodes and in-check nodes without a TT entry, this avoids the NNUE finalization call entirely.
+
+```c
+// Before:
+const int staticValue = getStaticValue(variation);
+const bool improving = isImproving(variation) || staticValue >= beta;
+
+// After:
+int staticValue = 0;
+bool improving = FALSE;
+if (pvNode == FALSE && inCheck == FALSE) {
+    staticValue = getStaticValue(variation);
+    improving = isImproving(variation) || staticValue >= beta;
+}
+```
+
+**Result:** 720 games at 10+0.1 TC, W=243 D=298 L=179, score=54.4%, Elo=+31.0 ± 19.4, LOS=99.9%. Reference value Elo +45. **REVERTED.**
+
+**Note:** The change is theoretically sound — PV and in-check nodes with a TT miss do pay for an NNUE evaluation they don't use. However, the reference baseline is Elo +45, and this change only achieved +31. The improvement exists but is below the bar needed to be counted as a real gain. In practice, TT hit rates are high, so the NNUE call at line 662 is rarely expensive (the cached path is cheap); the savings are smaller than expected.
+
+---
+
+### ProbCut hash upper-bound skip (2026-05-16)
+
+**Change:** Computed `probCutBeta` before the outer ProbCut guard and folded a TT upper-bound check into that condition. When `bestTableHit` has `HASHVALUE_UPPER_LIMIT` with importance >= `restDepth - 1` and proven value < `probCutBeta`, the entire ProbCut section (capture move generation, SEE filtering, qsearch, and deep search) is skipped using four cheap comparisons on the already-loaded hash entry.
+
+```c
+// Before:
+if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
+    abs(beta) <= -VALUE_ALMOST_MATED) {
+    const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+    // ... full ProbCut body
+
+// After:
+const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
+    abs(beta) <= -VALUE_ALMOST_MATED &&
+    (bestTableHit == 0 ||
+     getHashentryFlag(bestTableHit) != HASHVALUE_UPPER_LIMIT ||
+     getHashentryImportance(bestTableHit) < restDepth - 1 ||
+     calcEffectiveValue(getHashentryValue(bestTableHit), ply) >= probCutBeta)) {
+    // ... full ProbCut body
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The TT upper-bound entries at depth >= `restDepth - 1` that also fall below `probCutBeta` appear to be rare enough in practice that the skip fires infrequently. ProbCut itself already requires `restDepth >= 5`, and by that point most positions either lack a TT entry at sufficient depth or the upper bound is above `probCutBeta`. The overhead of the four comparisons on every eligible node slightly outweighs the occasional ProbCut skip.

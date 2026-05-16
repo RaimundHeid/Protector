@@ -60,5 +60,6 @@ dkms.conf
 protector.log
 .DS_Store
 .aider*
+.cache/
 .vscode/
 compile_commands.json
