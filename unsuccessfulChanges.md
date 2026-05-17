@@ -345,6 +345,42 @@ if (pvNode == FALSE && inCheck == FALSE) {
 
 ---
 
+### History-score-informed move-count pruning threshold (2026-05-17)
+
+**Change:** Moved the `plyScore` computation (from `succ/freq` history ratio) to before the optimistic futility cut and used it to adapt the move-count threshold. Moves with negative history were pruned sooner; moves with positive history survived longer. The `plyScore / 500` adjustment shifted the base threshold (45 or 79) by up to ±16.
+
+```c
+// Before:
+if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED) {
+    const bool cheapPrune = (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) || ...;
+    ...
+}
+if (quietMove) {
+    const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
+    const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
+    reductions = max(0, reductions - plyScore / 8);
+}
+
+// After:
+int plyScore = 0;
+if (quietMove) {
+    const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
+    plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
+    reductions = max(0, reductions - plyScore / 8);
+}
+if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED) {
+    const int adjustedBase = (improving ? 79 : 45) + plyScore / 500;
+    const bool cheapPrune = (numMovesPlayed >= adjustedBase * (3 + restDepth * restDepth) / 64) || ...;
+    ...
+}
+```
+
+**Result:** Negative. **REVERTED.**
+
+**Note:** The per-ply history already shapes LMR reductions for quiet moves. Feeding the same signal into the move-count pruning threshold creates a double-penalty for bad-history moves (earlier pruning AND more reduction if not pruned) and a double-benefit for good-history moves. This over-correlates two mechanisms that were tuned independently, degrading overall accuracy.
+
+---
+
 ### ProbCut hash upper-bound skip (2026-05-16)
 
 **Change:** Computed `probCutBeta` before the outer ProbCut guard and folded a TT upper-bound check into that condition. When `bestTableHit` has `HASHVALUE_UPPER_LIMIT` with importance >= `restDepth - 1` and proven value < `probCutBeta`, the entire ProbCut section (capture move generation, SEE filtering, qsearch, and deep search) is skipped using four cheap comparisons on the already-loaded hash entry.
