@@ -1,5 +1,42 @@
 ## Unsuccessful Changes
 
+### Eval-margin-based additional NMP depth reduction (2026-05-17)
+
+**Change:** Added an extra 0–3 plies of NMP depth reduction when the static evaluation significantly exceeds beta. The rationale was that when the position is already far above beta, even a shallower null move verification suffices — the opponent would need a correspondingly large swing with their free move.
+
+```c
+// Before:
+const int newDepth = restDepth - 5 - restDepth / 4;
+// After:
+const int evalExcess = min(3, (getStaticValue(variation) - beta) / 200);
+const int newDepth = restDepth - 5 - restDepth / 4 - evalExcess;
+```
+
+**Result:** Negative. Score of proHigh vs Stockfish 16 classic eval: 125 - 101 - 122 [0.534] 348 games, Elo: +24.0 ± 29.5, LOS: 94.5%, DrawRatio: 35.1%. **REVERTED.**
+
+**Note:** The extra reduction fires in positions that already cleared the `staticValue >= beta` bar, so it compounds an existing aggressive reduction (`R = 5 + depth/4`) without a sufficiently reliable signal. A position 400 cp above beta can still have deep tactical refutations that require the full verification depth to find. The improvement is not statistically significant and the directional effect is unclear. Do not retry.
+
+---
+
+### LMR extended to MGS_BAD_CAPTURES stage (2026-05-17)
+
+**Change:** Extended the `reduce` condition in the main move loop to include `MGS_BAD_CAPTURES` in addition to `MGS_REST`, so that bad captures (negative SEE) played late in the move list are searched at reduced depth like late quiet moves.
+
+```c
+// Before:
+const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
+                    restDepth >= 3 && stage == MGS_REST;
+// After:
+const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
+                    restDepth >= 3 && (stage == MGS_REST || stage == MGS_BAD_CAPTURES);
+```
+
+**Result:** Negative. Elo difference: 24.7 ± 19.6, LOS: 99.3%, DrawRatio: 40.1%. **REVERTED.**
+
+**Note:** Bad captures arrive after all quiet moves, so `numMovesPlayed` is large and `reductions` is large when they are reached, causing them to be reduced by 2–4 plies. Although bad captures rarely are the best move, they include material sacrifices that lead to dynamic combinations (pins, discoveries, mating attacks) — precisely the tactical patterns where SEE is unreliable. Reducing them causes these lines to be searched shallowly and the re-search safety net is not triggered often enough to compensate. The LOS of 99.3% confirms this is a clear regression, not noise. Do not retry.
+
+---
+
 ### Improving-conditional NMP depth reduction (2026-05-14)
 
 **Change:** Used `isImproving(variation)` to modulate the null move depth reduction: aggressive `R = 5 + depth/4` when improving, conservative `R = 4 + depth/4` when not improving. The rationale was that a declining static eval trend suggests a temporarily inflated eval, warranting deeper verification.
