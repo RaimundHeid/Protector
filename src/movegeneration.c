@@ -43,6 +43,7 @@ const Move NO_MOVE = (B4 << 6) | A1; /* (a1-b4 is always an illegal move) */
 const Move NULLMOVE = 0;
 const int VALUEOFFSET_PROMOTION_TO_QUEEN = 4000;
 const int VALUEOFFSET_BAD_MOVE = 28000;
+static const int QUIET_CHECK_SORT_BONUS = 16001;
 
 /**
  * Register the specified killermove.
@@ -1243,6 +1244,10 @@ void generateRestMoves(Movelist *movelist)
     const Position *position = movelist->position;
     const Bitboard permittedSquares = ~position->allPieces;
     const Color activeColor = position->activeColor;
+    const Color passiveColor = opponent(activeColor);
+    const Square opponentKing = position->king[passiveColor];
+    const Bitboard rookCheckSquares = getMagicRookMoves(opponentKing, position->allPieces);
+    const Bitboard bishopCheckSquares = getMagicBishopMoves(opponentKing, position->allPieces);
     Bitboard pieces =
         (activeColor == WHITE
              ? position->piecesOfType[WHITE_PAWN] & ~((position->allPieces >> 8) | squaresOfRank[RANK_7])
@@ -1277,8 +1282,18 @@ void generateRestMoves(Movelist *movelist)
         Bitboard moves = movelist->movesOfPiece[i].moves & permittedSquares;
         UINT8 moveSquares[_64_];
         int numMoves, moveIndex;
+        Bitboard pieceCheckSquares;
 
         from = movelist->movesOfPiece[i].square;
+
+        switch (pieceType(position->piece[from])) {
+        case PAWN:   pieceCheckSquares = generalMoves[PAWN | passiveColor][opponentKing]; break;
+        case KNIGHT: pieceCheckSquares = generalMoves[KNIGHT][opponentKing];              break;
+        case BISHOP: pieceCheckSquares = bishopCheckSquares;                              break;
+        case ROOK:   pieceCheckSquares = rookCheckSquares;                                break;
+        case QUEEN:  pieceCheckSquares = rookCheckSquares | bishopCheckSquares;           break;
+        default:     pieceCheckSquares = EMPTY_BITBOARD;                                  break;
+        }
 
         if (from == k1from) {
             clearSquare(moves, getToSquare(movelist->plyInfo->killerMove1));
@@ -1307,8 +1322,15 @@ void generateRestMoves(Movelist *movelist)
         numMoves = getSetSquares(moves, moveSquares);
 
         for (moveIndex = 0; moveIndex < numMoves; moveIndex++) {
-            Move move = getOrdinaryMove(from, (Square)moveSquares[moveIndex]);
-            setMoveValue(&move, plyHistoryMoveSortValue(position, movelist, move));
+            const Square to = (Square)moveSquares[moveIndex];
+            Move move = getOrdinaryMove(from, to);
+            INT16 sortValue = plyHistoryMoveSortValue(position, movelist, move);
+
+            if (testSquare(pieceCheckSquares, to)) {
+                sortValue += QUIET_CHECK_SORT_BONUS;
+            }
+
+            setMoveValue(&move, sortValue);
             addMoveByValue(movelist, move);
 
             assert(movesAreEqual(move, movelist->hashMove) == FALSE);
@@ -2193,6 +2215,36 @@ static int testMoveOrderInCheck(void)
     return 0;
 }
 
+static int testQuietCheckSorting(void)
+{
+    Variation *variation = aligned_alloc(64, sizeof(Variation));
+    if (variation == NULL) {
+        logSevere("aligned_alloc failed in testQuietCheckSorting");
+        exit(-1);
+    }
+    Movelist movelist;
+    Move move;
+
+    /* Knight check: Nb1-c3 attacks black king on e2 and must sort first. */
+    initializeVariation(variation, "8/8/8/8/8/8/4k3/1N5K w - - 0 1");
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
+                         FALSE);
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == B1 && getToSquare(move) == C3); /* Nc3+ */
+
+    /* Pawn check: d3-d4 attacks black king on e5 and must sort first. */
+    initializeVariation(variation, "8/8/8/4k3/8/3P4/8/4K3 w - - 0 1");
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
+                         FALSE);
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == D3 && getToSquare(move) == D4); /* d4+ */
+
+    free(variation);
+    return 0;
+}
+
 #endif
 
 int testModuleMovegeneration(void)
@@ -2235,6 +2287,10 @@ int testModuleMovegeneration(void)
     }
 
     if ((result = testMoveOrderInCheck()) != 0) {
+        return result;
+    }
+
+    if ((result = testQuietCheckSorting()) != 0) {
         return result;
     }
 
