@@ -745,8 +745,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Optimistic futility cuts */
         /* ------------------------ */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED &&
-            getMoveValue(currentMove) < 16000) {
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && &&best > VALUE_ALMOST_MATED && numMovesPlayed > 0) {
             const bool cheapPrune = (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) ||
                                     (restDepth < 8 && staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth +
                                                               (staticValue > alpha ? 33 : 0) <
