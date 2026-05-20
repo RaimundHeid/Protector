@@ -441,11 +441,6 @@ static bool isPassedPawnMove(const Square pawnSquare, const Square targetSquare,
     }
 }
 
-static bool isSpecialMove(Position *position, Move move)
-{
-    return simpleMoveIsCheck(position, move) || isPassedPawnMove(getFromSquare(move), getToSquare(move), position);
-}
-
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
                       const bool pvNode, bool cutNode, Move excludeMove)
 {
@@ -745,13 +740,14 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Optimistic futility cuts */
         /* ------------------------ */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && numMovesPlayed > 0) {
+        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && numMovesPlayed > 1) {
             const bool cheapPrune = (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) ||
                                     (restDepth < 8 && staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth +
                                                               (staticValue > alpha ? 33 : 0) <
                                                           alpha);
 
-            if ((cheapPrune || restDepth < 4) && isSpecialMove(position, currentMove) == FALSE) {
+            if ((cheapPrune || restDepth < 4) &&
+                isPassedPawnMove(getFromSquare(currentMove), getToSquare(currentMove), position) == FALSE) {
                 if (cheapPrune || seeMove(position, currentMove) < 0) {
                     continue;
                 }

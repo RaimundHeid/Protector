@@ -1287,12 +1287,24 @@ void generateRestMoves(Movelist *movelist)
         from = movelist->movesOfPiece[i].square;
 
         switch (pieceType(position->piece[from])) {
-        case PAWN:   pieceCheckSquares = generalMoves[PAWN | passiveColor][opponentKing]; break;
-        case KNIGHT: pieceCheckSquares = generalMoves[KNIGHT][opponentKing];              break;
-        case BISHOP: pieceCheckSquares = bishopCheckSquares;                              break;
-        case ROOK:   pieceCheckSquares = rookCheckSquares;                                break;
-        case QUEEN:  pieceCheckSquares = rookCheckSquares | bishopCheckSquares;           break;
-        default:     pieceCheckSquares = EMPTY_BITBOARD;                                  break;
+        case PAWN:
+            pieceCheckSquares = generalMoves[PAWN | passiveColor][opponentKing];
+            break;
+        case KNIGHT:
+            pieceCheckSquares = generalMoves[KNIGHT][opponentKing];
+            break;
+        case BISHOP:
+            pieceCheckSquares = bishopCheckSquares;
+            break;
+        case ROOK:
+            pieceCheckSquares = rookCheckSquares;
+            break;
+        case QUEEN:
+            pieceCheckSquares = rookCheckSquares | bishopCheckSquares;
+            break;
+        default:
+            pieceCheckSquares = EMPTY_BITBOARD;
+            break;
         }
 
         if (from == k1from) {
