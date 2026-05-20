@@ -1338,7 +1338,7 @@ void generateRestMoves(Movelist *movelist)
             Move move = getOrdinaryMove(from, to);
             INT16 sortValue = plyHistoryMoveSortValue(position, movelist, move);
 
-            if (testSquare(pieceCheckSquares, to)) {
+            if (testSquare(pieceCheckSquares, to) && seeMove(movelist->position, move) >= 0) {
                 sortValue += QUIET_CHECK_SORT_BONUS;
             }
 
@@ -2246,7 +2246,7 @@ static int testQuietCheckSorting(void)
     assert(getFromSquare(move) == B1 && getToSquare(move) == C3); /* Nc3+ */
 
     /* Pawn check: d3-d4 attacks black king on e5 and must sort first. */
-    initializeVariation(variation, "8/8/8/4k3/8/3P4/8/4K3 w - - 0 1");
+    initializeVariation(variation, "8/8/8/4k3/8/2KP4/8/8 w - - 0 1");
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
                          FALSE);
 
