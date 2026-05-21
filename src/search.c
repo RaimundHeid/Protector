@@ -430,17 +430,6 @@ static bool isImproving(Variation *variation)
     return variation->ply >= 2 && getStaticValue(variation) > variation->plyInfo[variation->ply - 2].staticValue;
 }
 
-static bool isPassedPawnMove(const Square pawnSquare, const Square targetSquare, const Position *position)
-{
-    const Piece piece = position->piece[pawnSquare];
-
-    if (pieceType(piece) == PAWN) {
-        return pawnIsPassed(position, targetSquare, pieceColor(piece));
-    } else {
-        return FALSE;
-    }
-}
-
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
                       const bool pvNode, bool cutNode, Move excludeMove)
 {
@@ -741,16 +730,18 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         /* Optimistic futility cuts */
         /* ------------------------ */
         if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && numMovesPlayed > 1) {
-            const bool cheapPrune = (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) ||
-                                    (restDepth < 8 && staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth +
-                                                              (staticValue > alpha ? 33 : 0) <
-                                                          alpha);
+            if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
+                continue;
+            }
 
-            if ((cheapPrune || restDepth < 4) &&
-                isPassedPawnMove(getFromSquare(currentMove), getToSquare(currentMove), position) == FALSE) {
-                if (cheapPrune || seeMove(position, currentMove) < 0) {
-                    continue;
-                }
+            if (restDepth < 8 &&
+                staticValue + (*bestMove == NO_MOVE ? 76 : 16) + 45 * restDepth + (staticValue > alpha ? 33 : 0) <
+                    alpha) {
+                continue;
+            }
+
+            if (restDepth < 4 && seeMove(position, currentMove) < 0) {
+                continue;
             }
         }
 
