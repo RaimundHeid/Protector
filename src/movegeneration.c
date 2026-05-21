@@ -1340,6 +1340,8 @@ void generateRestMoves(Movelist *movelist)
 
             if (testSquare(pieceCheckSquares, to) && seeMove(movelist->position, move) >= 0) {
                 sortValue += QUIET_CHECK_SORT_BONUS;
+            } else if (pieceType(position->piece[from]) == PAWN && pawnIsPassed(position, to, activeColor)) {
+                sortValue += 4000;
             }
 
             setMoveValue(&move, sortValue);
@@ -2257,6 +2259,40 @@ static int testQuietCheckSorting(void)
     return 0;
 }
 
+static int testPassedPawnMoveSorting(void)
+{
+    Variation *variation = aligned_alloc(64, sizeof(Variation));
+    if (variation == NULL) {
+        logSevere("aligned_alloc failed in testPassedPawnMoveSorting");
+        exit(-1);
+    }
+    Movelist movelist;
+    Move move;
+
+    /* White passed pawn on a3 moving to a4. A knight is on b2.
+       The move a3-a4 is a non-checking passed pawn move.
+       It must receive the 16001 bonus and sort first. */
+    initializeVariation(variation, "8/8/8/8/8/P7/1N6/k6K w - - 0 1");
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
+                         FALSE);
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == A3 && getToSquare(move) == A4);
+
+    /* Black passed pawn on a6 moving to a5. A knight is on b7.
+       The move a6-a5 is a non-checking passed pawn move.
+       It must receive the 16001 bonus and sort first. */
+    initializeVariation(variation, "k6K/1n6/p7/8/8/8/8/8 b - - 0 1");
+    initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[variation->ply], NULL, 0, NO_MOVE,
+                         FALSE);
+
+    move = getNextMove(&movelist);
+    assert(getFromSquare(move) == A6 && getToSquare(move) == A5);
+
+    free(variation);
+    return 0;
+}
+
 #endif
 
 int testModuleMovegeneration(void)
@@ -2303,6 +2339,10 @@ int testModuleMovegeneration(void)
     }
 
     if ((result = testQuietCheckSorting()) != 0) {
+        return result;
+    }
+
+    if ((result = testPassedPawnMoveSorting()) != 0) {
         return result;
     }
 
