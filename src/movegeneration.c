@@ -1341,7 +1341,7 @@ void generateRestMoves(Movelist *movelist)
             if (testSquare(pieceCheckSquares, to) && seeMove(movelist->position, move) >= 0) {
                 sortValue += QUIET_CHECK_SORT_BONUS;
             } else if (pieceType(position->piece[from]) == PAWN && pawnIsPassed(position, to, activeColor)) {
-                sortValue += 4000;
+                sortValue += 2000;
             }
 
             setMoveValue(&move, sortValue);
