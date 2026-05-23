@@ -1,5 +1,59 @@
 ## Unsuccessful Changes
 
+### Implementing Internal Iterative Reductions (IIR) (2026-05-23)
+
+**Change:** Implemented Internal Iterative Reductions (IIR) in `searchBest`: if a node has no transposition table move (`hashmove == NO_MOVE`) and the remaining depth is high (`restDepth >= 6`), we reduce the search depth by 1 ply (`restDepth--`). This was intended to save nodes at subtrees with sub-optimal move ordering.
+
+```c
+// Forward declaration & definition:
+static int searchBest(Variation *variation, int alpha, int beta, const int ply, int restDepth, Move *bestMove, ...);
+
+// Inside searchBest, right after TT probe:
+if (hashmove == NO_MOVE && restDepth >= 6) {
+    restDepth--;
+}
+```
+
+**Result:** Negative. Games: 300, W-L-D: 75-78-147, LLR: -0.1456, LOS: 40.40%. Aborted early at N=300 (LOS < 60.0% at N>=300 milestone). **REVERTED.**
+
+**Note:** Implementing IIR in Protector degrades playing strength. Although IIR reduces the search time in nodes without a hash move, the 1-ply reduction at depth >= 6 loses too much tactical accuracy in those nodes. In Protector's search framework, maintaining full-depth searches in TT-miss nodes is necessary for search robustness.
+
+---
+
+### Widening Aspiration Window bounds from [4, 6] to [6, 12] (2026-05-23)
+
+**Change:** Widened the bounds of the aspiration window from `min(6, max(4, ...))` to `min(12, max(6, ...))`. The rationale was that an aspiration window of 4 to 6 centipawns is extremely narrow, leading to frequent fail highs/lows and expensive full re-searches. Widening it to `[6, 12]` was intended to reduce aspiration re-searches and save nodes.
+
+```c
+// Before:
+aspirationWindow = min(6, max(4, (abs(iv1 - iv2) + abs(iv2 - iv3)) / 2));
+// After:
+aspirationWindow = min(12, max(6, (abs(iv1 - iv2) + abs(iv2 - iv3)) / 2));
+```
+
+**Result:** Negative. Games: 206, W-L-D: 48-65-93, LLR: -0.4909, LOS: 6.40%. Aborted early at N=206 (LOS < 60.0% at N>=200 milestone). **REVERTED.**
+
+**Note:** Widening the aspiration window degrades Protector's playing strength. Although widening the window avoids some re-searches, it reduces the overall search pruning efficiency (as wider windows search more nodes on average), which outweighs the time saved from avoided re-searches. Keep the tight [4, 6] window.
+
+---
+
+### Restricting PV-node singular extensions to restDepth >= 5 (2026-05-23)
+
+**Change:** Increased the depth threshold for PV-node singular extension checks from `4` to `5` (`restDepth >= (pvNode ? 5 : 8)`). The rationale was that singular extension checks at `restDepth = 4` run a verification search at `restDepth / 2 = 2` plies, which is highly unstable and noisy. Raising the threshold to `5` was intended to save nodes.
+
+```c
+// Before:
+if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8) &&
+// After:
+if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 5 : 8) &&
+```
+
+**Result:** Negative. Games: 224, W-L-D: 53-59-112, LLR: -0.2194, LOS: 38.70%. Aborted early at N=224 (LOS < 60.0% at N>=200 milestone). **REVERTED.**
+
+**Note:** Restricting singular extensions to `restDepth >= 5` in PV nodes degrades playing strength. Even though verification searches at depth 4 are shallow, singular extensions are crucial for tactical safety in Protector's search, and pruning them leads to tactical oversights. Do not retry.
+
+---
+
 ### Eval-margin-based additional NMP depth reduction (2026-05-17)
 
 **Change:** Added an extra 0–3 plies of NMP depth reduction when the static evaluation significantly exceeds beta. The rationale was that when the position is already far above beta, even a shallower null move verification suffices — the opponent would need a correspondingly large swing with their free move.
