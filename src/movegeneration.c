@@ -855,7 +855,7 @@ static INT16 plyHistoryMoveSortValue(const Position *position, const Movelist *m
 
     const int maxFreq = 33;
     const int weight = log1024[min(entry->freq + 1, maxFreq)];
-    const int basicValue = 16000LL * (entry->succ + 1) / (entry->freq + 1) - 8000LL;
+    const int basicValue = 16000LL * (entry->succ + 1) / (entry->freq + 2) - 8000LL;
 
     return (INT16)(basicValue * weight / log1024[maxFreq]);
 }
