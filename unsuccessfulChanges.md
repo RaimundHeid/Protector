@@ -1,5 +1,23 @@
 ## Unsuccessful Changes
 
+### PV-Restricted Check Extensions in Quiescence Search (2026-05-24)
+
+**Change:** Restricted check extensions in quiescence search to PV nodes only. The rationale was that check extensions in qsearch can lead to massive search tree explosions in cut and all subtrees due to consecutive checks, so limiting them to PV nodes would save nodes while maintaining PV tactical safety.
+
+```c
+// Before:
+const int newDepth = (inCheck ? restDepth : restDepth - 1);
+
+// After:
+const int newDepth = (inCheck && pvNode ? restDepth : restDepth - 1);
+```
+
+**Result:** Negative. Games: 300, W-L-D: 78-76-146, LLR: -0.0044, LOS: 56.40%. Aborted early at N=300 milestone because LOS (56.40%) dropped below the 60.0% threshold. **REVERTED.**
+
+**Note:** Restricting check extensions in quiescence search to PV nodes only degrades Protector's playing strength. Check extensions are crucial for tactical safety in deep subtrees (including non-PV cut subtrees) where the engine might otherwise walk into checks or miss mating sequences. Restricting them leads to tactical oversights.
+
+---
+
 ### Stockfish-style Negative Extensions in Singular Search (2026-05-24)
 
 **Change:** Scaled negative extensions inside the singular search verification block of `searchBest`. Instead of always reducing by 1 ply (`extensions -= 1024`) when `cutNode` is true, we applied Stockfish's scaling: a 3-ply reduction when the hash entry is assumed to fail high (`hashEntryValue >= beta`) and a 2-ply reduction when `cutNode` is true.
