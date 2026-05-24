@@ -708,11 +708,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
-        int reductions = log1024[restDepth] * log1024[numMovesPlayed] / 2176;
-        if (improving == FALSE) {
-            reductions += reductions / 4;
-        }
-        reductions += (cutNode ? 2048 : 0);
+        int reductions =
+            (log1024[restDepth] * log1024[numMovesPlayed] * (improving ? 4 : 5)) / 8704 + (cutNode ? 2048 : 0);
         int extensions = 0;
 
         if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
