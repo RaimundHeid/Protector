@@ -1,5 +1,41 @@
 ## Unsuccessful Changes
 
+### Stockfish-style Negative Extensions in Singular Search (2026-05-24)
+
+**Change:** Scaled negative extensions inside the singular search verification block of `searchBest`. Instead of always reducing by 1 ply (`extensions -= 1024`) when `cutNode` is true, we applied Stockfish's scaling: a 3-ply reduction when the hash entry is assumed to fail high (`hashEntryValue >= beta`) and a 2-ply reduction when `cutNode` is true.
+
+```c
+// Before:
+if (excludeValue < limitValue) {
+    extensions += 1024;
+} else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
+    best = excludeValue;
+    goto storeResult;
+} else if (cutNode) {
+    extensions -= 1024;
+}
+
+// After:
+if (excludeValue < limitValue) {
+    extensions += 1024;
+} else if (excludeValue >= beta && abs(excludeValue) <= -VALUE_ALMOST_MATED) {
+    best = excludeValue;
+    goto storeResult;
+} else if (hashEntryValue >= beta) {
+    extensions -= 3072;
+    // 3 plies
+} else if (cutNode) {
+    extensions -= 2048;
+    // 2 plies
+}
+```
+
+**Result:** Negative/Neutral. Games: 1000, W-L-D: 236-230-534, LLR: -0.0369, LOS: 60.90%. Match finished 1000 games without crossing SPRT bounds. LOS was below 2/3. **REVERTED.**
+
+**Note:** Although the change showed a slightly positive score (+6 games net), it did not achieve a statistically significant improvement over 1000 games, and final LOS was below the 2/3 threshold. Scaling up negative extensions in Protector might be too aggressive for its search framework, or the reduction units may require tuning specific to Protector's evaluation scale.
+
+---
+
 ### Implementing Internal Iterative Reductions (IIR) (2026-05-23)
 
 **Change:** Implemented Internal Iterative Reductions (IIR) in `searchBest`: if a node has no transposition table move (`hashmove == NO_MOVE`) and the remaining depth is high (`restDepth >= 6`), we reduce the search depth by 1 ply (`restDepth--`). This was intended to save nodes at subtrees with sub-optimal move ordering.
