@@ -497,3 +497,61 @@ if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_M
 **Result:** Negative. **REVERTED.**
 
 **Note:** The TT upper-bound entries at depth >= `restDepth - 1` that also fall below `probCutBeta` appear to be rare enough in practice that the skip fires infrequently. ProbCut itself already requires `restDepth >= 5`, and by that point most positions either lack a TT entry at sufficient depth or the upper bound is above `probCutBeta`. The overhead of the four comparisons on every eligible node slightly outweighs the occasional ProbCut skip.
+
+---
+
+### Restricting singular extensions to PV nodes only (2026-05-24)
+
+**Change:** Restricted the singular extension check to PV nodes only, avoiding verification searches in non-PV subtrees (which are typically cut nodes or all nodes).
+
+```c
+// Before:
+if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8) &&
+// After:
+if (pvNode && movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= 4 &&
+```
+
+**Result:** Negative. Games: 200, W-L-D: 56-54-90, LLR: +0.0147, LOS: 57.60%. Aborted early at N=200 milestone because LOS (57.60%) dropped below the 60.0% threshold. **REVERTED.**
+
+**Note:** Restricting singular extensions to PV nodes only degrades playing strength or is at best neutral. Although skipping singular extensions in non-PV nodes saves nodes and computation time, singular extensions in non-PV nodes are still important for tactical safety in deep subtrees (where non-PV nodes can be reached at depth >= 8), and disabling them leads to tactical oversights that negate the search speedup.
+
+---
+
+### Raising non-PV singular extension depth threshold from 8 to 10 (2026-05-24)
+
+**Change:** Raised the minimum depth check for singular extensions in non-PV nodes from `8` to `10` (`restDepth >= (pvNode ? 4 : 10)`).
+
+```c
+// Before:
+if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8) &&
+// After:
+if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 10) &&
+```
+
+**Result:** Negative. Games: 200, W-L-D: 44-56-100, LLR: -0.3896, LOS: 11.50%. Aborted early at N=200 milestone because LOS (11.50%) dropped below the 60.0% threshold. **REVERTED.**
+
+**Note:** Raising the threshold for non-PV singular extensions from 8 to 10 degrades playing strength. Although it avoids costly verification searches at depths 8 and 9, these singular extensions are still essential for safety in cut subtrees at those depths. Restricting them leads to tactical blindspots in deep non-PV lines.
+
+---
+
+### Quiet move history decaying across iterations (2026-05-24)
+
+**Change:** Decayed accumulated quiet move histories by dividing `freq` and `succ` counters by 2 at the start of each search iteration step (depth > 1) to prevent history sluggishness.
+
+```c
+if (variation->iteration > 1) {
+    for (int p = 0; p < MAX_DEPTH_ARRAY_SIZE; p++) {
+        for (int h = 0; h < HISTORY_SIZE; h++) {
+            variation->moveHistory[p][h].freq /= 2;
+            variation->moveHistory[p][h].succ /= 2;
+        }
+    }
+}
+```
+
+**Result:** Negative. Games: 200, W-L-D: 44-52-104, LLR: -0.2839, LOS: 20.70%. Aborted early at N=200 milestone because LOS (20.70%) dropped below the 60.0% threshold. **REVERTED.**
+
+**Note:** Decaying move histories by 2 degrades Protector's playing strength. Even though decaying histories prevents sluggishness in theory, in practice, the frequency-success ratio relies on the accumulation of absolute sample sizes across all search steps to remain statistically stable and smooth. Artificially halving the counts makes the move sorting score overly noisy and unstable at deep iterations, which degrades move ordering.
+
+
+

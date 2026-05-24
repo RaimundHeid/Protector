@@ -586,7 +586,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         /* Static pruning */
         /* -------------- */
         if (restDepth <= 4) {
-            const int margin = 22 + 44 * restDepth - (isImproving(variation) ? 24 : 0);
+            const int margin = 15 + 40 * restDepth - (isImproving(variation) ? 24 : 0);
 
             if (getStaticValue(variation) - margin >= beta) {
                 return beta;
