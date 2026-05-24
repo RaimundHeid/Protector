@@ -1,5 +1,24 @@
 ## Unsuccessful Changes
 
+### Adaptive ProbCut Margin Scaling (2026-05-24)
+
+**Change:** Replaced the static `200` cp ProbCut margin with an adaptive, scaled margin based on the `improving` flag and Protector's evaluation scale:
+
+```c
+// Before:
+const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+
+// After:
+const int margin = improving ? 80 : 130;
+const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + margin);
+```
+
+**Result:** Negative. Games: 400, W-L-D: 96-95-209, LLR: -0.0566, LOS: 52.90%. Aborted early at N=400 milestone because LOS (52.90%) dropped below the 60.0% safety threshold. **REVERTED.**
+
+**Note:** Although the change yielded a very close score (+1 net win over 400 games), it did not achieve a statistically significant improvement, and the final LOS fell below the 60% early-abort safety threshold. Reducing the ProbCut margin makes the engine prune branches in cut nodes more frequently when it finds a good capture. However, because Protector's evaluation is already highly tuned for the static 200 cp threshold, a narrower margin (80-130 cp) may prune subtrees where the opponent had subtle defensive resources, introducing minor tactical blindspots that offset the search speedup.
+
+---
+
 ### Shallow Singular Extension Verification in Non-PV Nodes (2026-05-24)
 
 **Change:** Reduced the depth of singular extension verification searches in non-PV nodes by 1 ply. The rationale was that non-PV subtrees are typically cut subtrees, so running verification searches 1 ply shallower (`restDepth / 2 - 1` instead of `restDepth / 2`) would save significant nodes without affecting tactical precision on the main PV line.
