@@ -1,5 +1,26 @@
 ## Unsuccessful Changes
 
+### Shallow Singular Extension Verification in Non-PV Nodes (2026-05-24)
+
+**Change:** Reduced the depth of singular extension verification searches in non-PV nodes by 1 ply. The rationale was that non-PV subtrees are typically cut subtrees, so running verification searches 1 ply shallower (`restDepth / 2 - 1` instead of `restDepth / 2`) would save significant nodes without affecting tactical precision on the main PV line.
+
+```c
+// Before:
+const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, restDepth / 2,
+                                    &bestReply, FALSE, cutNode, hashmove);
+
+// After:
+const int verifDepth = pvNode ? restDepth / 2 : restDepth / 2 - 1;
+const int excludeValue = searchBest(variation, limitValue - 1, limitValue, ply, verifDepth,
+                                    &bestReply, FALSE, cutNode, hashmove);
+```
+
+**Result:** Negative. Games: 200, W-L-D: 49-52-99, LLR: -0.1265, LOS: 38.30%. Aborted early at N=200 milestone because LOS (38.30%) dropped below the 60.0% threshold. **REVERTED.**
+
+**Note:** Running shallower verification searches in non-PV nodes degrades Protector's playing strength. Although non-PV nodes are cut nodes, deep singular moves (searched at depth >= 8) still require full-precision verification to ensure the hash move is genuinely singular and tactically safe. Shallower verification leads to false-positive extensions or missed tactical refutations.
+
+---
+
 ### PV-Restricted Check Extensions in Quiescence Search (2026-05-24)
 
 **Change:** Restricted check extensions in quiescence search to PV nodes only. The rationale was that check extensions in qsearch can lead to massive search tree explosions in cut and all subtrees due to consecutive checks, so limiting them to PV nodes would save nodes while maintaining PV tactical safety.
