@@ -650,7 +650,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* -------------------------------------------------------------------------------------------- */
     if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
         abs(beta) <= -VALUE_ALMOST_MATED) {
-        const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+        const int margin = improving ? 80 : 130;
+        const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + margin);
         Movelist probMovelist;
         Move probMove, probReply;
         const Move probHashmove =
