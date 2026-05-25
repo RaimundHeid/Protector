@@ -1,5 +1,23 @@
 ## Unsuccessful Changes
 
+### Adaptive LMR History Scaling (2026-05-25)
+
+**Change:** Scaled the history-based reduction adjustment dynamically based on `restDepth` so that LMR trusts history proportionally more in deeper subtrees:
+
+```c
+// Before:
+reductions = max(0, reductions - plyScore / 8);
+
+// After:
+reductions = max(0, reductions - (plyScore * (restDepth + 2)) / 40);
+```
+
+**Result:** Negative. Games: 200, W-L-D: 52-55-93, LLR: -0.1194, LOS: 38.60%. Aborted early at N=200 milestone because LOS (38.60%) dropped below the 60.0% safety threshold. **REVERTED.**
+
+**Note:** In Protector, scaling the LMR history adjustment dynamically with depth degrades playing strength. Although deep subtrees should theoretically rely more on move-ordering history, scaling the adjustment up to $\pm 2$ plies (at depth 8+) causes the search to over-reduce moves with slightly negative history, or under-reduce moves with positive history that actually have deep refutations. The static 1-ply history adjustment is well-calibrated and much safer for Protector's search framework.
+
+---
+
 ### Adaptive ProbCut Margin Scaling (2026-05-24)
 
 **Change:** Replaced the static `200` cp ProbCut margin with an adaptive, scaled margin based on the `improving` flag and Protector's evaluation scale:
