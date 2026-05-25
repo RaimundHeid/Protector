@@ -1,5 +1,27 @@
 ## Unsuccessful Changes
 
+### Symmetric Aspiration Window Fail-High Widening (2026-05-25)
+
+**Change:** Made the aspiration window widening factor symmetric. On a root fail-high event (`best >= beta`), the window width is now doubled (`window = window * 2`) instead of just being widened by 25% (`window = window + window / 4`):
+
+```c
+// Before:
+if (best >= beta) {
+    window = window + window / 4;
+    beta = min(-VALUE_MATED, best + window);
+
+// After:
+if (best >= beta) {
+    window = window * 2;
+    beta = min(-VALUE_MATED, best + window);
+```
+
+**Result:** Negative. Games: 200, W-L-D: 46-56-98, LLR: -0.3244, LOS: 16.10%. Aborted early at N=200 milestone because LOS (16.10%) dropped below the 60.0% safety threshold. **REVERTED.**
+
+**Note:** Making the fail-high widening factor symmetric (2x) in the aspiration window loop degrades Protector's playing strength. Although doubling the window width avoids multiple root re-searches on consecutive fail-highs, widening the window too aggressively at the root decreases root pruning efficiency. When we fail high, the actual evaluation is often only slightly above the upper bound; a larger window (2x) searches much wider branches and spends too many nodes on the root re-search compared to a conservative 25% expansion. The asymmetric 25% widening factor is carefully calibrated and more efficient for Protector.
+
+---
+
 ### Move-Count Pruning (LMP) Scale Optimization (2026-05-25)
 
 **Change:** Tightened quiet move pruning (LMP) thresholds in `search.c` from the baseline `79 / 45` to `60 / 36`:
