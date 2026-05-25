@@ -1,5 +1,23 @@
 ## Unsuccessful Changes
 
+### Quiescence Search Futility Margin Scaling (2026-05-25)
+
+**Change:** Tightened the quiescence search futility pruning margin in `search.c` from `199` cp to `120` cp:
+
+```c
+// Before:
+const int futilityBase = currentValue + 199;
+
+// After:
+const int futilityBase = currentValue + 120;
+```
+
+**Result:** Negative. Games: 200, W-L-D: 47-47-106, LLR: -0.0441, LOS: 50.00%. Aborted early at N=200 milestone because LOS (50.00%) dropped below the 60.0% safety threshold. **REVERTED.**
+
+**Note:** Tightening the quiescence search futility margin in Protector degrades playing strength. Although lowering the margin from `199` cp to `120` cp is theoretically safe (approx. 3 pawns, or `315` cp in Stockfish) and saves nodes by pruning clearly losing captures in tactical trees, in practice, these aggressive cuts appear to prune dynamic tactical continuations where a material deficit is temporarily accepted but refuted shortly after. The massive `199` cp margin is necessary in Protector to prevent tactical oversights in deep quiescence search subtrees.
+
+---
+
 ### Symmetric Aspiration Window Fail-High Widening (2026-05-25)
 
 **Change:** Made the aspiration window widening factor symmetric. On a root fail-high event (`best >= beta`), the window width is now doubled (`window = window * 2`) instead of just being widened by 25% (`window = window + window / 4`):
