@@ -1,5 +1,23 @@
 ## Unsuccessful Changes
 
+### Move-Count Pruning (LMP) Scale Optimization (2026-05-25)
+
+**Change:** Tightened quiet move pruning (LMP) thresholds in `search.c` from the baseline `79 / 45` to `60 / 36`:
+
+```c
+// Before:
+if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
+
+// After:
+if (numMovesPlayed >= (improving ? 60 : 36) * (3 + restDepth * restDepth) / 64) {
+```
+
+**Result:** Negative. Games: 200, W-L-D: 45-57-98, LLR: -0.3819, LOS: 11.70%. Aborted early at N=200 milestone because LOS (11.70%) dropped below the 60.0% safety threshold. **REVERTED.**
+
+**Note:** Tightening LMP thresholds by 20-25% degrades Protector's playing strength. Although earlier pruning in cut nodes saves significant search nodes, it causes crucial quiet moves with subtle defensive resources to be completely pruned at low depths. The very loose `79/45` bounds in Protector are deliberately tuned and necessary for tactical robustness.
+
+---
+
 ### Adaptive LMR History Scaling (2026-05-25)
 
 **Change:** Scaled the history-based reduction adjustment dynamically based on `restDepth` so that LMR trusts history proportionally more in deeper subtrees:
