@@ -650,7 +650,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* -------------------------------------------------------------------------------------------- */
     if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
         abs(beta) <= -VALUE_ALMOST_MATED) {
-        const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + 200);
+        const int offset = (improving ? 67 : 90);
+        const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + offset);
         Movelist probMovelist;
         Move probMove, probReply;
         const Move probHashmove =
@@ -756,7 +757,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         /* --------------------------- */
         if (movesAreEqual(currentMove, hashmove) && excludeMove == NO_MOVE && restDepth >= (pvNode ? 4 : 8) &&
             bestTableHit != 0 && getHashentryImportance(bestTableHit) - HASH_DEPTH_OFFSET >= restDepth - 3 &&
-            (getHashentryFlag(bestTableHit) == HASHVALUE_LOWER_LIMIT || getHashentryFlag(bestTableHit) == HASHVALUE_EXACT)) {
+            (getHashentryFlag(bestTableHit) == HASHVALUE_LOWER_LIMIT ||
+             getHashentryFlag(bestTableHit) == HASHVALUE_EXACT)) {
             const int hashEntryValue = calcEffectiveValue(getHashentryValue(bestTableHit), ply);
             const int limitValue = hashEntryValue - (50 * restDepth) / 64;
 
@@ -797,8 +799,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             continue;
         }
 
-        variation->plyInfo[ply].currentMoveIsCheck =
-            activeKingIsSafe(&variation->singlePosition) == FALSE;
+        variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
 
         if (pvNode) {
             reductions = 3 * reductions / 4;
