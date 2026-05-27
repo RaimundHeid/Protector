@@ -1148,6 +1148,13 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
                 pv.score = value;
                 pv.scoreType = getPvScoreType(value, searchAlpha, beta);
                 appendMoveToPv(&(variation->plyInfo[0].pv), &pv, basemoves->moves[icm]);
+
+                if (pv.length <= 1 && variation->iteration > 1 && variation->threadNumber == 0) {
+                    copyPvFromHashtable(variation, 0, &pv, basemoves->moves[icm]);
+                    pv.score = value;
+                    pv.scoreType = getPvScoreType(value, searchAlpha, beta);
+                }
+
                 addPvByScore(variation, &pv);
 
                 if (++pvCount >= numPvLimit) {
