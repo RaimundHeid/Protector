@@ -278,7 +278,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
             const int flag = getHashentryFlag(bestTableHit);
             const int requiredFlag = (hashValue > best ? HASHVALUE_LOWER_LIMIT : HASHVALUE_UPPER_LIMIT);
 
-            if (flag == requiredFlag) {
+            if (flag == HASHVALUE_EXACT || flag == requiredFlag) {
                 best = hashValue;
             }
         }
@@ -427,7 +427,8 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
 
 static bool isImproving(Variation *variation)
 {
-    return variation->ply >= 2 && getStaticValue(variation) > variation->plyInfo[variation->ply - 2].staticValue;
+    return variation->ply >= 2 && variation->plyInfo[variation->ply - 2].staticValueAvailable &&
+           getStaticValue(variation) > variation->plyInfo[variation->ply - 2].staticValue;
 }
 
 static int searchBest(Variation *variation, int alpha, int beta, const int ply, const int restDepth, Move *bestMove,
