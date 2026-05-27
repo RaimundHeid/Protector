@@ -124,8 +124,7 @@ static void updateFollowupMoves(Variation *variation, const int ply, Move follow
 
 static bool positionIsWellKnown(Variation *variation, Position *position, const UINT64 hashKey,
                                 Hashentry **bestTableHit, const int ply, const int alpha, const int beta,
-                                const int restDepth, const bool pvNode, Move *hashmove, const Move excludeMove,
-                                int *value)
+                                const int restDepth, const bool pvNode, Move *hashmove, int *value)
 {
     Hashentry *tableHit = getHashentry(getSharedHashtable(), hashKey);
 
@@ -145,7 +144,7 @@ static bool positionIsWellKnown(Variation *variation, Position *position, const 
             pi->staticValueAvailable = TRUE;
         }
 
-        if (pvNode == FALSE && excludeMove != NULLMOVE && restDepth <= importance && flag != HASHVALUE_EVAL) { /* 99% */
+        if (pvNode == FALSE && restDepth <= importance && flag != HASHVALUE_EVAL) { /* 99% */
             assert(flag == HASHVALUE_UPPER_LIMIT || flag == HASHVALUE_EXACT || flag == HASHVALUE_LOWER_LIMIT);
             assert(hashEntryValue >= VALUE_MATED && hashEntryValue < -VALUE_MATED);
 
@@ -260,7 +259,7 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
     /* ----------------------------- */
 
     if (positionIsWellKnown(variation, position, position->hashKey, &bestTableHit, ply, alpha, beta, hashDepth, pvNode,
-                            &hashmove, NO_MOVE, &hashValue)) {
+                            &hashmove, &hashValue)) {
         *bestMove = hashmove;
 
         return hashValue;
@@ -499,10 +498,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Probe the tablebases in case of reduced material */
     /* ------------------------------------------------ */
     if (tbAvailable && excludeMove == NO_MOVE) {
-        int numPieces = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
+        const int numPiecesTotal = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
         int wdlValue = TABLEBASE_ERROR;
 
-        if (restDepth >= 1 && numPieces <= 6) {
+        if (restDepth >= 1 && numPiecesTotal <= 6) {
             wdlValue = probeTablebaseWDL(position);
         }
 
@@ -540,7 +539,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
-                                restDepth + HASH_DEPTH_OFFSET, pvNode, &hashmove, NO_MOVE, &hashValue)) {
+                                restDepth + HASH_DEPTH_OFFSET, pvNode, &hashmove, &hashValue)) {
             *bestMove = hashmove;
 
             if (hashValue >= beta && *bestMove != NO_MOVE && moveIsQuietInPosition(*bestMove, position)) {
@@ -649,8 +648,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* ProbCut: if a capture passes both qsearch and a shallow search above a high threshold, prune */
     /* -------------------------------------------------------------------------------------------- */
-    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && excludeMove == NO_MOVE &&
-        abs(beta) <= -VALUE_ALMOST_MATED) {
+    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && abs(beta) <= -VALUE_ALMOST_MATED) {
         const int offset = (improving ? 67 : 90);
         const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + offset);
         Movelist probMovelist;
@@ -671,6 +669,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             if (makeMoveFast(variation, probMove) != 0 || passiveKingIsSafe(&variation->singlePosition) == FALSE) {
                 unmakeLastMove(variation);
                 continue;
+            }
+
+            if (excludeMove != NO_MOVE && movesAreEqual(probMove, excludeMove)) {
+                continue; /* exclude excludeMove */
             }
 
             variation->plyInfo[ply].currentMoveIsCheck = activeKingIsSafe(&variation->singlePosition) == FALSE;
