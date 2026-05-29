@@ -497,7 +497,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Probe the tablebases in case of reduced material */
     /* ------------------------------------------------ */
-    if (tbAvailable && excludeMove == NO_MOVE) {
+    if (tbAvailable && (excludeMove == NO_MOVE || excludeMove == NULLMOVE)) {
         const int numPiecesTotal = position->numberOfPieces[WHITE] + position->numberOfPieces[BLACK];
         int wdlValue = TABLEBASE_ERROR;
 
@@ -535,7 +535,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Probe the transposition table */
     /* ----------------------------- */
-    if (excludeMove == NO_MOVE) {
+    if (excludeMove == NO_MOVE || excludeMove == NULLMOVE) {
         int hashValue;
 
         if (positionIsWellKnown(variation, position, hashKey, &bestTableHit, ply, alpha, beta,
@@ -611,8 +611,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 nullValue = beta;
             }
 
-            if (restDepth < 6 ||
-                searchBest(variation, alpha, beta, ply, newDepth, &bestReply, FALSE, FALSE, NULLMOVE) >= beta) {
+            if (restDepth < 6) {
+                return nullValue;
+            } else if (searchBest(variation, alpha, beta, ply, max(1, newDepth), &bestReply, FALSE, FALSE, NULLMOVE) >=
+                       beta) {
                 best = nullValue;
                 goto storeResult;
             }
