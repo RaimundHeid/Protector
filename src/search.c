@@ -714,6 +714,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         int value;
         const int historyIndexMove = historyIndex(currentMove, position);
         const bool quietMove = moveIsQuiet(currentMove, position, stage);
+        int quietMoveDecrement = 0;
         int reductions =
             (log1024[restDepth] * log1024[numMovesPlayed] * (improving ? 4 : 5)) / 8704 + (cutNode ? 2048 : 0);
         int extensions = 0;
@@ -736,7 +737,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Optimistic futility cuts */
         /* ------------------------ */
-        if (pvNode == FALSE && inCheck == FALSE && quietMove && best > VALUE_ALMOST_MATED && numMovesPlayed > 1) {
+        if (pvNode == FALSE && inCheck == FALSE && stage == MGS_REST && best > VALUE_ALMOST_MATED &&
+            numMovesPlayed > 1) {
             if (numMovesPlayed >= (improving ? 79 : 45) * (3 + restDepth * restDepth) / 64) {
                 continue;
             }
@@ -756,6 +758,10 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
             const MoveHistoryEntry *histEntry = &variation->moveHistory[ply][historyIndexMove];
             const int plyScore = (int)(16000LL * (histEntry->succ + 1) / (histEntry->freq + 2) - 8000LL);
             reductions = max(0, reductions - plyScore / 8);
+
+            if (stage == MGS_REST && numMovesPlayed >= 4 && histEntry->freq >= 5 && plyScore < 0) {
+                quietMoveDecrement += 1;
+            }
         }
 
         /* Single move extension check */
@@ -812,7 +818,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         const bool reduce = numMovesPlayed > 1 && reductions >= 1024 && extensions == 0 && inCheck == FALSE &&
                             restDepth >= 3 && stage == MGS_REST;
-        const int decrement = pvNode == FALSE && hashmove == NO_MOVE && restDepth >= 4 ? 2 : 1;
+        const int decrement = quietMoveDecrement + pvNode == FALSE && hashmove == NO_MOVE && restDepth >= 4 ? 2 : 1;
         const int pvDepth = restDepth - decrement + extensions / 1024;
         const int reducedDepth = restDepth - decrement - reductions / 1024;
         const bool pvSearch = pvNode && numMovesPlayed == 0;
@@ -845,7 +851,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         unmakeLastMove(variation);
         numMovesPlayed++;
 
-        if (quietMove && inCheck == FALSE) {
+        if (quietMove) {
             quietMoveIndex[quietMoveCount++] = historyIndex(currentMove, position);
         }
 
