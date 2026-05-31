@@ -1004,9 +1004,8 @@ static void registerBestMove(Variation *variation, Move *move, const int value)
     }
 }
 
-static int getBaseMoveValue(Variation *variation, const Move move, const int alpha, const int beta)
+static int getBaseMoveValue(Variation *variation, const Move move, const int alpha, const int beta, int depth)
 {
-    int depth = variation->iteration;
     int value;
     Move bestReply;
 
@@ -1084,6 +1083,13 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
     variation->selDepth = variation->iteration;
     initializePvsOfVariation(variation);
 
+    int prevScores[MAX_MOVES_PER_POSITION];
+    const int numMoves = basemoves->numberOfMoves;
+    assert(numMoves <= MAX_MOVES_PER_POSITION);
+    for (int i = 0; i < numMoves; i++) {
+        prevScores[i] = getMoveValue(basemoves->moves[i]);
+    }
+
     do {
         int pvCount = 0, worstValue = VALUE_MATED;
         const int numPvLimit = min(basemoves->numberOfMoves, numPvs);
@@ -1140,7 +1146,31 @@ static void exploreBaseMoves(Variation *variation, Movelist *basemoves, const in
             variation->currentBaseMove = basemoves->moves[icm];
             variation->plyInfo[ply].indexCurrentMove = historyIndex(variation->currentBaseMove, position);
 
-            value = getBaseMoveValue(variation, basemoves->moves[icm], searchAlpha, beta);
+            int depth = variation->iteration;
+            bool doLmr = FALSE;
+
+            if (icm > 0 && depth >= 4 && searchBelowBest == FALSE) {
+                const int bestPrevScore = prevScores[0];
+                const int currentPrevScore = prevScores[icm];
+
+                if (abs(bestPrevScore) < -VALUE_ALMOST_MATED && abs(currentPrevScore) < -VALUE_ALMOST_MATED) {
+                    const int diff = bestPrevScore - currentPrevScore;
+                    if (diff > 80) {
+                        doLmr = TRUE;
+                        int reduction = 1;
+                        if (diff > 160 || icm >= 4) {
+                            reduction = 2;
+                        }
+                        depth = max(1, depth - reduction);
+                    }
+                }
+            }
+
+            value = getBaseMoveValue(variation, basemoves->moves[icm], searchAlpha, beta, depth);
+
+            if (doLmr && value > searchAlpha) {
+                value = getBaseMoveValue(variation, basemoves->moves[icm], searchAlpha, beta, variation->iteration);
+            }
 
             if (variation->searchStatus != SEARCH_STATUS_RUNNING && variation->iteration > 1) {
                 break;
