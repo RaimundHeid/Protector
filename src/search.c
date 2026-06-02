@@ -576,20 +576,29 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
-    if (pvNode == FALSE && inCheck == FALSE && hashmove == NO_MOVE) {
+    if (pvNode == FALSE && inCheck == FALSE && beta > VALUE_ALMOST_MATED &&
+        (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
+        const int staticValue = getStaticValue(variation);
+
         /* Razoring */
         /* -------- */
-        if (getStaticValue(variation) < alpha - 132 - 32 * restDepth * restDepth) {
+        if (staticValue < alpha - 132 - 32 * restDepth * restDepth) {
             return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
         }
 
-        /* Static pruning */
-        /* -------------- */
-        if (restDepth <= 4) {
-            const int margin = 15 + 40 * restDepth - (isImproving(variation) ? 24 : 0);
+        /* Extended Static / Futility Pruning */
+        /* ---------------------------------- */
+        if (restDepth <= 10) {
+            const int factor = 15 + 30 * restDepth - (isImproving(variation) ? 24 : 0);
+            const int margin = factor * restDepth / 8;
 
-            if (getStaticValue(variation) - margin >= beta) {
-                return beta;
+            if (staticValue - margin >= beta) {
+                if (restDepth <= 4) {
+                    return beta;
+                } else {
+                    // Soft cutoff for higher depths
+                    return (3 * beta + staticValue) / 4;
+                }
             }
         }
     }
