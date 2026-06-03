@@ -588,9 +588,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
         /* Extended Static / Futility Pruning */
         /* ---------------------------------- */
-        if (restDepth <= 10) {
-            const int factor = 15 + 30 * restDepth - (isImproving(variation) ? 24 : 0);
-            const int margin = factor * restDepth / 8;
+        if (restDepth <= 12) {
+            const int baseMargin = (20 + 4 * restDepth) * restDepth;
+            const int margin = baseMargin - (isImproving(variation) ? 20 + 5 * restDepth : 0);
 
             if (staticValue - margin >= beta) {
                 if (restDepth <= 4) {
