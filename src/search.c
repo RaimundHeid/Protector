@@ -576,20 +576,25 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     initializePlyInfo(variation);
 
-    if (pvNode == FALSE && inCheck == FALSE && beta > VALUE_ALMOST_MATED &&
-        (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
-        const int staticValue = getStaticValue(variation);
+    const int staticValue = getStaticValue(variation);
+    const bool improving = isImproving(variation) || staticValue >= beta;
 
-        /* Razoring */
-        /* -------- */
-        if (staticValue < alpha - 132 - 32 * restDepth * restDepth) {
-            return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
-        }
+    if (pvNode || inCheck) {
+        goto movesLoop;
+    }
+
+    /* Razoring */
+    /* -------- */
+    if (staticValue < alpha - 132 - 32 * restDepth * restDepth) {
+        return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
+    }
+
+    if (beta > VALUE_ALMOST_MATED && (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
 
         /* Extended Static / Futility Pruning */
         /* ---------------------------------- */
         if (restDepth <= 12) {
-            const int baseMargin = (20 + 4 * restDepth) * restDepth;
+            const int baseMargin = ((320 + 64 * restDepth) * restDepth) / 16;
             const int margin = baseMargin - (isImproving(variation) ? 20 + 5 * restDepth : 0);
 
             if (staticValue - margin >= beta) {
@@ -605,8 +610,8 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Null move pruning */
     /* ----------------- */
-    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 &&
-        abs(beta) <= -VALUE_ALMOST_MATED && getStaticValue(variation) >= beta) {
+    if (restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && abs(beta) <= -VALUE_ALMOST_MATED &&
+        staticValue >= beta) {
         const int newDepth = restDepth - 5 - restDepth / 4;
 
         makeMoveFast(variation, NULLMOVE);
@@ -630,36 +635,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         }
     }
 
-    /* Copy counter moves from ply-1 */
-    /* ----------------------------- */
-    if (ply >= 1) {
-        const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
-
-        variation->plyInfo[ply].killerMove3 = variation->counterMove1[moveIndex];
-        variation->plyInfo[ply].killerMove4 = variation->counterMove2[moveIndex];
-    } else {
-        variation->plyInfo[ply].killerMove3 = NO_MOVE;
-        variation->plyInfo[ply].killerMove4 = NO_MOVE;
-    }
-
-    /* Copy follow-up moves from ply-2 */
-    /* ------------------------------- */
-    if (ply >= 2) {
-        const int moveIndex = variation->plyInfo[ply - 2].indexCurrentMove;
-
-        variation->plyInfo[ply].killerMove5 = variation->followupMove1[moveIndex];
-        variation->plyInfo[ply].killerMove6 = variation->followupMove2[moveIndex];
-    } else {
-        variation->plyInfo[ply].killerMove5 = NO_MOVE;
-        variation->plyInfo[ply].killerMove6 = NO_MOVE;
-    }
-
-    const int staticValue = getStaticValue(variation);
-    const bool improving = isImproving(variation) || staticValue >= beta;
-
     /* ProbCut: if a capture passes both qsearch and a shallow search above a high threshold, prune */
     /* -------------------------------------------------------------------------------------------- */
-    if (pvNode == FALSE && inCheck == FALSE && restDepth >= 5 && abs(beta) <= -VALUE_ALMOST_MATED) {
+    if (restDepth >= 5 && abs(beta) <= -VALUE_ALMOST_MATED) {
         const int offset = (improving ? 67 : 90);
         const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + offset);
         Movelist probMovelist;
@@ -711,6 +689,32 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 goto storeResult;
             }
         }
+    }
+
+movesLoop:
+
+    /* Copy counter moves from ply-1 */
+    /* ----------------------------- */
+    if (ply >= 1) {
+        const int moveIndex = variation->plyInfo[ply - 1].indexCurrentMove;
+
+        variation->plyInfo[ply].killerMove3 = variation->counterMove1[moveIndex];
+        variation->plyInfo[ply].killerMove4 = variation->counterMove2[moveIndex];
+    } else {
+        variation->plyInfo[ply].killerMove3 = NO_MOVE;
+        variation->plyInfo[ply].killerMove4 = NO_MOVE;
+    }
+
+    /* Copy follow-up moves from ply-2 */
+    /* ------------------------------- */
+    if (ply >= 2) {
+        const int moveIndex = variation->plyInfo[ply - 2].indexCurrentMove;
+
+        variation->plyInfo[ply].killerMove5 = variation->followupMove1[moveIndex];
+        variation->plyInfo[ply].killerMove6 = variation->followupMove2[moveIndex];
+    } else {
+        variation->plyInfo[ply].killerMove5 = NO_MOVE;
+        variation->plyInfo[ply].killerMove6 = NO_MOVE;
     }
 
     initStandardMovelist(&movelist, &variation->singlePosition, &variation->plyInfo[ply], variation->moveHistory, ply,
