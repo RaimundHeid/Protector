@@ -579,7 +579,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     const int staticValue = getStaticValue(variation);
     const bool improving = isImproving(variation) || staticValue >= beta;
 
-    if (pvNode || inCheck) {
+    if (pvNode || inCheck || abs(beta) > -VALUE_ALMOST_MATED) {
         goto movesLoop;
     }
 
@@ -589,29 +589,20 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
         return searchBestQuiescence(variation, alpha, beta, ply, 0, bestMove, pvNode);
     }
 
-    if (beta > VALUE_ALMOST_MATED && (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
+    /* Static Futility Pruning */
+    /* ----------------------- */
+    if (restDepth <= 12 && (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
+        const int baseMargin = ((320 + 64 * restDepth) * restDepth) / 16;
+        const int margin = baseMargin - (isImproving(variation) ? 20 + 5 * restDepth : 0);
 
-        /* Extended Static / Futility Pruning */
-        /* ---------------------------------- */
-        if (restDepth <= 12) {
-            const int baseMargin = ((320 + 64 * restDepth) * restDepth) / 16;
-            const int margin = baseMargin - (isImproving(variation) ? 20 + 5 * restDepth : 0);
-
-            if (staticValue - margin >= beta) {
-                if (restDepth <= 4) {
-                    return beta;
-                } else {
-                    // Soft cutoff for higher depths
-                    return (3 * beta + staticValue) / 4;
-                }
-            }
+        if (staticValue - margin >= beta) {
+            return (3 * beta + staticValue) / 4;
         }
     }
 
     /* Null move pruning */
     /* ----------------- */
-    if (restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && abs(beta) <= -VALUE_ALMOST_MATED &&
-        staticValue >= beta) {
+    if (restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && staticValue >= beta) {
         const int newDepth = restDepth - 5 - restDepth / 4;
 
         makeMoveFast(variation, NULLMOVE);
@@ -637,7 +628,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* ProbCut: if a capture passes both qsearch and a shallow search above a high threshold, prune */
     /* -------------------------------------------------------------------------------------------- */
-    if (restDepth >= 5 && abs(beta) <= -VALUE_ALMOST_MATED) {
+    if (restDepth >= 5) {
         const int offset = (improving ? 67 : 90);
         const int probCutBeta = min(-VALUE_ALMOST_MATED, beta + offset);
         Movelist probMovelist;
