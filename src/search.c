@@ -262,7 +262,9 @@ static int searchBestQuiescence(Variation *variation, int alpha, int beta, const
                             &hashmove, &hashValue)) {
         *bestMove = hashmove;
 
-        return hashValue;
+        if (pvNode == FALSE) {
+            return hashValue;
+        }
     }
 
     if (hashmove != NO_MOVE && inCheck == FALSE && moveIsQuietInPosition(hashmove, position)) {
@@ -550,7 +552,9 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
                 registerKillerMove(&variation->plyInfo[ply], killerMove);
             }
 
-            return hashValue;
+            if (pvNode == FALSE) {
+                return hashValue;
+            }
         }
     }
 
@@ -592,7 +596,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
     /* Static Futility Pruning */
     /* ----------------------- */
     if (restDepth <= 12 && (hashmove == NO_MOVE || moveIsQuietInPosition(hashmove, position) == FALSE)) {
-        const int baseMargin = ((320 + 64 * restDepth) * restDepth) / 16;
+        const int baseMargin = ((320 + 88 * restDepth) * restDepth) / 16;
         const int margin = baseMargin - (isImproving(variation) ? 20 + 5 * restDepth : 0);
 
         if (staticValue - margin >= beta) {
@@ -602,7 +606,7 @@ static int searchBest(Variation *variation, int alpha, int beta, const int ply, 
 
     /* Null move pruning */
     /* ----------------- */
-    if (restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && staticValue >= beta) {
+    if (cutNode && restDepth >= 2 && excludeMove == NO_MOVE && numPieces >= 2 && staticValue >= beta) {
         const int newDepth = restDepth - 5 - restDepth / 4;
 
         makeMoveFast(variation, NULLMOVE);
