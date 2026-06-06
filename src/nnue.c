@@ -98,25 +98,7 @@ static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const i
     }
 }
 
-static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
-{
-    const __m256i zero = _mm256_setzero_si256();
-    const __m256i max255 = _mm256_set1_epi16(255);
-    const int16_t *sides[2] = {acc0, acc1};
-    for (int p = 0; p < 2; p++) {
-        const int16_t *acc = sides[p];
-        for (int i = 0; i < L1_SMALL / 2; i += 16) {
-            __m256i v0 =
-                _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256((const __m256i *)(acc + i)), zero), max255);
-            __m256i v1 = _mm256_min_epi16(
-                _mm256_max_epi16(_mm256_load_si256((const __m256i *)(acc + L1_SMALL / 2 + i)), zero), max255);
-            __m256i prod = _mm256_srli_epi16(_mm256_mullo_epi16(v0, v1), 9);
-            __m128i lo = _mm256_castsi256_si128(prod);
-            __m128i hi = _mm256_extracti128_si256(prod, 1);
-            _mm_store_si128((__m128i *)(out + p * (L1_SMALL / 2) + i), _mm_packus_epi16(lo, hi));
-        }
-    }
-}
+
 
 static void transform_big(const int16_t *restrict bv0, const int16_t *restrict tv0, const int16_t *restrict bv1,
                           const int16_t *restrict tv1, uint8_t *restrict out)
@@ -242,21 +224,7 @@ static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const i
     }
 }
 
-static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
-{
-    const int16x8_t vmax = vdupq_n_s16(255);
-    const int16x8_t vzero = vdupq_n_s16(0);
-    const int16_t *sides[2] = {acc0, acc1};
-    for (int p = 0; p < 2; p++) {
-        const int16_t *acc = sides[p];
-        for (int i = 0; i < L1_SMALL / 2; i += 8) {
-            int16x8_t v0 = vminq_s16(vmaxq_s16(vld1q_s16(acc + i), vzero), vmax);
-            int16x8_t v1 = vminq_s16(vmaxq_s16(vld1q_s16(acc + L1_SMALL / 2 + i), vzero), vmax);
-            uint16x8_t prod = vshrq_n_u16(vmulq_u16(vreinterpretq_u16_s16(v0), vreinterpretq_u16_s16(v1)), 9);
-            vst1_u8(out + p * (L1_SMALL / 2) + i, vmovn_u16(prod));
-        }
-    }
-}
+
 
 static void transform_big(const int16_t *restrict bv0, const int16_t *restrict tv0, const int16_t *restrict bv1,
                           const int16_t *restrict tv1, uint8_t *restrict out)
@@ -358,18 +326,7 @@ static inline void copy_add_weights_int8_to_int16(int16_t *restrict dst, const i
         dst[i] = src[i] + add_w[i];
 }
 
-static void transform_small(const int16_t *restrict acc0, const int16_t *restrict acc1, uint8_t *restrict out)
-{
-    const int16_t *sides[2] = {acc0, acc1};
-    for (int p = 0; p < 2; p++) {
-        const int16_t *acc = sides[p];
-        for (int i = 0; i < L1_SMALL / 2; i++) {
-            int32_t c0 = max(0, min(255, (int32_t)acc[i]));
-            int32_t c1 = max(0, min(255, (int32_t)acc[L1_SMALL / 2 + i]));
-            out[p * (L1_SMALL / 2) + i] = (uint8_t)((c0 * c1) / 512);
-        }
-    }
-}
+
 
 static void transform_big(const int16_t *restrict bv0, const int16_t *restrict tv0, const int16_t *restrict bv1,
                           const int16_t *restrict tv1, uint8_t *restrict out)
@@ -414,7 +371,7 @@ static void fc_u8s8(int32_t *restrict out, const int32_t *restrict bias, const u
 // ===== End SIMD helpers =====
 
 // Constants from Stockfish
-static const uint32_t NNUE_VERSION = 0x7AF32F20u;
+static const uint32_t NNUE_VERSION = 0x6A448AFAu;
 #define LEB128_MAGIC_STRING_SIZE (sizeof("COMPRESSED_LEB128") - 1)
 
 #define FT_INPUT_DIMENSIONS (64 * 11 * 64 / 2) // 22528
@@ -451,23 +408,7 @@ static const uint32_t NNUE_VERSION = 0x7AF32F20u;
     static const uint8_t name##_end[1] = {0};
 #endif
 
-INCBIN(small_nnue_model, "nn-47fc8b7fff06.nnue")
-INCBIN(big_nnue_model, "nn-83a0d6daf7e5.nnue")
-
-// Small Feature transformer data
-static int16_t small_ft_biases[L1_SMALL] __attribute__((aligned(64)));
-static int16_t small_ft_weights[L1_SMALL * FT_INPUT_DIMENSIONS] __attribute__((aligned(64)));
-static int32_t small_ft_psqt_weights[FT_INPUT_DIMENSIONS * 8] __attribute__((aligned(64)));
-
-// Small Network layers (8 stacks)
-static int32_t small_fc0_biases[LAYER_STACKS][L2_SMALL + 1] __attribute__((aligned(64)));
-static int8_t small_fc0_weights[LAYER_STACKS][(L2_SMALL + 1) * L1_SMALL] __attribute__((aligned(64)));
-
-static int32_t small_fc1_biases[LAYER_STACKS][L3_SMALL] __attribute__((aligned(64)));
-static int8_t small_fc1_weights[LAYER_STACKS][L3_SMALL * 32] __attribute__((aligned(64)));
-
-static int32_t small_fc2_biases[LAYER_STACKS][1] __attribute__((aligned(64)));
-static int8_t small_fc2_weights[LAYER_STACKS][1 * L3_SMALL] __attribute__((aligned(64)));
+INCBIN(big_nnue_model, "nn-71d6d32cb962.nnue")
 
 // Big Feature transformer data
 static int16_t big_ft_biases[L1_BIG] __attribute__((aligned(64)));
@@ -1119,27 +1060,6 @@ static void buildThreatDirtyList(ThreatDirtyList *dl, Position *pos, int added_c
         enumDiscoveries(dl, cap_sq, old_occ, new_occ, NO_SQUARE, NO_PIECE, to_sq, pos);
 }
 
-static void applyThreatDirtyList(const ThreatDirtyList *dl, Accumulator *next, Position *pos)
-{
-    for (int i = 0; i < dl->count; i++) {
-        const ThreatDirty *e = &dl->entries[i];
-        for (int p = 0; p < 2; p++) {
-            uint32_t idx =
-                make_threat_index((Color)p, e->attacker, (Square)e->from, (Square)e->to, e->attacked, pos->king[p]);
-            if (idx >= THREAT_INPUT_DIMENSIONS)
-                continue;
-            if (e->add) {
-                add_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
-                for (int j = 0; j < 8; j++)
-                    next->big_threat_psqtAccumulation[p][j] += big_ft_threat_psqt_weights[idx * 8 + j];
-            } else {
-                sub_weights_int8_to_int16(next->big_threat_v[p], big_ft_threat_weights + idx * L1_BIG, L1_BIG);
-                for (int j = 0; j < 8; j++)
-                    next->big_threat_psqtAccumulation[p][j] -= big_ft_threat_psqt_weights[idx * 8 + j];
-            }
-        }
-    }
-}
 
 /* forward declaration — defined after resetFinnyTable */
 void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finny, int p);
@@ -1197,9 +1117,6 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
         int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
         if (idx < 0)
             continue;
-        sub_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-        for (int i = 0; i < 8; i++)
-            next->small_psqtAccumulation[p][i] -= small_ft_psqt_weights[idx * 8 + i];
         if (!big_v_initialized) {
             copy_sub_weights_int16(next->big_v[p], prev_big_v, big_ft_weights + idx * L1_BIG, L1_BIG);
             big_v_initialized = TRUE;
@@ -1213,9 +1130,6 @@ void updateAccumulatorOneSide(Accumulator *next, int added_count, Square *added_
         int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
         if (idx < 0)
             continue;
-        add_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-        for (int i = 0; i < 8; i++)
-            next->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
         if (!big_v_initialized) {
             copy_add_weights_int16(next->big_v[p], prev_big_v, big_ft_weights + idx * L1_BIG, L1_BIG);
             big_v_initialized = TRUE;
@@ -1273,10 +1187,8 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
     if (entry->valid) {
         /* Fast path: same position as when entry was last computed — zero diff. */
         if (entry->hashKey == pos->hashKey) {
-            memcpy(acc->small_v[p], entry->small_v, sizeof(int16_t) * L1_SMALL);
             memcpy(acc->big_v[p], entry->big_v, sizeof(int16_t) * L1_BIG);
             memcpy(acc->big_threat_v[p], entry->big_threat_v, sizeof(int16_t) * L1_BIG);
-            memcpy(acc->small_psqtAccumulation[p], entry->small_psqt, sizeof(int32_t) * 8);
             memcpy(acc->big_psqtAccumulation[p], entry->big_psqt, sizeof(int32_t) * 8);
             memcpy(acc->big_threat_psqtAccumulation[p], entry->big_threat_psqt, sizeof(int32_t) * 8);
             acc->computed[p] = TRUE;
@@ -1286,14 +1198,12 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         /* Incremental PSQ update from cached state.
            big_threat_v is deferred: copied only if incremental threat is
            possible; otherwise zeroed and rebuilt by computeThreatAccumulator. */
-        memcpy(acc->small_v[p], entry->small_v, sizeof(int16_t) * L1_SMALL);
         memcpy(acc->big_v[p], entry->big_v, sizeof(int16_t) * L1_BIG);
-        memcpy(acc->small_psqtAccumulation[p], entry->small_psqt, sizeof(int32_t) * 8);
         memcpy(acc->big_psqtAccumulation[p], entry->big_psqt, sizeof(int32_t) * 8);
 
         int added_count = 0, removed_count = 0;
-        Square added_sq[8], removed_sq[8];
-        Piece added_pc[8], removed_pc[8];
+        Square added_sq[32], removed_sq[32];
+        Piece added_pc[32], removed_pc[32];
 
         for (Square s = A1; s <= H8; s++) {
             Piece cached_pc = entry->piece[s];
@@ -1304,14 +1214,11 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
             if (cached_pc != NO_PIECE) {
                 int idx = get_feature_index(s, cached_pc, ksq, p);
                 if (idx >= 0) {
-                    sub_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-                    for (int i = 0; i < 8; i++)
-                        acc->small_psqtAccumulation[p][i] -= small_ft_psqt_weights[idx * 8 + i];
                     sub_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
                     for (int i = 0; i < 8; i++)
                         acc->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
                 }
-                if (removed_count < 8) {
+                if (removed_count < 32) {
                     removed_sq[removed_count] = s;
                     removed_pc[removed_count++] = cached_pc;
                 }
@@ -1319,14 +1226,11 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
             if (curr_pc != NO_PIECE) {
                 int idx = get_feature_index(s, curr_pc, ksq, p);
                 if (idx >= 0) {
-                    add_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-                    for (int i = 0; i < 8; i++)
-                        acc->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
                     add_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
                     for (int i = 0; i < 8; i++)
                         acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
                 }
-                if (added_count < 8) {
+                if (added_count < 32) {
                     added_sq[added_count] = s;
                     added_pc[added_count++] = curr_pc;
                 }
@@ -1392,10 +1296,8 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
         }
     } else {
         /* Full refresh from biases */
-        memcpy(acc->small_v[p], small_ft_biases, sizeof(int16_t) * L1_SMALL);
         memcpy(acc->big_v[p], big_ft_biases, sizeof(int16_t) * L1_BIG);
         memset(acc->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
-        memset(acc->small_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
         memset(acc->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
 
@@ -1404,9 +1306,6 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
             if (pc != NO_PIECE) {
                 int idx = get_feature_index(s, pc, ksq, p);
                 if (idx >= 0) {
-                    add_weights_int16(acc->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-                    for (int i = 0; i < 8; i++)
-                        acc->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
                     add_weights_int16(acc->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
                     for (int i = 0; i < 8; i++)
                         acc->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
@@ -1419,10 +1318,8 @@ void refreshAccumulatorOneSide(Position *pos, Accumulator *acc, FinnyTable *finn
     /* Update Finny cache with the freshly computed state */
     memcpy(entry->piece, pos->piece, sizeof(Piece) * 64);
     entry->hashKey = pos->hashKey;
-    memcpy(entry->small_v, acc->small_v[p], sizeof(int16_t) * L1_SMALL);
     memcpy(entry->big_v, acc->big_v[p], sizeof(int16_t) * L1_BIG);
     memcpy(entry->big_threat_v, acc->big_threat_v[p], sizeof(int16_t) * L1_BIG);
-    memcpy(entry->small_psqt, acc->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(entry->big_psqt, acc->big_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(entry->big_threat_psqt, acc->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
     entry->valid = TRUE;
@@ -1439,54 +1336,54 @@ void updateAccumulator(const Accumulator *prev, Accumulator *next, int added_cou
                        int removed_count, Square *removed_sq, Piece *removed_pc, Square *ksq, Position *pos,
                        FinnyTable *finny)
 {
-    /* Copy only the piece-feature accumulators initially.
-       Threat accumulators are either recomputed from scratch or
-       incrementally updated from parent (via another copy). */
-    memcpy(next, prev, offsetof(Accumulator, big_threat_v));
-
     for (int p = 0; p < 2; p++) {
-        for (int j = 0; j < removed_count; j++) {
-            int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
-            if (idx < 0)
-                continue;
-            sub_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-            for (int i = 0; i < 8; i++)
-                next->small_psqtAccumulation[p][i] -= small_ft_psqt_weights[idx * 8 + i];
-            sub_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
-            for (int i = 0; i < 8; i++)
-                next->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
-        }
+        bool king_moved = FALSE;
         for (int j = 0; j < added_count; j++) {
-            int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
-            if (idx < 0)
-                continue;
-            add_weights_int16(next->small_v[p], small_ft_weights + idx * L1_SMALL, L1_SMALL);
-            for (int i = 0; i < 8; i++)
-                next->small_psqtAccumulation[p][i] += small_ft_psqt_weights[idx * 8 + i];
-            add_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
-            for (int i = 0; i < 8; i++)
-                next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
+            if (added_pc[j] == (Piece)(KING | p)) {
+                king_moved = TRUE;
+                break;
+            }
         }
-    }
 
-    ThreatDirtyList dl;
-    buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
-    if (dl.overflow) {
-        for (int p = 0; p < 2; p++) {
-            memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
-            memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
-            computeThreatAccumulator(pos, next, p);
+        if (king_moved) {
+            refreshAccumulatorOneSide(pos, next, finny, p);
+        } else {
+            /* Copy big_v and big_psqtAccumulation from prev */
+            memcpy(next->big_v[p], prev->big_v[p], sizeof(int16_t) * L1_BIG);
+            memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
+
+            for (int j = 0; j < removed_count; j++) {
+                int idx = get_feature_index(removed_sq[j], removed_pc[j], ksq[p], p);
+                if (idx < 0)
+                    continue;
+                sub_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+                for (int i = 0; i < 8; i++)
+                    next->big_psqtAccumulation[p][i] -= big_ft_psqt_weights[idx * 8 + i];
+            }
+            for (int j = 0; j < added_count; j++) {
+                int idx = get_feature_index(added_sq[j], added_pc[j], ksq[p], p);
+                if (idx < 0)
+                    continue;
+                add_weights_int16(next->big_v[p], big_ft_weights + idx * L1_BIG, L1_BIG);
+                for (int i = 0; i < 8; i++)
+                    next->big_psqtAccumulation[p][i] += big_ft_psqt_weights[idx * 8 + i];
+            }
+
+            ThreatDirtyList dl;
+            buildThreatDirtyList(&dl, pos, added_count, added_sq, added_pc, removed_count, removed_sq, removed_pc);
+            if (dl.overflow) {
+                memset(next->big_threat_v[p], 0, sizeof(int16_t) * L1_BIG);
+                memset(next->big_threat_psqtAccumulation[p], 0, sizeof(int32_t) * 8);
+                computeThreatAccumulator(pos, next, p);
+            } else {
+                /* Copy threat base only when doing incremental update. */
+                memcpy(next->big_threat_v[p], prev->big_threat_v[p], sizeof(int16_t) * L1_BIG);
+                memcpy(next->big_threat_psqtAccumulation[p], prev->big_threat_psqtAccumulation[p], sizeof(int32_t) * 8);
+                applyThreatDirtyListOneSide(&dl, next, pos, p, NULL);
+            }
+            next->computed[p] = TRUE;
         }
-    } else {
-        /* Copy threat base only when doing incremental update.
-           big_threat_v and big_threat_psqtAccumulation are adjacent in the struct,
-           so a single memcpy covers both. */
-        memcpy(next->big_threat_v, prev->big_threat_v,
-               sizeof(next->big_threat_v) + sizeof(next->big_threat_psqtAccumulation));
-        applyThreatDirtyList(&dl, next, pos);
     }
-    next->computed[0] = TRUE;
-    next->computed[1] = TRUE;
 }
 
 static const uint8_t *read_data;
@@ -1547,44 +1444,7 @@ static void read_leb128_mem(void *out, size_t count, size_t element_size)
 
 int initializeModuleNnue(void)
 {
-    // Load small net
-    read_data = small_nnue_model_data;
-    read_data_end = small_nnue_model_end;
-    read_pos = 0;
-
-    if (read_data[0] == 0 && (size_t)(read_data_end - read_data) <= 1)
-        return -1;
-
-    uint32_t version, hash, desc_size;
-    mem_read(&version, 4);
-    if (version != NNUE_VERSION)
-        return -2;
-    mem_read(&hash, 4);
-    mem_read(&desc_size, 4);
-    mem_skip(desc_size);
-
-    uint32_t ft_hash;
-    mem_read(&ft_hash, 4);
-    read_leb128_mem(small_ft_biases, L1_SMALL, 2);
-    read_leb128_mem(small_ft_weights, L1_SMALL * FT_INPUT_DIMENSIONS, 2);
-    read_leb128_mem(small_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
-
-    for (int s = 0; s < LAYER_STACKS; s++) {
-        uint32_t arch_hash;
-        mem_read(&arch_hash, 4);
-
-        // FC0
-        mem_read(small_fc0_biases[s], 4 * (L2_SMALL + 1));
-        mem_read(small_fc0_weights[s], (L2_SMALL + 1) * L1_SMALL);
-
-        // FC1
-        mem_read(small_fc1_biases[s], 4 * L3_SMALL);
-        mem_read(small_fc1_weights[s], L3_SMALL * 32);
-
-        // FC2
-        mem_read(small_fc2_biases[s], 4 * 1);
-        mem_read(small_fc2_weights[s], 1 * L3_SMALL);
-    }
+    uint32_t version, hash, desc_size, ft_hash;
 
     // Load big net
     read_data = big_nnue_model_data;
@@ -1606,13 +1466,9 @@ int initializeModuleNnue(void)
 
     // threatWeights are raw little-endian int8_t
     mem_read(big_ft_threat_weights, L1_BIG * THREAT_INPUT_DIMENSIONS);
+    read_leb128_mem(big_ft_threat_psqt_weights, THREAT_INPUT_DIMENSIONS * 8, 4);
     read_leb128_mem(big_ft_weights, L1_BIG * FT_INPUT_DIMENSIONS, 2);
-
-    // threatPsqtWeights and psqtWeights are combined in one LEB128 block
-    static int32_t combined_psqt[THREAT_INPUT_DIMENSIONS * 8 + FT_INPUT_DIMENSIONS * 8];
-    read_leb128_mem(combined_psqt, THREAT_INPUT_DIMENSIONS * 8 + FT_INPUT_DIMENSIONS * 8, 4);
-    memcpy(big_ft_threat_psqt_weights, combined_psqt, THREAT_INPUT_DIMENSIONS * 8 * 4);
-    memcpy(big_ft_psqt_weights, combined_psqt + THREAT_INPUT_DIMENSIONS * 8, FT_INPUT_DIMENSIONS * 8 * 4);
+    read_leb128_mem(big_ft_psqt_weights, FT_INPUT_DIMENSIONS * 8, 4);
 
     for (int s = 0; s < LAYER_STACKS; s++) {
         uint32_t arch_hash;
@@ -1655,7 +1511,7 @@ static inline int32_t clipped_relu(int32_t x)
 static inline int32_t sqr_clipped_relu(int32_t x)
 {
     long long v = (long long)x * x;
-    v >>= 19;
+    v >>= 21;
     return (v > 127) ? 127 : (int32_t)v;
 }
 
@@ -1672,12 +1528,10 @@ int win_rate_scaling(Position *pos)
 static void applyDirtyPieceOneSide(Accumulator *next, const Accumulator *prev, const DirtyPiece *dp, int p,
                                    Position *pos, FinnyTable *finny)
 {
-    /* Copy the cheap arrays upfront: small_v (256 B) and three psqt arrays (32 B each).
+    /* Copy the cheap arrays upfront: big_psqt (32 B).
        big_v (2 KB) and big_threat_v (2 KB) are NOT copied here; instead their copy is
        fused with the first weight add/sub inside updateAccumulatorOneSide /
        applyThreatDirtyListOneSide (one pass instead of memcpy + in-place op). */
-    memcpy(next->small_v[p], prev->small_v[p], sizeof(int16_t) * L1_SMALL);
-    memcpy(next->small_psqtAccumulation[p], prev->small_psqtAccumulation[p], sizeof(int32_t) * 8);
     memcpy(next->big_psqtAccumulation[p], prev->big_psqtAccumulation[p], sizeof(int32_t) * 8);
 
     /* For castling (two pieces move simultaneously) the threat accumulator is fully recomputed.
@@ -1752,65 +1606,7 @@ void finalizeAccumulator(Variation *var, int p)
     refreshAccumulatorOneSide(&var->singlePosition, acc, &var->finnyTable, p);
 }
 
-int evaluateNnueWithAccumulator(Position *pos, Accumulator *acc)
-{
-    assert(acc != NULL);
-    /* Note: if using lazy evaluation, finalizeAccumulator should have been called before this.
-       However, evaluateNnueWithAccumulator only takes pos and acc, not var.
-       We'll ensure it's called in the search/eval path. */
-    int p, v;
-    evaluateNnueWithAccumulatorFull(pos, acc, &p, &v);
-    int a = win_rate_scaling(pos);
-    return (p + v) * 100 / a;
-}
 
-void evaluateNnueWithAccumulatorFull(Position *pos, Accumulator *acc, int *psqt_out, int *positional_out)
-{
-    assert(acc != NULL);
-    if (!nnue_loaded) {
-        if (psqt_out)
-            *psqt_out = 0;
-        if (positional_out)
-            *positional_out = 0;
-        return;
-    }
-
-    int num_pieces = pos->numberOfPieces[WHITE] + pos->numberOfPieces[BLACK];
-    int bucket = min(7, (num_pieces - 1) / 4);
-
-    Color side = pos->activeColor;
-
-    // PSQT part: (psqtAccumulation[side] - psqtAccumulation[!side]) / 2
-    int32_t psqt = (acc->small_psqtAccumulation[side][bucket] - acc->small_psqtAccumulation[!side][bucket]) / 2;
-
-    uint8_t transformed[L1_SMALL] __attribute__((aligned(64)));
-    transform_small(acc->small_v[side], acc->small_v[!side], transformed);
-
-    int32_t fc0_out[L2_SMALL + 1];
-    fc_u8s8(fc0_out, small_fc0_biases[bucket], transformed, small_fc0_weights[bucket], L1_SMALL, L2_SMALL + 1);
-
-    // Pack activations to uint8 (values bounded to [0,127]); zero-fill padding to 32.
-    uint8_t ac0_packed[32] __attribute__((aligned(64))) = {0};
-    for (int i = 0; i < L2_SMALL; i++) {
-        ac0_packed[i] = (uint8_t)sqr_clipped_relu(fc0_out[i]);
-        ac0_packed[L2_SMALL + i] = (uint8_t)clipped_relu(fc0_out[i] >> 6);
-    }
-
-    int32_t fc1_out[L3_SMALL];
-    fc_u8s8(fc1_out, small_fc1_biases[bucket], ac0_packed, small_fc1_weights[bucket], 32, L3_SMALL);
-
-    uint8_t ac1_packed[32] __attribute__((aligned(64)));
-    for (int i = 0; i < L3_SMALL; i++)
-        ac1_packed[i] = (uint8_t)clipped_relu(fc1_out[i] >> 6);
-
-    int32_t fc2_out = small_fc2_biases[bucket][0] + dot_u8s8(ac1_packed, small_fc2_weights[bucket], L3_SMALL);
-
-    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_SMALL] * (600 * 16) / (127 * 64));
-    if (positional_out)
-        *positional_out = (fc2_out + fwdOut) / 16;
-    if (psqt_out)
-        *psqt_out = psqt / 16;
-}
 
 int evaluateBigNnueWithAccumulator(Position *pos, Accumulator *acc)
 {
@@ -1852,7 +1648,7 @@ void evaluateBigNnueWithAccumulatorFull(Position *pos, Accumulator *acc, int *ps
     uint8_t ac0_packed[64] __attribute__((aligned(64))) = {0};
     for (int i = 0; i < L2_BIG; i++) {
         ac0_packed[i] = (uint8_t)sqr_clipped_relu(fc0_out[i]);
-        ac0_packed[L2_BIG + i] = (uint8_t)clipped_relu(fc0_out[i] >> 6);
+        ac0_packed[L2_BIG + i] = (uint8_t)clipped_relu(fc0_out[i] >> 7);
     }
 
     int32_t fc1_out[L3_BIG];
@@ -1864,55 +1660,16 @@ void evaluateBigNnueWithAccumulatorFull(Position *pos, Accumulator *acc, int *ps
 
     int32_t fc2_out = big_fc2_biases[bucket][0] + dot_u8s8(ac1_packed, big_fc2_weights[bucket], L3_BIG);
 
-    int32_t fwdOut = (int32_t)((int64_t)fc0_out[L2_BIG] * (600 * 16) / (127 * 64));
+    int32_t fwdSum = fc2_out + fc0_out[L2_BIG];
+    int32_t scaledVal = (int32_t)(((int64_t)fwdSum * 600 * 16) / 16384);
     if (positional_out)
-        *positional_out = (fc2_out + fwdOut) / 16;
+        *positional_out = scaledVal / 16;
     if (psqt_out)
         *psqt_out = psqt / 16;
 }
 
 #ifndef NDEBUG
-static int testNnuePlausibility(void)
-{
-    typedef struct {
-        const char *fen;
-        const char *description;
-        int expected_psqt;
-        int expected_positional;
-    } NnueTestCase;
 
-    NnueTestCase cases[] = {
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 0, 252},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", 59, 116},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -107, 204},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", 23, -36},
-        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -2295, 191},
-        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 2439, 235},
-        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -11, 194},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 0, 103},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -164, -655},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 1425, -345}};
-
-    int result = 0;
-    for (int i = 0; i < 10; i++) {
-        Variation *variation = calloc(1, sizeof(Variation));
-        initializeVariation(variation, cases[i].fen);
-        refreshAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator,
-                           &variation->finnyTable);
-        int psqt, positional;
-        evaluateNnueWithAccumulatorFull(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator,
-                                        &psqt, &positional);
-        logDebug("Nnue Test Case %d (%s): psqt %d (expected %d), positional %d (expected %d)\n", i,
-                 cases[i].description, psqt, cases[i].expected_psqt, positional, cases[i].expected_positional);
-        if (psqt != cases[i].expected_psqt || positional != cases[i].expected_positional) {
-            logDebug("Nnue Plausibility failed for case %d: psqt %d != %d or positional %d != %d\n", i, psqt,
-                     cases[i].expected_psqt, positional, cases[i].expected_positional);
-            result = -1;
-        }
-        free(variation);
-    }
-    return result;
-}
 
 static int testBigNnuePlausibility(void)
 {
@@ -1924,17 +1681,17 @@ static int testBigNnuePlausibility(void)
     } NnueTestCase;
 
     NnueTestCase cases[] = {
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 0, 33},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -70, 143},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -25, 45},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -39, 159},
-        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -2422, 610},
-        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 2479, 647},
-        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -23, 30},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 0, 13},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -170, -608},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 1499, -510},
-        {"8/4k3/3p2p1/2p2p1p/2r1pP1P/p5P1/P2K4/1B4R1 w - - 0 55", "Target FEN Position", 78, -284}};
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos", 0, 12},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening", -38, 65},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense", -31, 96},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad (White)", -67, 191},
+        {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12", "Equal Middle game (Black)", -2361, 415},
+        {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1", "White advantage (White)", 2404, 703},
+        {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1", "Middle heavy (Black)", -4, 13},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn (White)", 0, -2},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning (Black)", -170, -831},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook (White)", 1402, -295},
+        {"8/4k3/3p2p1/2p2p1p/2r1pP1P/p5P1/P2K4/1B4R1 w - - 0 55", "Target FEN Position", 14, -266}};
 
     int result = 0;
     for (int i = 0; i < 11; i++) {
@@ -4357,13 +4114,6 @@ static int compareAccumulators(Variation *variation, Accumulator *refreshed, int
     finalizeAccumulator(variation, BLACK);
     Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
     for (int p = 0; p < 2; p++) {
-        for (int j = 0; j < L1_SMALL; j++) {
-            if (current->small_v[p][j] != refreshed->small_v[p][j]) {
-                logReport("%s: Small Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
-                          moveType, ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
-                return -1;
-            }
-        }
         for (int j = 0; j < L1_BIG; j++) {
             if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                 logReport("%s: Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n", moveType,
@@ -4377,12 +4127,6 @@ static int compareAccumulators(Variation *variation, Accumulator *refreshed, int
             }
         }
         for (int j = 0; j < 8; j++) {
-            if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
-                logReport("%s: Small PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
-                          moveType, ply, p, j, current->small_psqtAccumulation[p][j],
-                          refreshed->small_psqtAccumulation[p][j]);
-                return -1;
-            }
             if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
                 logReport("%s: Big PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
                           moveType, ply, p, j, current->big_psqtAccumulation[p][j],
@@ -4588,20 +4332,11 @@ int testModuleNnue(void)
         finalizeAccumulator(variation, WHITE);
         finalizeAccumulator(variation, BLACK);
         int eval =
-            evaluateNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
+            evaluateBigNnueWithAccumulator(&variation->singlePosition, &variation->plyInfo[variation->ply].accumulator);
         logDebug("Ply %d eval: %d\n", variation->ply, eval);
 
         Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
         for (int p = 0; p < 2; p++) {
-            for (int j = 0; j < L1_SMALL; j++) {
-                if (current->small_v[p][j] != refreshed->small_v[p][j]) {
-                    logDebug("Small Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
-                             variation->ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
-                    free(refreshed);
-                    free(variation);
-                    return -1;
-                }
-            }
             for (int j = 0; j < L1_BIG; j++) {
                 if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                     logDebug("Big Accumulator inconsistency at ply %d, perspective %d, index %d: %d != %d\n",
@@ -4612,14 +4347,6 @@ int testModuleNnue(void)
                 }
             }
             for (int j = 0; j < 8; j++) {
-                if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
-                    logDebug("Small PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
-                             variation->ply, p, j, current->small_psqtAccumulation[p][j],
-                             refreshed->small_psqtAccumulation[p][j]);
-                    free(refreshed);
-                    free(variation);
-                    return -1;
-                }
                 if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
                     logDebug("Big PSQT Accumulator inconsistency at ply %d, perspective %d, bucket %d: %d != %d\n",
                              variation->ply, p, j, current->big_psqtAccumulation[p][j],
@@ -4662,16 +4389,6 @@ int testModuleNnue(void)
         finalizeAccumulator(variation, BLACK);
         Accumulator *current = &variation->plyInfo[variation->ply].accumulator;
         for (int p = 0; p < 2; p++) {
-            for (int j = 0; j < L1_SMALL; j++) {
-                if (current->small_v[p][j] != refreshed->small_v[p][j]) {
-                    logDebug(
-                        "Small Accumulator inconsistency after unmake at ply %d, perspective %d, index %d: %d != %d\n",
-                        variation->ply, p, j, current->small_v[p][j], refreshed->small_v[p][j]);
-                    free(refreshed);
-                    free(variation);
-                    return -1;
-                }
-            }
             for (int j = 0; j < L1_BIG; j++) {
                 if (current->big_v[p][j] != refreshed->big_v[p][j]) {
                     logDebug(
@@ -4691,15 +4408,6 @@ int testModuleNnue(void)
                 }
             }
             for (int j = 0; j < 8; j++) {
-                if (current->small_psqtAccumulation[p][j] != refreshed->small_psqtAccumulation[p][j]) {
-                    logDebug("Small PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: "
-                             "%d != %d\n",
-                             variation->ply, p, j, current->small_psqtAccumulation[p][j],
-                             refreshed->small_psqtAccumulation[p][j]);
-                    free(refreshed);
-                    free(variation);
-                    return -1;
-                }
                 if (current->big_psqtAccumulation[p][j] != refreshed->big_psqtAccumulation[p][j]) {
                     logDebug("Big PSQT Accumulator inconsistency after unmake at ply %d, perspective %d, bucket %d: %d "
                              "!= %d\n",
@@ -4721,12 +4429,6 @@ int testModuleNnue(void)
             }
         }
         free(refreshed);
-    }
-
-    res = testNnuePlausibility();
-    if (res != 0) {
-        free(variation);
-        return res;
     }
 
     res = testBigNnuePlausibility();

@@ -40,26 +40,11 @@ int getValue(const Position *position, Accumulator *acc, int optimism)
 {
     assert(acc != NULL);
 
-    // Use precomputed materialBalance (white minus black, Stockfish values) for
-    // small-net selection, and materialCount (total material blend) for the formula.
-    int se = (position->activeColor == WHITE) ? position->materialBalance : -position->materialBalance;
-    const bool smallNet = abs(se) > 962;
-
     int psqt, positional;
 
-    if (smallNet) {
-        evaluateNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
-    } else {
-        evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
-    }
+    evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
 
     int nnue = (125 * psqt + 131 * positional) / 128;
-
-    // Re-evaluate the position when higher eval accuracy is worth the time spent
-    if (smallNet && (abs(nnue) < 277)) {
-        evaluateBigNnueWithAccumulatorFull((Position *)position, acc, &psqt, &positional);
-        nnue = (125 * psqt + 131 * positional) / 128;
-    }
 
     // Blend optimism and eval with nnue complexity
     int nnueComplexity = abs(psqt - positional);
@@ -219,20 +204,20 @@ int testGetValue(void)
     } ValueTestCase;
 
     ValueTestCase cases[] = {
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos White", 10, 12},
-        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1", "Startpos Black", 10, 12},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening White", 25, 27},
-        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 2 3", "Spanish Opening Black", 7, 9},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2", "Sicilian Defense White", 19, 21},
-        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense Black", 6, 8},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad White", 41, 43},
-        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R b K - 3 9", "QGD Carlsbad Black", -8, -6},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn White", 2, 4},
-        {"8/8/4k3/3p4/3P4/4K3/8/8 b - - 0 1", "Endgame Drawn Black", 2, 4},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 w - - 0 1", "Endgame White Winning White", 281, 283},
-        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning Black", -203, -201},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook White", 252, 254},
-        {"8/8/8/8/8/2k5/2r5/1K1Q4 b - - 0 1", "Queen vs Rook Black", -202, -200}};
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "Startpos White", 2, 4},
+        {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1", "Startpos Black", 2, 4},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", "Spanish Opening White", 8, 10},
+        {"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 2 3", "Spanish Opening Black", 8, 10},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2", "Sicilian Defense White", -3, -1},
+        {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", "Sicilian Defense Black", 22, 24},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9", "QGD Carlsbad White", 43, 45},
+        {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R b K - 3 9", "QGD Carlsbad Black", -13, -11},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1", "Endgame Drawn White", -1, 1},
+        {"8/8/4k3/3p4/3P4/4K3/8/8 b - - 0 1", "Endgame Drawn Black", -1, 1},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 w - - 0 1", "Endgame White Winning White", 289, 291},
+        {"8/8/4k3/3p1P2/3P4/4K3/8/8 b - - 0 1", "Endgame White Winning Black", -258, -256},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1", "Queen vs Rook White", 260, 262},
+        {"8/8/8/8/8/2k5/2r5/1K1Q4 b - - 0 1", "Queen vs Rook Black", -281, -279}};
 
     for (int i = 0; i < 14; i++) {
         Variation *v = calloc(1, sizeof(Variation));
@@ -271,6 +256,7 @@ int testGetValue(void)
         free(v);
     }
 
+    free(variation);
     return 0;
 }
 #endif
@@ -294,114 +280,114 @@ int testModuleEvaluation(void)
           getOrdinaryMove(E5, D6)},
          5,
          "Startpos - EP capture",
-         2},
+         12},
         {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
          {getOrdinaryMove(E1, G1), getOrdinaryMove(F8, E7), getOrdinaryMove(D2, D4), getOrdinaryMove(E5, D4)},
          4,
          "Spanish - Castling and capture",
-         49},
+         63},
         {"r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
          {getOrdinaryMove(D7, D6), getOrdinaryMove(D2, D4), getOrdinaryMove(C5, D4), getOrdinaryMove(F3, D4)},
          4,
          "Sicilian - Normal moves and capture",
-         -17},
+         0},
         {"r1b2rk1/pp1nbppp/2p1pn2/q2p2B1/2PP4/2N1PN2/PPQ2PPP/2R1KB1R w K - 3 9",
          {getOrdinaryMove(H2, H3), NULLMOVE, getOrdinaryMove(G5, H4), getOrdinaryMove(H7, H6), getOrdinaryMove(H1, H2)},
          5,
          "QGD - Normal moves",
-         90},
+         75},
         {"r4rk1/pp3ppp/2pbbn2/3p4/3P4/2N1PN2/PPQ1BPPP/R4RK1 b - - 5 12",
          {getOrdinaryMove(A7, A6), getOrdinaryMove(A2, A3), NULLMOVE, getOrdinaryMove(H2, H3), getOrdinaryMove(H7, H6)},
          5,
          "Middle game - Normal moves",
-         663},
+         830},
         {"r3k2r/pppb1ppp/2n1pn2/8/2PP4/2N2N2/PP2BPPP/R2QK2R w KQkq - 0 1",
          {getOrdinaryMove(E1, G1), getOrdinaryMove(E8, G8), getOrdinaryMove(A2, A3), NULLMOVE, getOrdinaryMove(H2, H3)},
          5,
          "Advantage - Castlings",
-         -685},
+         -495},
         {"2r2rk1/1p1q1ppp/p1p1p3/3p4/2PP4/PP1QP3/5PPP/2R2RK1 b - - 0 1",
          {getOrdinaryMove(C8, C7), getOrdinaryMove(C1, C2), getOrdinaryMove(F8, C8), getOrdinaryMove(F1, C1)},
          4,
          "Middle heavy - Normal moves",
-         -4},
+         3},
         {"8/8/4k3/3p4/3P4/4K3/8/8 w - - 0 1",
          {getOrdinaryMove(E3, F4), getOrdinaryMove(E6, F6), getOrdinaryMove(F4, G4), getOrdinaryMove(F6, G6)},
          4,
          "Endgame Pawn - King moves",
-         3},
+         0},
         {"8/4P3/8/8/8/8/8/k6K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A1, B1), getOrdinaryMove(G1, F1), getOrdinaryMove(B1, C1),
           getPackedMove(E7, E8, WHITE_QUEEN)},
          5,
          "Promotion - Pawn promotion",
-         -449},
+         -473},
         {"8/8/8/8/8/2k5/2r5/1K1Q4 w - - 0 1",
          {getOrdinaryMove(D1, C2), getOrdinaryMove(C3, C2), getOrdinaryMove(B1, A2), getOrdinaryMove(C2, B2)},
          4,
          "Endgame Queen/Rook - Captures and king moves",
-         -12},
+         -15},
         {"r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
          {getOrdinaryMove(E1, G1), NULLMOVE, getOrdinaryMove(D2, D4), getOrdinaryMove(F8, E7), getOrdinaryMove(D4, D5)},
          5,
          "Spanish - Nullmove inclusion",
-         -162},
+         -191},
         {FEN_GAMESTART,
          {getOrdinaryMove(E2, E4), getOrdinaryMove(E7, E5), getOrdinaryMove(G1, F3), RETRACT_MOVE, RETRACT_MOVE,
           getOrdinaryMove(E7, E5), getOrdinaryMove(G1, F3)},
          7,
          "Repetition via retraction",
-         -10},
+         -17},
         {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getPackedMove(E7, E8, WHITE_QUEEN)},
          3,
          "White promotion to Queen",
-         -454},
+         -512},
         {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getPackedMove(E7, E8, WHITE_ROOK)},
          3,
          "White promotion to Rook",
-         -543},
+         -478},
         {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getPackedMove(E7, E8, WHITE_BISHOP)},
          3,
          "White promotion to Bishop",
-         13},
+         9},
         {"8/4P3/8/k7/8/8/8/7K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getPackedMove(E7, E8, WHITE_KNIGHT)},
          3,
          "White promotion to Knight",
-         13},
+         12},
         {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
          {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getPackedMove(E2, E1, BLACK_QUEEN)},
          3,
          "Black promotion to Queen",
-         -454},
+         -512},
         {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
          {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getPackedMove(E2, E1, BLACK_ROOK)},
          3,
          "Black promotion to Rook",
-         -543},
+         -478},
         {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
          {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getPackedMove(E2, E1, BLACK_BISHOP)},
          3,
          "Black promotion to Bishop",
-         13},
+         9},
         {"7k/8/8/8/K7/8/4p3/8 b - - 0 1",
          {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getPackedMove(E2, E1, BLACK_KNIGHT)},
          3,
          "Black promotion to Knight",
-         13},
+         12},
         {"3r4/4P3/8/k7/8/8/8/7K w - - 0 1",
          {getOrdinaryMove(H1, G1), getOrdinaryMove(A5, B5), getPackedMove(E7, D8, WHITE_QUEEN)},
          3,
          "White promotion capture Queen",
-         -471},
+         -535},
         {"7k/8/8/8/K7/8/4p3/3R4 b - - 0 1",
          {getOrdinaryMove(H8, G8), getOrdinaryMove(A4, B4), getPackedMove(E2, D1, BLACK_QUEEN)},
          3,
          "Black promotion capture Queen",
-         -471}};
+         -535}};
 
     Variation *variation = calloc(1, sizeof(Variation));
     int i, j;
